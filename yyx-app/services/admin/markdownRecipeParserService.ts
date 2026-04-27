@@ -233,14 +233,19 @@ export const parseRecipeMarkdown = async (markdown: string): Promise<ParseRecipe
     // Process tags
     const { tags, missingTags } = processTags(data.tags, allTags);
 
-    // Resolve inferred meal-type values against existing "Meal Type" tag category.
-    // Case-insensitive match against tag names; silently skip values with no matching tag
-    // (do NOT invent tags — same rule as the main tag pipeline).
-    const MEAL_TYPE_CATEGORY_MATCH = /meal\s*type/i;
+    // Resolve inferred meal-type values against existing meal_type tags.
+    // The `tag_system_rebuild` migration (20260427022448) made "meal_type"
+    // the canonical recipe_tag_category enum value; the previous regex
+    // `/meal\s*type/i` did not match the underscore, so it was silently
+    // broken against both the old and new enum casings.
+    // Case-insensitive match against tag names; silently skip values with
+    // no matching tag (do NOT invent tags — same rule as the main tag
+    // pipeline).
+    const MEAL_TYPE_CATEGORY = "meal_type";
     const mealTypeValues: string[] = Array.isArray(data.mealTypes) ? data.mealTypes : [];
     if (mealTypeValues.length > 0) {
       const mealTypeTags = (allTags as AdminRecipeTag[]).filter(t =>
-        (t.categories || []).some((c: string) => MEAL_TYPE_CATEGORY_MATCH.test(c))
+        (t.categories || []).includes(MEAL_TYPE_CATEGORY)
       );
       const existingIds = new Set(tags.map(t => t.id));
       for (const value of mealTypeValues) {

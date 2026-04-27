@@ -22,7 +22,7 @@ import {
   STRUCTURE_DEFAULTS,
   WEEKEND_DAY_INDEXES,
 } from "./scoring-config.ts";
-import { toCanonicalMealType } from "./meal-types.ts";
+import { resolveDisplayMealLabel, toCanonicalMealType } from "./meal-types.ts";
 
 export interface MealSlot {
   slotId: string;
@@ -61,22 +61,6 @@ export interface SlotClassificationResult {
   planningOrder: MealSlot[]; // dependency-aware order
 }
 
-// Locale-specific display labels for meal types.
-// Only include entries that differ from the canonical English word.
-const LOCALE_LABELS: Record<
-  string,
-  Partial<Record<CanonicalMealType, string>>
-> = {
-  es: {
-    breakfast: "desayuno",
-    lunch: "comida",
-    dinner: "cena",
-    snack: "snack",
-    dessert: "postre",
-    beverage: "bebida",
-  },
-};
-
 function addDaysIso(startIso: string, daysToAdd: number): string {
   // Interpret startIso as UTC midnight to avoid DST surprises.
   const start = new Date(`${startIso}T00:00:00Z`);
@@ -85,23 +69,6 @@ function addDaysIso(startIso: string, daysToAdd: number): string {
   }
   const next = new Date(start.getTime() + daysToAdd * 86_400_000);
   return next.toISOString().slice(0, 10);
-}
-
-function getBaseLanguage(locale: string): string {
-  return locale.split("-")[0];
-}
-
-function resolveDisplayLabel(
-  canonical: CanonicalMealType,
-  locale: string,
-  rawInput: string,
-): string {
-  // If the caller passed the locale label already (e.g. "comida"), keep it.
-  const trimmed = rawInput.trim().toLowerCase();
-  const base = getBaseLanguage(locale);
-  const table = LOCALE_LABELS[base];
-  if (trimmed === table?.[canonical]) return trimmed;
-  return table?.[canonical] ?? canonical;
 }
 
 function uniqueSortedDays(days: number[]): number[] {
@@ -175,10 +142,10 @@ export function classifySlots(
         plannedDate: addDaysIso(input.weekStart, dayIndex),
         dayIndex,
         canonicalMealType: canonical,
-        displayMealLabel: resolveDisplayLabel(
+        displayMealLabel: resolveDisplayMealLabel(
+          rawLabel,
           canonical,
           input.locale,
-          rawLabel,
         ),
         slotKind,
         isBusyDay,

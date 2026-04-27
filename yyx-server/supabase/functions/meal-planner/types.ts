@@ -15,6 +15,7 @@ export const MEAL_PLAN_ACTIONS = [
   "swap_meal",
   "skip_meal",
   "mark_meal_cooked",
+  "approve_plan",
   "generate_shopping_list",
   "get_preferences",
   "update_preferences",
@@ -78,6 +79,10 @@ export const PAIRING_BASES = [
   "role_match",
   "leftover_carry",
   "manual",
+  // User picked from a list of planner-offered swap alternatives. Distinct
+  // from `manual` (free-form pick that bypasses the planner) so analytics
+  // can separate swap-success from override behavior.
+  "swap",
 ] as const;
 
 export const MEAL_PLAN_STATUSES = ["draft", "active", "archived"] as const;
@@ -190,6 +195,16 @@ export interface SwapMealPayload {
   mealPlanId: string;
   mealPlanSlotId: string;
   reason?: string;
+  /**
+   * When present, applies the swap by replacing the slot's primary component
+   * with the chosen recipe. When absent, the handler returns up to 3 ranked
+   * alternatives without persisting anything.
+   */
+  selectedRecipeId?: string;
+}
+
+export interface ApprovePlanPayload {
+  mealPlanId: string;
 }
 
 export interface SkipMealPayload {
@@ -335,6 +350,18 @@ export interface MarkMealCookedResponse {
 
 export interface GenerateShoppingListResponse {
   shoppingListId: string | null;
+  warnings: string[];
+}
+
+export interface ApprovePlanResponse {
+  plan: MealPlanResponse | null;
+  shoppingListId: string | null;
+  /**
+   * Number of slots whose merged_cooking_guide was populated by this call.
+   * Always 0 in PR #2.5 — merged-guide LLM step is deferred to a follow-up.
+   */
+  mergedGuidesGenerated: number;
+  mergedGuidesFailed: number;
   warnings: string[];
 }
 

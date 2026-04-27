@@ -608,7 +608,12 @@ export function filterByAllKeywords(
 }
 
 /**
- * Filter recipes by cuisine using tags (CULTURAL_CUISINE category).
+ * Filter recipes by cuisine using tags (`cuisine` category).
+ *
+ * The `tag_system_rebuild` migration (20260427022448) lowercased the
+ * recipe_tag_category enum: CULTURAL_CUISINE → cuisine. Anything still
+ * comparing against the old SCREAMING_CASE value silently returns zero
+ * matches in production.
  */
 function filterByCuisine(
   data: RecipeSearchResult[],
@@ -626,8 +631,7 @@ function filterByCuisine(
       const tag = join.recipe_tags;
       if (!tag) return false;
 
-      // Check if this is a CULTURAL_CUISINE tag
-      if (!tag.categories || !tag.categories.includes("CULTURAL_CUISINE")) {
+      if (!tag.categories || !tag.categories.includes("cuisine")) {
         return false;
       }
 
