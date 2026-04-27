@@ -859,6 +859,22 @@ When building features, reference the relevant implementation plan for design de
 
 ---
 
+## Skills
+
+Skills can be invoked by the user (`$review-pr 7`) or by Codex via its skill tool.
+
+| Skill | Description |
+|-------|-------------|
+| `$build-feature` | Guided 7-phase feature development — product thinking, exploration, design, implementation, review, docs |
+| `$review-pr` | PR review against project standards with structured report output |
+| `$review-changes` | Same as review-pr but for local commits before opening a PR |
+| `$review-plan` | Plan review for clarity, completeness, architecture fit, and feasibility before implementation |
+| `$update-docs` | Syncs documentation after feature changes |
+| `$triage-review` | Triage code review findings — agree/disagree, classify as must-fix/skip/optional, produce handoff prompt |
+| `$pr-reading-guide` | Prose-style reading guide for a PR — explains must-read files so you can validate intent without reading code |
+
+---
+
 ## Code Quality Checklist
 
 Before considering your work complete, verify:
