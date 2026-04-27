@@ -1,7 +1,15 @@
 import { supabase } from '@/lib/supabase';
 import { BaseService } from '@/services/base/BaseService';
 import { AdminRecipeTag, pickTranslation } from '@/types/recipe.admin.types';
-import { formatCategoryNameToTitleCase, formatToScreamingSnakeCase, transformCategories } from '@/utils/formatters';
+
+export const CANONICAL_TAG_CATEGORIES = [
+  'cuisine',
+  'meal_type',
+  'diet',
+  'occasion',
+  'practical',
+] as const;
+
 export interface TagFilters {
   searchQuery?: string;
   sortDirection?: 'asc' | 'desc';
@@ -17,6 +25,7 @@ class AdminRecipeTagService extends BaseService {
       .from('recipe_tags')
       .select(`
         id,
+        slug,
         categories,
         translations:recipe_tag_translations (
           locale,
@@ -32,11 +41,12 @@ class AdminRecipeTagService extends BaseService {
     // Transform to admin format with translations arrays
     const tags: AdminRecipeTag[] = (data || []).map((item: any) => ({
       id: item.id,
+      slug: item.slug ?? null,
       translations: (item.translations || []).map((t: any) => ({
         locale: t.locale,
         name: t.name || '',
       })),
-      categories: transformCategories.toDisplay(item.categories || []),
+      categories: item.categories || [],
     }));
 
     // Sort by Spanish name (matching previous behavior)
@@ -50,26 +60,11 @@ class AdminRecipeTagService extends BaseService {
   }
 
   async getTagCategories(): Promise<string[]> {
-    const { data, error } = await this.supabase
-      .rpc('get_enum_values', { enum_name: 'recipe_tag_category' });
-
-    if (error) {
-      throw new Error(`Failed to fetch enum values: ${error.message}`);
-    }
-
-    return data?.map((item: { enum_value: string }) => formatCategoryNameToTitleCase(item.enum_value)).sort() || [];
+    return [...CANONICAL_TAG_CATEGORIES];
   }
 
   async createCategory(category: string): Promise<void> {
-    const { error } = await this.supabase
-      .rpc('add_enum_value', {
-        enum_name: 'recipe_tag_category',
-        new_value: formatToScreamingSnakeCase(category)
-      });
-
-    if (error) {
-      throw new Error(`Failed to create category: ${error.message}`);
-    }
+    throw new Error(`Cannot create recipe tag category "${category}". Categories are product-defined.`);
   }
 
   async createTag(tag: Omit<AdminRecipeTag, 'id'>): Promise<AdminRecipeTag> {
@@ -81,19 +76,21 @@ class AdminRecipeTagService extends BaseService {
       throw new Error('No categories provided');
     }
 
+    if (!tag.slug) {
+      throw new Error('No slug provided');
+    }
+
     if (!tag.translations || tag.translations.length === 0) {
       throw new Error('No translations provided');
     }
 
-    const categories = tag.categories.length
-      ? tag.categories.map(formatToScreamingSnakeCase)
-      : [];
+    const categories = tag.categories || [];
 
     // Insert only non-translatable fields into recipe_tags
     const { data: inserted, error: insertError } = await this.supabase
       .from('recipe_tags')
-      .insert({ categories })
-      .select('id')
+      .insert({ slug: tag.slug, categories })
+      .select('id, slug')
       .single();
 
     if (insertError) {
@@ -121,8 +118,9 @@ class AdminRecipeTagService extends BaseService {
 
     return {
       id: inserted.id,
+      slug: inserted.slug ?? tag.slug,
       translations: tag.translations,
-      categories: transformCategories.toDisplay(categories),
+      categories,
     };
   }
 
@@ -135,16 +133,20 @@ class AdminRecipeTagService extends BaseService {
       throw new Error('No categories provided');
     }
 
+    if (!tag.slug) {
+      throw new Error('No slug provided');
+    }
+
     if (!tag.translations || tag.translations.length === 0) {
       throw new Error('No translations provided');
     }
 
     // Update only non-translatable fields on recipe_tags
-    const categories = tag.categories ? transformCategories.toDatabase(tag.categories) : [];
+    const categories = tag.categories || [];
 
     const { error: updateError } = await this.supabase
       .from('recipe_tags')
-      .update({ categories })
+      .update({ slug: tag.slug, categories })
       .eq('id', id);
 
     if (updateError) {
@@ -168,8 +170,9 @@ class AdminRecipeTagService extends BaseService {
 
     return {
       id,
+      slug: tag.slug,
       translations: tag.translations,
-      categories: transformCategories.toDisplay(categories),
+      categories,
     };
   }
 

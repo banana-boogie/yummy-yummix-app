@@ -50,6 +50,7 @@ interface TranslationRow {
 
 interface RecipeTagJoin {
   recipe_tags: {
+    slug: string | null;
     recipe_tag_translations: TranslationRow[];
     categories: string[];
   } | null;
@@ -78,6 +79,21 @@ interface RecipeWithIngredients {
     } | null;
   }>;
 }
+
+const TAG_SLUG_ALIASES: Record<string, string> = {
+  americana: "american",
+  asiatica: "asian",
+  china: "chinese",
+  espanola: "spanish",
+  francesa: "french",
+  griega: "greek",
+  india: "indian",
+  italiana: "italian",
+  japonesa: "japanese",
+  mediterranea: "mediterranean",
+  mexicana: "mexican",
+  tailandesa: "thai",
+};
 
 /**
  * Resolve a recipe name from translation rows using a locale chain.
@@ -256,7 +272,7 @@ export async function searchRecipes(
       total_time,
       difficulty,
       portions,
-      recipe_to_tag ( recipe_tags ( recipe_tag_translations ( locale, name ), categories ) )
+      recipe_to_tag ( recipe_tags ( slug, recipe_tag_translations ( locale, name ), categories ) )
     `)
     .eq("is_published", true)
     .order("created_at", { ascending: false });
@@ -562,7 +578,7 @@ async function searchByTags(
       total_time,
       difficulty,
       portions,
-      recipe_to_tag ( recipe_tags ( recipe_tag_translations ( locale, name ), categories ) )
+      recipe_to_tag ( recipe_tags ( slug, recipe_tag_translations ( locale, name ), categories ) )
     `)
     .in("id", recipeIds)
     .eq("is_published", true);
@@ -608,14 +624,14 @@ export function filterByAllKeywords(
 }
 
 /**
- * Filter recipes by cuisine using tags (CULTURAL_CUISINE category).
+ * Filter recipes by cuisine using canonical cuisine tag slugs.
  */
 function filterByCuisine(
   data: RecipeSearchResult[],
   cuisine: string,
-  localeChain: string[],
+  _localeChain: string[],
 ): RecipeSearchResult[] {
-  const cuisineLower = cuisine.toLowerCase();
+  const cuisineSlug = normalizeTagSlug(cuisine);
 
   return data.filter((recipe) => {
     if (!recipe.recipe_to_tag || recipe.recipe_to_tag.length === 0) {
@@ -626,19 +642,24 @@ function filterByCuisine(
       const tag = join.recipe_tags;
       if (!tag) return false;
 
-      // Check if this is a CULTURAL_CUISINE tag
-      if (!tag.categories || !tag.categories.includes("CULTURAL_CUISINE")) {
+      if (!tag.categories || !tag.categories.includes("cuisine")) {
         return false;
       }
 
-      // Check if the cuisine matches using any available translation
-      const tagName = resolveTagName(
-        tag.recipe_tag_translations || [],
-        localeChain,
-      );
-      return tagName.toLowerCase().includes(cuisineLower);
+      return tag.slug === cuisineSlug;
     });
   });
+}
+
+function normalizeTagSlug(value: string): string {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\s-]+/g, "_");
+
+  return TAG_SLUG_ALIASES[slug] || slug;
 }
 
 /**

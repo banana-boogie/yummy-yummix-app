@@ -378,6 +378,7 @@ function makeRecipeWithTags(
     portions: 4,
     recipe_to_tag: tags.map((t) => ({
       recipe_tags: {
+        slug: t.en?.toLowerCase().replace(/\s+/g, "_") ?? null,
         recipe_tag_translations: [
           ...(t.en ? [{ locale: "en", name: t.en }] : []),
           ...(t.es ? [{ locale: "es", name: t.es }] : []),

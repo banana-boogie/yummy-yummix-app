@@ -358,6 +358,7 @@ export function adaptGeneratedRecipe(
         ),
         tags: generated.tags.map((tagName) => ({
             id: generateSyntheticId(),
+            slug: null,
             name: tagName,
             categories: [],
         })),

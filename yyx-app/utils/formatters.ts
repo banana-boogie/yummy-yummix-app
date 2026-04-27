@@ -2,10 +2,6 @@ export const formatToSnakeCase = (str: string): string => {
   return str.replace(/([\s])/g, '_').toLowerCase();
 };
 
-export const formatToScreamingSnakeCase = (str: string): string => {
-  return str.replace(/([\s])/g, '_').toUpperCase();
-};
-
 /**
  * Normalizes a filename by:
  * 1. Removing accent/diacritics (é -> e)
@@ -34,32 +30,17 @@ export const normalizeFileName = (filename: string): string => {
     .replace(/^_+|_+$/g, '');
 };
 
-/**
- * Formats a category name from SCREAMING_SNAKE_CASE to Title Case
- * Example: FOOD_AND_DRINK -> Food And Drink
- */
-export function formatCategoryNameToTitleCase(category: string): string {
-  return category
-    .toLowerCase()
-    .split('_')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
-
-/**
- * Transforms tag categories between display format (Title Case) and database format (SCREAMING_SNAKE_CASE)
- */
-export const transformCategories = {
-  // For display: FOOD_AND_DRINK -> Food And Drink
-  toDisplay: (categories: string[]): string[] => {
-    return categories.map(formatCategoryNameToTitleCase);
-  },
-  
-  // For database: Food And Drink -> FOOD_AND_DRINK
-  toDatabase: (categories: string[]): string[] => {
-    return categories.map(formatToScreamingSnakeCase);
-  }
+const CATEGORY_LABELS: Record<string, string> = {
+  cuisine: 'Cuisine',
+  meal_type: 'Meal Type',
+  diet: 'Diet',
+  occasion: 'Occasion',
+  practical: 'Practical',
 };
+
+export function formatCategoryForDisplay(category: string): string {
+  return CATEGORY_LABELS[category] ?? category;
+}
 
 export const formatTimeInHoursAndMinutes = (minutes: number | null): string => {
   if (minutes === null) return '';
@@ -71,4 +52,4 @@ export const formatTimeInHoursAndMinutes = (minutes: number | null): string => {
     return `${hours}h ${remainingMinutes}m`;
   }
   return `${remainingMinutes}m`;
-}; 
+};

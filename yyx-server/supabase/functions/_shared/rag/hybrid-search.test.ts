@@ -442,3 +442,103 @@ Deno.test("searchRecipesHybrid keeps recipes up to 50% over max time with lower 
     else Deno.env.delete("OPENAI_API_KEY");
   }
 });
+
+Deno.test("searchRecipesHybrid filters cuisine by canonical slug from Spanish label", async () => {
+  clearEmbeddingCache();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () =>
+    new Response(
+      JSON.stringify({
+        data: [{ embedding: [0.1, 0.2, 0.3] }],
+        model: "text-embedding-3-large",
+        usage: { prompt_tokens: 5 },
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+
+  const hadKey = Deno.env.get("OPENAI_API_KEY");
+  Deno.env.set("OPENAI_API_KEY", "test-key");
+
+  const mexicanId = "77777777-7777-7777-7777-777777777777";
+  const italianId = "88888888-8888-8888-8888-888888888888";
+
+  const mockSupabase = {
+    rpc: async () => ({
+      data: [
+        { recipe_id: mexicanId, similarity: 0.95 },
+        { recipe_id: italianId, similarity: 0.95 },
+      ],
+      error: null,
+    }),
+    from: () => ({
+      select: () => ({
+        in: () => ({
+          eq: async () => ({
+            data: [
+              {
+                id: mexicanId,
+                recipe_translations: [
+                  { locale: "en", name: "Tacos" },
+                  { locale: "es", name: "Tacos" },
+                ],
+                image_url: null,
+                total_time: 30,
+                difficulty: "easy",
+                portions: 2,
+                recipe_to_tag: [{
+                  recipe_tags: {
+                    slug: "mexican",
+                    categories: ["cuisine"],
+                    recipe_tag_translations: [
+                      { locale: "en", name: "Mexican" },
+                      { locale: "es", name: "Mexicana" },
+                    ],
+                  },
+                }],
+              },
+              {
+                id: italianId,
+                recipe_translations: [
+                  { locale: "en", name: "Pasta" },
+                  { locale: "es", name: "Pasta" },
+                ],
+                image_url: null,
+                total_time: 30,
+                difficulty: "easy",
+                portions: 2,
+                recipe_to_tag: [{
+                  recipe_tags: {
+                    slug: "italian",
+                    categories: ["cuisine"],
+                    recipe_tag_translations: [
+                      { locale: "en", name: "Italian" },
+                      { locale: "es", name: "Italiana" },
+                    ],
+                  },
+                }],
+              },
+            ],
+            error: null,
+          }),
+        }),
+      }),
+    }),
+  };
+
+  try {
+    const result = await searchRecipesHybrid(
+      mockSupabase as any,
+      "tacos",
+      { cuisine: "Mexicana", limit: 10 },
+      { ...BASE_USER_CONTEXT, locale: "es", localeChain: ["es"] },
+      mockSupabase as any,
+    );
+
+    assertEquals(result.method, "hybrid");
+    assertEquals(result.recipes.map((recipe) => recipe.recipeId), [mexicanId]);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (hadKey) Deno.env.set("OPENAI_API_KEY", hadKey);
+    else Deno.env.delete("OPENAI_API_KEY");
+  }
+});

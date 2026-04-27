@@ -769,8 +769,10 @@ export const admin = {
   },
   tags: {
     name: "Nombre",
+    slug: "Slug",
     searchPlaceholder: "Buscar etiquetas...",
     addNew: "Agregar Etiqueta",
+    createTag: "Crear Etiqueta",
     createTitle: "Crear Nueva Etiqueta",
     editTitle: "Editar Etiqueta",
     englishName: "Nombre en Inglés",
@@ -792,6 +794,10 @@ export const admin = {
     newCategoryTitle: "Agregar Nueva Categoría",
     categoryNamePlaceholder: "Ingrese nombre de categoría",
     categoryCreated: "Categoría creada exitosamente",
+    errors: {
+      loadCategoriesFailed: "No se pudieron cargar las categorías de etiquetas",
+      slugInvalid: "Usa lower_snake_case",
+    },
   },
   kitchenTools: {
     title: "Administrar Utensilios de Cocina",

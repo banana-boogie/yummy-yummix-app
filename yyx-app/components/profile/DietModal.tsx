@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, ScrollView, Modal, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, Pressable, StyleProp, ViewStyle } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { DietType, SELECTABLE_DIET_TYPES } from '@/types/dietary';
@@ -7,7 +7,6 @@ import i18n from '@/i18n';
 import { SelectableCard } from '@/components/common/SelectableCard';
 import { Button } from '@/components/common/Button';
 import { Feather } from '@expo/vector-icons';
-import { OtherInputField } from '@/components/form/OtherInputField';
 import { useDevice } from '@/hooks/useDevice';
 
 interface DietModalProps {
@@ -24,86 +23,30 @@ export function DietModal({
   visible,
   onClose,
   currentDietTypes,
-  currentOtherDiet,
   onSave,
   className = '',
   style,
 }: DietModalProps) {
   const [dietTypes, setDietTypes] = useState<DietType[]>(currentDietTypes);
-  const [otherDiets, setOtherDiets] = useState<string[]>(
-    currentOtherDiet.length > 0 ? currentOtherDiet : ['']
-  );
-  const [error, setError] = useState('');
-  const scrollViewRef = useRef<ScrollView>(null);
   const { isWeb } = useDevice();
 
   useEffect(() => {
     setDietTypes(currentDietTypes);
-    setOtherDiets(currentOtherDiet.length > 0 ? currentOtherDiet : ['']);
-  }, [currentDietTypes, currentOtherDiet]);
+  }, [currentDietTypes]);
 
   const handleSelect = (dietType: DietType) => {
-    if (dietType === 'none') {
-      setDietTypes(['none']);
-      setOtherDiets([]);
-      setError('');
-      return;
-    }
-
     let newDietTypes: DietType[];
     if (dietTypes.includes(dietType)) {
       newDietTypes = dietTypes.filter(d => d !== dietType);
-      if (dietType === 'other') {
-        setOtherDiets([]);
-      }
     } else {
-      newDietTypes = [...dietTypes.filter(d => d !== 'none'), dietType];
-
-      // If user selects "other", initialize a blank diet input
-      if (dietType === 'other') {
-        setOtherDiets(['']);
-        setTimeout(() => {
-          scrollViewRef.current?.scrollToEnd({ animated: true });
-        }, 100);
-      }
+      newDietTypes = [...dietTypes, dietType];
     }
     setDietTypes(newDietTypes);
   };
 
-  const handleAddOtherDiet = () => {
-    setOtherDiets([...otherDiets, '']);
-    setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, 100);
-  };
-
-  const handleOtherDietChange = (newDiets: string[]) => {
-    setOtherDiets(newDiets);
-    setError('');
-  };
-
   const handleSave = () => {
-    if (!dietTypes.length) return;
-
-    if (dietTypes.includes('other')) {
-      const validDiets = otherDiets.filter(d => d.trim().length > 0);
-      if (validDiets.length > 0) {
-        onSave(dietTypes, validDiets);
-        onClose();
-      } else {
-        setError(i18n.t('validation.otherDietRequired'));
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-        return;
-      }
-    } else {
-      onSave(dietTypes, []);
-      onClose();
-    }
-  };
-
-  const handleRemoveOtherDiet = (indexToRemove: number) => {
-    const newOtherDiets = otherDiets.filter((_, index) => index !== indexToRemove);
-    setOtherDiets(newOtherDiets);
+    onSave(dietTypes, []);
+    onClose();
   };
 
   return (
@@ -133,7 +76,6 @@ export function DietModal({
               </Text>
 
               <ScrollView
-                ref={scrollViewRef}
                 className="flex-1"
                 contentContainerStyle={{ paddingBottom: 24 }}
                 showsVerticalScrollIndicator={false}
@@ -149,16 +91,6 @@ export function DietModal({
                         className="mb-xs"
                         icon={getDietTypeIcon(dietType)}
                       />
-                      {dietType === 'other' && dietTypes.includes('other') && (
-                        <OtherInputField
-                          items={otherDiets}
-                          onItemsChange={handleOtherDietChange}
-                          placeholder={i18n.t('onboarding.steps.diet.otherPlaceholder')}
-                          error={error}
-                          onAddItem={handleAddOtherDiet}
-                          onRemoveItem={handleRemoveOtherDiet}
-                        />
-                      )}
                     </React.Fragment>
                   ))}
                 </View>
@@ -168,7 +100,7 @@ export function DietModal({
                 <Button
                   label={i18n.t('common.save')}
                   onPress={handleSave}
-                  disabled={!dietTypes.length}
+                  disabled={false}
                   className="mt-xs"
                 />
               </View>

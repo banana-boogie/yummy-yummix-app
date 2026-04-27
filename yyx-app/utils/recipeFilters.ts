@@ -18,14 +18,15 @@ export function filterByDiet(recipes: Recipe[], userProfile: UserProfile | null)
   const dietTypes = userProfile?.dietTypes ?? [];
   if (dietTypes.length === 0) return recipes.slice(0, 10);
 
-  const dietNames = new Set(dietTypes.map(d => d.toLowerCase()));
+  const dietSlugs = new Set<string>(dietTypes);
 
   return recipes
     .filter(r => {
       if (!r.tags?.length) return false;
       return r.tags.some(tag =>
-        dietNames.has(tag.name.toLowerCase()) ||
-        (tag.categories ?? []).some(cat => dietNames.has(cat.toLowerCase()))
+        (tag.categories ?? []).includes('diet') &&
+        !!tag.slug &&
+        dietSlugs.has(tag.slug)
       );
     })
     .slice(0, 10);

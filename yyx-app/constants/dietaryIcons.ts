@@ -11,17 +11,15 @@ export const DIETARY_RESTRICTION_ICONS: DietaryIcons = {
 } as const;
 
 export const DIET_TYPE_ICONS: DietTypeIcons = {
-  none: require('@/assets/images/dietary/common/thumbs-up.png'),
-  keto: require('@/assets/images/dietary/types/keto-diet.png'),
-  lactoVegetarian: require('@/assets/images/dietary/types/lacto-vegetarian-diet.png'),
-  mediterranean: require('@/assets/images/dietary/types/mediterranean-diet.png'), // Kept for backwards compatibility
-  ovoVegetarian: require('@/assets/images/dietary/types/ovo-vegetarian-diet.png'),
-  paleo: require('@/assets/images/dietary/types/paleo-diet.png'),
-  pescatarian: require('@/assets/images/dietary/types/pescatarian-diet.png'),
-  sugarFree: require('@/assets/images/dietary/types/sugar-free-diet.png'),
-  vegan: require('@/assets/images/dietary/types/vegan-diet.png'),
   vegetarian: require('@/assets/images/dietary/types/vegetarian-diet.png'),
-  other: require('@/assets/images/dietary/common/plus.png'),
+  vegan: require('@/assets/images/dietary/types/vegan-diet.png'),
+  keto: require('@/assets/images/dietary/types/keto-diet.png'),
+  low_carb: require('@/assets/images/dietary/types/keto-diet.png'),
+  paleo: require('@/assets/images/dietary/types/paleo-diet.png'),
+  low_sodium: require('@/assets/images/dietary/common/thumbs-up.png'),
+  low_sugar: require('@/assets/images/dietary/types/sugar-free-diet.png'),
+  high_protein: require('@/assets/images/dietary/types/paleo-diet.png'),
+  pescatarian: require('@/assets/images/dietary/types/pescatarian-diet.png'),
 } as const;
 
 // Cuisine icons - for cooking style preferences
@@ -68,4 +66,4 @@ export const getPreferenceIcon = (slug: string): number => {
     getCuisineIcon(slug) ??
     DIETARY_RESTRICTION_ICONS.none
   );
-}; 
+};

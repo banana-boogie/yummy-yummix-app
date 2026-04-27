@@ -62,13 +62,15 @@ export function OnboardingModal({ visible }: OnboardingModalProps) {
       const { kitchenEquipment, language: _language, ...restFormData } = formData as any;
       const normalizedPreferences = normalizeDietAndCuisinePreferences(
         formData.dietTypes ?? [],
-        formData.cuisinePreferences ?? []
+        formData.cuisinePreferences ?? [],
+        formData.otherDiet ?? [],
       );
 
       const profileUpdate = {
         ...restFormData,
         dietTypes: normalizedPreferences.dietTypes,
         cuisinePreferences: normalizedPreferences.cuisinePreferences,
+        otherDiet: normalizedPreferences.otherDiet,
         onboardingComplete: true,
         measurementSystem: formData.measurementSystem as MeasurementSystem,
         kitchen_equipment: formattedEquipment, // Use snake_case for database column
