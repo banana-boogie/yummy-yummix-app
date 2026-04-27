@@ -166,7 +166,6 @@ export interface PricingTestResponsePayload {
   priceMxn: number;
   response: PricingTestResponse;
   surveyContext: 'end_of_week_3' | 'manual';
-  cohortSegment: BetaCohort | null;
 }
 
 export interface BetaCohortAssignedPayload {

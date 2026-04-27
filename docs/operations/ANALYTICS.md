@@ -29,17 +29,39 @@ CREATE TABLE user_events (
 );
 ```
 
-Allowed event types:
-- `view_recipe`
-- `cook_start`
-- `cook_complete`
-- `search`
-- `rate_recipe` (reserved)
-- `save_recipe` (reserved)
-- `chat_message` (reserved)
-- `recipe_generate`
-- `ai_chat_start` (reserved, not instrumented yet)
-- `ai_voice_start` (reserved, not instrumented yet)
+**Source of truth for event names + payload shapes:** `yyx-app/services/analytics/eventTypes.ts` (`EventPayloadMap`).
+
+The `event_type` CHECK allowlist is kept in sync via migration. The current allowlist (see `20260413000000_expand_user_events_event_type_check.sql`) covers:
+
+- **Legacy events (active or reserved):** `view_recipe`, `cook_start`, `cook_complete`, `search`, `recipe_generate`, `action_execute`, `rate_recipe`, `save_recipe`, `chat_message`, `suggestion_click`, `ai_chat_start`, `ai_voice_start`.
+- **Plan 06 — Planner funnel:** `week_tab_viewed`, `planner_setup_started`, `planner_setup_completed`, `meal_plan_generation_started`, `meal_plan_generated`, `meal_plan_generation_failed`, `meal_plan_viewed`, `meal_plan_approved`, `meal_plan_meal_swapped`, `meal_plan_swap_failed`, `meal_plan_skipped`, `meal_plan_skip_suggestion_shown` / `_accepted` / `_dismissed`.
+- **Plan 06 — Shopping funnel:** `shopping_list_generation_started`, `shopping_list_generated_from_plan`, `shopping_list_generation_failed`, `shopping_list_opened`, `shopping_list_refreshed_from_plan`.
+- **Plan 06 — Cooking / ratings:** `planned_meal_cook_started`, `planned_meal_cook_completed`, `recipe_rated`, `recipe_difficulty_flagged_for_review`, `recipe_difficulty_override_applied`.
+- **Plan 06 — Entry / discovery:** `chat_home_action_tapped`, `explore_section_viewed`, `explore_recipe_opened`, `explore_filter_applied`.
+- **Strategy 2026-04-25 — Mi Menú surface + decision metrics** (back the 5-metric decision filter + cohort breakdown + willingness-to-pay): `mi_menu_today_viewed`, `mi_menu_today_cook_tapped`, `mi_menu_today_swap_tapped`, `mi_menu_week_view_opened`, `pricing_test_response`, `beta_cohort_assigned`, `founder_session_opened`.
+
+To add a new event:
+1. Add an entry to `EventPayloadMap` (with a `*Payload` interface for the shape).
+2. Create a new migration that extends the `user_events_event_type_check` allowlist.
+3. Wire the call-site through `eventService.trackEvent({ name, payload }, envelope)` — never widen the name to a string.
+4. Update this doc.
+
+References:
+- Plan 06: `product-kitchen/repeat-what-works/plans/06-analytics-and-metrics.md`
+- 5-metric decision filter + kill criteria: `product-kitchen/PRODUCT_STRATEGY.md` (Success Metrics) and `product-kitchen/repeat-what-works/plans/EXECUTION.md` (Gates).
+
+### Common envelope
+
+Every event tracked via `trackEvent` carries an `AnalyticsEnvelope` of cross-cutting metadata:
+
+| Field           | Type                                               | Notes                                                                 |
+|-----------------|----------------------------------------------------|-----------------------------------------------------------------------|
+| `locale`        | `string`                                           | User UI locale (e.g. `'es-MX'`).                                      |
+| `appPlatform`   | `'ios' \| 'android' \| 'web'`                      | Derived automatically from `Platform.OS`; not caller-supplied.        |
+| `sourceSurface` | `'week' \| 'chat' \| 'explore' \| 'profile' \| 'shopping' \| null` | Canonical Plan 06 surface union. More granular contexts (`recipe_detail`, `notification`) live in event-specific payload fields, not the envelope. |
+| `cohortSegment` | `'sofia' \| 'lupita' \| null`                      | Beta cohort. Funnel queries must filter by this to support kill-criteria decisions (week-2 return ≥ 8/15, willingness-to-pay ≥ 5/15). Set at beta enrollment. |
+
+The envelope is currently flattened into `payload._envelope` until a backfill migration adds top-level `locale`, `app_platform`, `source_surface`, `cohort_segment` columns. Funnel queries should read from `payload->'_envelope'` until then.
 
 ## 2) Text AI usage (`ai_usage_logs`)
 
@@ -71,12 +93,26 @@ For admin reporting, voice cost uses **actual stored DB cost**, not a UI estimat
 
 Source service: `yyx-app/services/eventService.ts`
 
-Tracked methods:
+**Preferred entry point** for all new events:
+
+```ts
+eventService.trackEvent(
+  { name: 'meal_plan_approved', payload: { mealPlanId, weekStart, ... } },
+  { locale: 'es-MX', sourceSurface: 'week', cohortSegment: 'sofia' },
+);
+```
+
+The discriminated `AnalyticsEvent` shape (`{ name, payload }`) keeps the name/payload correlation under the union, so TypeScript rejects mismatched pairs at compile time. Type-level regressions in `services/__tests__/eventService.test.ts` lock this strictness.
+
+**Legacy `logXxx` helpers** (kept for backwards compatibility, pre-date the envelope):
 - `logRecipeView(recipeId, recipeName)`
 - `logCookStart(recipeId, recipeName)`
 - `logCookComplete(recipeId, recipeName)`
 - `logSearch(query)`
 - `logRecipeGenerate(recipeName, success, durationMs)`
+- `logActionExecute(actionType, source, path)`
+
+These ship a `LEGACY_ENVELOPE_INPUT` (empty locale, null `sourceSurface`, null `cohortSegment`). Feature PRs migrating these call-sites to `trackEvent(...)` should supply real envelope values.
 
 Current behavior note:
 - If auth user cache is not ready yet, events are dropped. This is intentional and matches existing event behavior.
@@ -192,3 +228,10 @@ When adding a new customer AI flow:
 3. Ensure metadata stays non-sensitive
 4. Add tests for success/partial/error paths
 5. Update this doc if new metrics or pricing behavior changes
+
+When adding a new product event:
+1. Add the entry + payload interface to `EventPayloadMap` in `yyx-app/services/analytics/eventTypes.ts`.
+2. Create a migration that extends the `user_events_event_type_check` allowlist.
+3. Wire the call-site through `eventService.trackEvent({ name, payload }, envelope)`.
+4. Set `cohortSegment` on the envelope so funnel queries can group by beta cohort.
+5. Update the event list in this doc.
