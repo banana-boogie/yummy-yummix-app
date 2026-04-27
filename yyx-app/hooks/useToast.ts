@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { logger } from '@/services/logger';
 
 export interface ToastOptions {
   duration?: number;
@@ -23,7 +24,7 @@ export function useToast(): UseToastReturn {
     if (options?.haptic !== false) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     }
-    if (__DEV__) console.log('[toast:success]', message, description ?? '');
+    logger.info('[toast:success]', message, description ?? '');
   }, []);
 
   const showError = useCallback((message: string, description?: string, options?: ToastOptions) => {
@@ -34,14 +35,14 @@ export function useToast(): UseToastReturn {
   }, []);
 
   const showInfo = useCallback((message: string, description?: string, _options?: ToastOptions) => {
-    if (__DEV__) console.log('[toast:info]', message, description ?? '');
+    logger.info('[toast:info]', message, description ?? '');
   }, []);
 
   const showWarning = useCallback((message: string, description?: string, options?: ToastOptions) => {
     if (options?.haptic !== false) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
     }
-    if (__DEV__) console.log('[toast:warning]', message, description ?? '');
+    logger.warn('[toast:warning]', message, description ?? '');
   }, []);
 
   const hide = useCallback(() => {}, []);

@@ -1,7 +1,9 @@
+import i18n from '@/i18n';
 import { BaseCache, CacheConfig } from './baseCache';
 import { ShoppingListWithItems, ShoppingList, ShoppingCategory } from '@/types/shopping-list.types';
 
 const getUserKey = (userId?: string) => userId ?? 'anon';
+const getLocaleKey = () => i18n.locale || 'en';
 
 // Cache config: 30 minutes for lists, 7 days for categories (static)
 const SHOPPING_LIST_CACHE_CONFIG: CacheConfig = {
@@ -29,15 +31,17 @@ class ShoppingListDetailCache extends BaseCache<ShoppingListWithItems> {
     }
 
     async getList(listId: string, userId?: string): Promise<ShoppingListWithItems | undefined> {
-        return this.getItem(`${getUserKey(userId)}:${listId}`);
+        return this.getItem(`${getUserKey(userId)}:${getLocaleKey()}:${listId}`);
     }
 
     async setList(listId: string, list: ShoppingListWithItems, userId?: string): Promise<void> {
-        return this.setItem(`${getUserKey(userId)}:${listId}`, list);
+        return this.setItem(`${getUserKey(userId)}:${getLocaleKey()}:${listId}`, list);
     }
 
     async invalidateList(listId: string, userId?: string): Promise<void> {
-        return this.invalidateItem(`${getUserKey(userId)}:${listId}`);
+        // Invalidate across both locales so a language toggle never sees stale data.
+        await this.invalidateItem(`${getUserKey(userId)}:en:${listId}`);
+        await this.invalidateItem(`${getUserKey(userId)}:es:${listId}`);
     }
 }
 

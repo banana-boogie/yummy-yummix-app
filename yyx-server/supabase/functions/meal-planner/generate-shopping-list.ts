@@ -138,10 +138,14 @@ export async function executeGenerateShoppingList(
   // 4. Consolidate across all components. Key: ingredient_id + unit_id.
   // When ingredient_id is null (free-text), we don't try to dedupe.
   const consolidated = new Map<string, ConsolidatedItem>();
+  let skippedFreeText = 0;
   for (const comp of recipeComponents) {
     const items = ingredientsByRecipe.get(comp.recipeId) ?? [];
     for (const ri of items) {
-      if (!ri.ingredient_id) continue; // skip rows that would be ambiguous
+      if (!ri.ingredient_id) {
+        skippedFreeText++;
+        continue;
+      }
       const qty = toNumber(ri.quantity);
       if (qty == null || qty <= 0) continue;
       const key = `${ri.ingredient_id}:${ri.measurement_unit_id ?? "null"}`;
@@ -226,6 +230,9 @@ export async function executeGenerateShoppingList(
     }
   } else {
     warnings.push("NO_INGREDIENTS_FOUND");
+  }
+  if (skippedFreeText > 0) {
+    warnings.push(`SKIPPED_FREE_TEXT_INGREDIENTS:${skippedFreeText}`);
   }
 
   // 8. Mark freshness as current on both the plan and its slots.
