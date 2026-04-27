@@ -787,6 +787,13 @@ export const admin = {
     newCategoryTitle: "Add New Category",
     categoryNamePlaceholder: "Enter category name",
     categoryCreated: "Category created successfully",
+    categoryLabels: {
+      cuisine: "Cuisine",
+      meal_type: "Meal Type",
+      diet: "Diet",
+      occasion: "Occasion",
+      practical: "Practical",
+    },
     errors: {
       loadCategoriesFailed: "Failed to load tag categories",
       slugInvalid: "Use lower_snake_case",

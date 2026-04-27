@@ -13,8 +13,7 @@ interface DietModalProps {
   visible: boolean;
   onClose: () => void;
   currentDietTypes: DietType[];
-  currentOtherDiet: string[];
-  onSave: (dietTypes: DietType[], otherDiet: string[]) => void;
+  onSave: (dietTypes: DietType[]) => void;
   className?: string; // Add className
   style?: StyleProp<ViewStyle>;
 }
@@ -45,7 +44,7 @@ export function DietModal({
   };
 
   const handleSave = () => {
-    onSave(dietTypes, []);
+    onSave(dietTypes);
     onClose();
   };
 

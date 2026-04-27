@@ -1,3 +1,5 @@
+import i18n from '@/i18n';
+
 export const formatToSnakeCase = (str: string): string => {
   return str.replace(/([\s])/g, '_').toLowerCase();
 };
@@ -8,12 +10,12 @@ export const formatToSnakeCase = (str: string): string => {
  * 2. Converting to lowercase
  * 3. Converting any sequence of non-alphanumeric characters to a single underscore
  * 4. Removing leading/trailing underscores
- * 
+ *
  * Examples:
  * "Sopa de Brócoli" -> "sopa_de_brocoli"
  * "Café&Tea" -> "cafe_tea"
  * "My-File.txt" -> "my_file_txt"
- * 
+ *
  * @param filename The filename to normalize
  * @returns The normalized filename
  */
@@ -30,24 +32,18 @@ export const normalizeFileName = (filename: string): string => {
     .replace(/^_+|_+$/g, '');
 };
 
-const CATEGORY_LABELS: Record<string, string> = {
-  cuisine: 'Cuisine',
-  meal_type: 'Meal Type',
-  diet: 'Diet',
-  occasion: 'Occasion',
-  practical: 'Practical',
-};
-
 export function formatCategoryForDisplay(category: string): string {
-  return CATEGORY_LABELS[category] ?? category;
+  return i18n.t(`admin.tags.categoryLabels.${category}`, {
+    defaultValue: category,
+  });
 }
 
 export const formatTimeInHoursAndMinutes = (minutes: number | null): string => {
   if (minutes === null) return '';
-  
+
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
-  
+
   if (hours > 0) {
     return `${hours}h ${remainingMinutes}m`;
   }

@@ -11,6 +11,7 @@ import { RecipeCard, UserContext } from "../irmixy-schemas.ts";
 import { embed } from "../ai-gateway/index.ts";
 import type { CostContext } from "../ai-gateway/types.ts";
 import { pickTranslation } from "../locale-utils.ts";
+import { normalizeTagSlug } from "../tag-slug.ts";
 import { wordStartMatch } from "../text-utils.ts";
 
 // ============================================================
@@ -24,21 +25,6 @@ const embeddingCache = new Map<
 >();
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const MAX_CACHE_SIZE = 5_000;
-
-const TAG_SLUG_ALIASES: Record<string, string> = {
-  americana: "american",
-  asiatica: "asian",
-  china: "chinese",
-  espanola: "spanish",
-  francesa: "french",
-  griega: "greek",
-  india: "indian",
-  italiana: "italian",
-  japonesa: "japanese",
-  mediterranea: "mediterranean",
-  mexicana: "mexican",
-  tailandesa: "thai",
-};
 
 // ============================================================
 // Types
@@ -501,15 +487,4 @@ export async function searchRecipesHybrid(
  */
 export function clearEmbeddingCache(): void {
   embeddingCache.clear();
-}
-
-function normalizeTagSlug(value: string): string {
-  const slug = value
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[\s-]+/g, "_");
-
-  return TAG_SLUG_ALIASES[slug] || slug;
 }

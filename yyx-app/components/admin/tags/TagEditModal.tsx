@@ -6,7 +6,7 @@ import { TextInput } from '@/components/form/TextInput';
 import { FormGroup } from '@/components/form/FormGroup';
 import { AdminRecipeTag, AdminRecipeTagTranslation, pickTranslation } from '@/types/recipe.admin.types';
 import { COLORS } from '@/constants/design-tokens';
-import { adminRecipeTagService } from '@/services/admin/adminRecipeTagService';
+import { CANONICAL_TAG_CATEGORIES, adminRecipeTagService } from '@/services/admin/adminRecipeTagService';
 import { Ionicons } from '@expo/vector-icons';
 import { AutoTranslateButton } from '@/components/admin/shared';
 import i18n from '@/i18n';
@@ -68,7 +68,7 @@ export function TagEditModal({ visible, tag, isNew, categories, onClose, onSave 
   const fetchCategories = () => {
     const nextCategories = categories?.length
       ? categories
-      : ['cuisine', 'meal_type', 'diet', 'occasion', 'practical'];
+      : [...CANONICAL_TAG_CATEGORIES];
     setAvailableCategories(nextCategories);
     setFilteredCategories(nextCategories);
   };

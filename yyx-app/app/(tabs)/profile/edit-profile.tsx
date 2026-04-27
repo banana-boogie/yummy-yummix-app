@@ -301,12 +301,12 @@ export default function EditProfile() {
       () => setShowDietaryModal(false),
     );
 
-  const handleDietUpdate = (dietTypes: DietType[], otherDiet: string[]) =>
+  const handleDietUpdate = (dietTypes: DietType[]) =>
     {
       const normalizedPreferences = normalizeDietAndCuisinePreferences(
         dietTypes,
         formData.cuisinePreferences,
-        otherDiet,
+        [],
       );
       return handlePreferenceUpdate(
         {
@@ -543,7 +543,6 @@ export default function EditProfile() {
         visible={showDietModal}
         onClose={() => setShowDietModal(false)}
         currentDietTypes={formData.dietTypes}
-        currentOtherDiet={formData.otherDiet}
         onSave={handleDietUpdate}
       />
 

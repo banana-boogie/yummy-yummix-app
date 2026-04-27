@@ -5,7 +5,7 @@ import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
 import { TextInput } from '@/components/form/TextInput';
 import { AlertModal } from '@/components/common/AlertModal';
-import { adminRecipeTagService } from '@/services/admin/adminRecipeTagService';
+import { CANONICAL_TAG_CATEGORIES, adminRecipeTagService } from '@/services/admin/adminRecipeTagService';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
 import { TagEditModal } from '@/components/admin/tags/TagEditModal';
@@ -15,8 +15,6 @@ import { formatCategoryForDisplay } from '@/utils/formatters';
 import { useDevice } from '@/hooks/useDevice';
 import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
 import logger from '@/services/logger';
-
-const TAG_CATEGORIES = ['cuisine', 'meal_type', 'diet', 'occasion', 'practical'];
 
 export default function AdminTags() {
   const { isPhone } = useDevice();
@@ -289,7 +287,7 @@ export default function AdminTags() {
         visible={editModalVisible}
         tag={selectedTag}
         isNew={isNewTag}
-        categories={TAG_CATEGORIES}
+        categories={[...CANONICAL_TAG_CATEGORIES]}
         onClose={() => setEditModalVisible(false)}
         onSave={handleSaveTag}
       />

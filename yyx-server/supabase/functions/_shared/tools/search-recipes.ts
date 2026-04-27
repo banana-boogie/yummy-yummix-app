@@ -25,6 +25,7 @@ import { normalizeIngredient } from "../ingredient-normalization.ts";
 import { searchRecipesHybrid } from "../rag/hybrid-search.ts";
 import { validateSearchRecipesParams } from "./tool-validators.ts";
 import { getBaseLanguage, pickTranslation } from "../locale-utils.ts";
+import { normalizeTagSlug } from "../tag-slug.ts";
 import { wordStartMatch } from "../text-utils.ts";
 
 // ============================================================
@@ -79,21 +80,6 @@ interface RecipeWithIngredients {
     } | null;
   }>;
 }
-
-const TAG_SLUG_ALIASES: Record<string, string> = {
-  americana: "american",
-  asiatica: "asian",
-  china: "chinese",
-  espanola: "spanish",
-  francesa: "french",
-  griega: "greek",
-  india: "indian",
-  italiana: "italian",
-  japonesa: "japanese",
-  mediterranea: "mediterranean",
-  mexicana: "mexican",
-  tailandesa: "thai",
-};
 
 /**
  * Resolve a recipe name from translation rows using a locale chain.
@@ -649,17 +635,6 @@ function filterByCuisine(
       return tag.slug === cuisineSlug;
     });
   });
-}
-
-function normalizeTagSlug(value: string): string {
-  const slug = value
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[\s-]+/g, "_");
-
-  return TAG_SLUG_ALIASES[slug] || slug;
 }
 
 /**

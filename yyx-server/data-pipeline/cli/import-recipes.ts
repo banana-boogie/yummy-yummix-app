@@ -164,24 +164,15 @@ async function resolveTags(
   for (const tagName of tagNames) {
     // 1. Try Notion tag map first (exact, deterministic)
     const mapped = resolveNotionTag(tagName);
-    let matched: DbRecipeTag | null = null;
+    const matched = matchCanonicalTag(tagName, allTags);
 
-    if (mapped) {
-      // Look up by the mapped EN or ES name
-      matched = matchTag(mapped.en, allTags) || matchTag(mapped.es, allTags);
-      if (!matched) {
-        logger.warn(
-          `Mapped tag "${tagName}" is not canonical — skipping ${mapped.en} / ${mapped.es}`,
-        );
-        continue;
-      }
-    } else {
-      // 2. Fallback: try matching the raw tag name against DB
-      matched = matchTag(tagName, allTags);
-      if (!matched) {
-        logger.warn(`Unmapped tag "${tagName}" is not canonical — skipping`);
-        continue;
-      }
+    if (!matched) {
+      logger.warn(
+        mapped
+          ? `Mapped tag "${tagName}" is not canonical — skipping ${mapped.en} / ${mapped.es}`
+          : `Unmapped tag "${tagName}" is not canonical — skipping`,
+      );
+      continue;
     }
 
     if (!seen.has(matched.id)) {
@@ -191,6 +182,18 @@ async function resolveTags(
   }
 
   return tagIds;
+}
+
+function matchCanonicalTag(
+  tagName: string,
+  allTags: DbRecipeTag[],
+): DbRecipeTag | null {
+  const mapped = resolveNotionTag(tagName);
+  if (mapped) {
+    return matchTag(mapped.en, allTags) || matchTag(mapped.es, allTags);
+  }
+
+  return matchTag(tagName, allTags);
 }
 
 /** Resolve kitchen tools: match existing or create new ones */
@@ -356,13 +359,8 @@ async function importRecipe(
               i.ingredient.nameEs.toLowerCase(),
         ),
     );
-    const missingTags = parsed.tags.filter(
-      (t) =>
-        !allTags.some(
-          (db) =>
-            (db.name_en?.toLowerCase() ?? "") === t.toLowerCase() ||
-            (db.name_es?.toLowerCase() ?? "") === t.toLowerCase(),
-        ),
+    const missingTags = parsed.tags.filter((tag) =>
+      !matchCanonicalTag(tag, allTags)
     );
     const missingItems = parsed.kitchenTools.filter(
       (i) =>
@@ -380,7 +378,7 @@ async function importRecipe(
     }
     if (missingTags.length > 0) {
       logger.warn(
-        `Would create ${missingTags.length} new tag(s): ${
+        `Would skip ${missingTags.length} non-canonical tag(s): ${
           missingTags.join(", ")
         }`,
       );
@@ -621,7 +619,7 @@ function resolveTagsDry(
 ): Promise<string[]> {
   return Promise.resolve(
     tagNames
-      .map((name) => matchTag(name, allTags)?.id)
+      .map((name) => matchCanonicalTag(name, allTags)?.id)
       .filter((id): id is string => id !== undefined),
   );
 }
