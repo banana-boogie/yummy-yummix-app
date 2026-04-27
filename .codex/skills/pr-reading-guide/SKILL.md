@@ -163,5 +163,3 @@ Anything the diff alone could not determine — call out lower-confidence areas.
 - Full severity-tagged code review → use `$review-pr`.
 - Cross-PR status summary → use `$status-update`.
 - The user wants to read the actual code — this skill is for skipping that, not removing the option.
-
-For a reusable invocation template, see `references/pr-reading-guide-prompt.md`.
