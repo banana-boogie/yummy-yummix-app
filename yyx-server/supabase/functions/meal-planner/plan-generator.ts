@@ -757,7 +757,7 @@ async function writeFreshPlan(
   }
 
   // Phase 1: insert every component whose source_kind is not 'leftover'.
-  // This includes primaries (recipe/no_cook) and secondary pairing components.
+  // This includes fresh recipe primaries and secondary pairing components.
   // We need their DB UUIDs before we can fill in `source_component_id` on any
   // downstream leftover rows.
   const phase1Rows: Array<{ slotId: string; comp: SlotComponent }> = [];

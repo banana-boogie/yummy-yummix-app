@@ -512,9 +512,10 @@ A "slot" in the response is more than a single recipe — it's a small bundle:
 
 ### Coverage logic
 
-`buildBundle` does **not** read the slot's `expectedMealComponents` field.
-It drives off the slot's `structureTemplate` alone via
-`templateComponentCount`:
+`buildBundle` uses the slot's `structureTemplate` to set the normal pairing
+budget via `templateComponentCount`. It also reads `expectedMealComponents`
+when deciding whether condiment attachment may run before the structure budget
+is fully filled:
 
 | Template | Budget |
 |---|---:|

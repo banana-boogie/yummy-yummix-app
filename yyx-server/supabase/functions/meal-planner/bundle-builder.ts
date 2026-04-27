@@ -438,10 +438,9 @@ export function templateForComponentCount(
 }
 
 /**
- * Placeholder components for leftover targets and no-cook fallbacks that carry
- * no concrete recipe. Used so the plan persistence layer has a consistent
- * shape regardless of whether the slot materialized as a recipe, leftover, or
- * no-cook meal.
+ * Placeholder components for leftover targets that carry no concrete recipe.
+ * Used so the plan persistence layer has a consistent shape when a slot
+ * materializes as a leftover rather than a fresh recipe.
  *
  * For leftovers we carry `sourceSlotIdRef` — the slotId of the meal that will
  * feed this leftover. The persistence layer uses that reference during a

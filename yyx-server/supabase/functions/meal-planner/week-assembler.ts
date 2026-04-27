@@ -6,8 +6,7 @@
  * successors, then prune back to beam width 5.
  *
  * Partial plans: if no viable candidate exists for a slot, we leave the slot
- * unfilled (cook) or insert a no-cook placeholder (busy-day fallback) and emit
- * a warning. We do NOT pad with low-quality matches.
+ * unfilled and emit a warning. We do NOT pad with low-quality matches.
  *
  * Spec: ranking-algorithm-detail.md §5
  */
