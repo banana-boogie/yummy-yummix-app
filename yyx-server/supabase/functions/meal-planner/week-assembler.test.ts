@@ -417,3 +417,76 @@ Deno.test("assembleWeek: leftover_target fallback to fresh recipe with surplus c
   );
   assertEquals(unfilled, undefined);
 });
+
+Deno.test("assembleWeek: coverage-complete bonus prefers a complete-meal primary over a partial one", () => {
+  // Two candidates for the same lunch slot. The complete one covers all of
+  // protein/carb/veg by itself; the partial one covers only protein/carb.
+  // Without the coverage bonus the partial may win on raw 7-factor score
+  // (depending on tie-breakers); the bonus should consistently push the
+  // complete one ahead.
+  const slot: MealSlot = mkSlot({
+    slotId: "0-lunch",
+    canonicalMealType: "lunch",
+    displayMealLabel: "lunch",
+    structureTemplate: "main_plus_two_components",
+    expectedMealComponents: ["protein", "carb", "veg"],
+  });
+
+  const completeMain = mkCandidate("complete-main", {
+    mealComponents: ["protein", "carb", "veg"],
+    isComplete: true,
+  });
+  const partialMain = mkCandidate("partial-main", {
+    mealComponents: ["protein", "carb"],
+    isComplete: false,
+  });
+
+  const result = assembleWeek({
+    slots: [slot],
+    planningOrder: [slot],
+    candidates: new Map([[slot.slotId, [completeMain, partialMain]]]),
+    pairings: EMPTY_PAIRINGS,
+    user: mkUser(),
+    leftoverTransformByRecipe: new Map(),
+  });
+
+  const assignment = result.best.assignments.get(slot.slotId);
+  const primary = assignment?.components.find((c) => c.isPrimary);
+  assertEquals(primary?.recipeId, "complete-main");
+  // Bonus surfaces in the assemblyBonus tally.
+  assertEquals(result.best.assemblyBonus >= 5, true);
+});
+
+Deno.test("assembleWeek: busy-day cook_slot does NOT receive coverage-complete bonus", () => {
+  // Time pressure should beat balance on busy days — even if the assembled
+  // bundle happens to cover protein+carb+veg, the bonus must be suppressed
+  // so the planner doesn't push complex bundles on busy days.
+  const slot: MealSlot = mkSlot({
+    slotId: "1-lunch",
+    canonicalMealType: "lunch",
+    displayMealLabel: "lunch",
+    slotKind: "cook_slot",
+    isBusyDay: true,
+    structureTemplate: "main_plus_two_components",
+    expectedMealComponents: ["protein", "carb", "veg"],
+  });
+  const completeMain = mkCandidate("complete-main", {
+    mealComponents: ["protein", "carb", "veg"],
+    isComplete: true,
+    totalTimeMinutes: 25,
+    difficulty: "easy",
+    cookingLevel: "beginner",
+  });
+
+  const result = assembleWeek({
+    slots: [slot],
+    planningOrder: [slot],
+    candidates: new Map([[slot.slotId, [completeMain]]]),
+    pairings: EMPTY_PAIRINGS,
+    user: mkUser(),
+    leftoverTransformByRecipe: new Map(),
+  });
+
+  // Bundle covered everything but the bonus must not have applied.
+  assertEquals(result.best.assemblyBonus, 0);
+});

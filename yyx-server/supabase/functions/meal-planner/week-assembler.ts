@@ -506,6 +506,27 @@ function assemblyAdjustments(
     }
   }
 
+  // Coverage-completion tier bonus. Skipped when expected coverage is empty
+  // (breakfast/snack/dessert/beverage) or on busy-day cook slots where time
+  // pressure should beat balance. Partial credit when ≥ half of expected is
+  // achieved but not all.
+  if (
+    slot.expectedMealComponents.length > 0 &&
+    !(slot.isBusyDay && slot.slotKind === "cook_slot")
+  ) {
+    const achieved = new Set<string>();
+    for (const c of components) {
+      for (const mc of c.mealComponentsSnapshot) achieved.add(mc);
+    }
+    const expected = slot.expectedMealComponents;
+    const covered = expected.filter((mc) => achieved.has(mc)).length;
+    if (covered === expected.length) {
+      adjustments += ASSEMBLY_ADJUSTMENTS.coverageCompleteFull;
+    } else if (covered * 2 >= expected.length) {
+      adjustments += ASSEMBLY_ADJUSTMENTS.coverageCompletePartial;
+    }
+  }
+
   // Family-flexible bonus for large households.
   if (state.assignedRecipeIds.size === 0 && primary.candidate.isComplete) {
     // leave neutral — don't double count

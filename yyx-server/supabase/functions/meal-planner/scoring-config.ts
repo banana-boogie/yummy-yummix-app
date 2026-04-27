@@ -240,6 +240,20 @@ export const ASSEMBLY_ADJUSTMENTS = {
   adjacentSameProteinRepeat: -6,
   cuisineRepeatedTooOften: -4,
   unfilledNonBusySlot: -10,
+  // Coverage-completion bonus: rewards bundles that cover a slot's
+  // `expectedMealComponents` (lunch + dinner expect protein + carb + veg).
+  // Encodes the product belief that a complete meal is more valuable than a
+  // bare main — the planner should prefer "main + side that adds veg" over
+  // "main alone" when both are otherwise comparable. Suppressed on busy-day
+  // cook slots so time pressure beats balance.
+  //
+  // Tiered to give partial credit when the catalog can't go all the way:
+  //   - Full coverage (every expected component achieved): +5
+  //     (matches `strongLeftoverTransform` tier — meaningful but not dominant)
+  //   - Partial coverage (≥ half of expected achieved, but not all): +2
+  //   - Less than half: 0
+  coverageCompleteFull: 5,
+  coverageCompletePartial: 2,
 } as const;
 
 /**

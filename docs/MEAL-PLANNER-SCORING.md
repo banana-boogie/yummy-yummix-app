@@ -481,9 +481,10 @@ Applied at the state level, not per-candidate:
 |---|---:|---|
 | `busyDayCoveredByLeftovers` | **+8** | A leftover from earlier in the week is feeding a busy day. |
 | `strongLeftoverTransform` | **+5** | The leftover target uses an explicit transform recipe (not just "reheat yesterday"). |
+| `coverageCompleteFull` | **+5** | Final assembled bundle covers every component in the slot's `expectedMealComponents`. Skipped on busy-day cook slots (time pressure beats balance) and on slots whose meal type has no expected coverage (breakfast/snack/dessert/beverage). |
+| `coverageCompletePartial` | **+2** | Bundle covers ≥ half of expected (e.g., 2 of 3 for lunch/dinner) but not all. Same skip rules as the full bonus. |
 | `adjacentSameProteinRepeat` | **−6** | Same protein on adjacent days (additional to the variety factor penalty). |
 | `cuisineRepeatedTooOften` | **−4** | Same cuisine ≥3 times in the week. |
-| `extraNoveltyFirstWeek` | **−6** | More than one novel recipe in first-week-trust mode. |
 | `unfilledNonBusySlot` | **−10** | Applied unconditionally whenever a successor cannot be generated for a slot (no candidate passes hard rules, or leftover-target fallback finds no candidate either). Despite the name, it fires on busy slots and leftover fallback cases too. |
 
 These are blunt instruments compared to the per-candidate factors but they
