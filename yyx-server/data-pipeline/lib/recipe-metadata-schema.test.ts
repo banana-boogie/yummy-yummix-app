@@ -154,3 +154,106 @@ mystery_section: {}
     'expected unrecognized-key issue',
   );
 });
+
+Deno.test('rejects an out-of-range thermomix_speed value', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_overrides:
+  - match: { order: 1 }
+    thermomix_speed: 11
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  assert(
+    err.issues.some((i) =>
+      i.path.includes('step_overrides.0.thermomix_speed') &&
+      i.message.toLowerCase().includes('invalid thermomix_speed')
+    ),
+    'expected schema rejection for thermomix_speed: 11',
+  );
+});
+
+Deno.test('rejects a non-half-step thermomix_speed (e.g. 2.25)', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_overrides:
+  - match: { order: 1 }
+    thermomix_speed: 2.25
+`;
+  assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+});
+
+Deno.test('rejects an out-of-range thermomix_temperature value', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_overrides:
+  - match: { order: 1 }
+    thermomix_temperature: 99
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  assert(
+    err.issues.some((i) =>
+      i.path.includes('thermomix_temperature') &&
+      i.message.toLowerCase().includes('invalid thermomix_temperature')
+    ),
+    'expected schema rejection for thermomix_temperature: 99',
+  );
+});
+
+Deno.test('accepts thermomix_speed: spoon and thermomix_temperature: Varoma', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_overrides:
+  - match: { order: 1 }
+    thermomix_speed: spoon
+    thermomix_temperature: Varoma
+`;
+  const { data } = parseRecipeMetadataYaml(yaml);
+  assertEquals(data.step_overrides?.[0].thermomix_speed, 'spoon');
+  assertEquals(data.step_overrides?.[0].thermomix_temperature, 'Varoma');
+});
+
+Deno.test('accepts dish_type and primary_ingredient tag categories', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+tags:
+  dish_type: [stew, taco]
+  primary_ingredient: [beef]
+`;
+  const { data } = parseRecipeMetadataYaml(yaml);
+  assertEquals(data.tags?.dish_type, ['stew', 'taco']);
+  assertEquals(data.tags?.primary_ingredient, ['beef']);
+});

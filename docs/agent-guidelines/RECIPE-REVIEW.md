@@ -33,7 +33,7 @@ The reviewer's job: produce a YAML config at `yyx-server/data-pipeline/data/reci
 10. **Step references unknown ingredient.** Step instruction names an ingredient that is not in `recipe_ingredients`.
 11. **Non-complete-meal mains without pairings.** `planner_role = 'main'`, `is_complete_meal = false`, and no outgoing rows in `recipe_pairings`.
 12. **Implausible quantities.** Sugar < 5 g in a sweet sauce, salt > 10 g per kg of meat, raisins > 80 g in a savory dish, etc. Use cuisine context.
-13. **Non-pantry recipes without `meal_type` tag.** `MealPlanningForm.tsx:255-258` enforces this — `requiresMealType = recipe.plannerRole !== 'pantry'`. A non-pantry recipe with no `meal_type` is unplannable.
+13. **Non-pantry recipes without `meal_type` tag.** Admin form enforces `requiresMealType = recipe.plannerRole !== 'pantry'` (see `MealPlanningForm.tsx`). A non-pantry recipe with no `meal_type` tag is unplannable.
 14. **`same_en_es_name`.** `recipe_translations.name` identical between `en` and `es`. Reviewer fixes via `name.es` override **only when the translation is unambiguous** (e.g. "Mongolian Beef" → "Res Mongola"). Anything subjective: flag `requires_authoring.reasons: ['same_en_es_name']`.
 15. **`no_steps`.** `recipe_steps` is empty. Always flag `requires_authoring.reasons: ['no_steps']`. Never fabricate steps.
 16. **`few_ingredients`.** `recipe_ingredients` has fewer than 3 entries. Almost always means the import was incomplete. Flag `requires_authoring.reasons: ['few_ingredients']` unless the recipe is genuinely 2-ingredient (e.g. matcha butter — confirm from name).
@@ -72,7 +72,7 @@ Pure name matching is forbidden in YAML configs — it produces silent drift on 
 | `recipe_steps` | `step_id` (UUID) | `order` (1-indexed) | DB unique constraint is `(recipe_id, order)`. |
 | `recipe_kitchen_tools` | declarative `set` keyed by `name_en` | — | Resolved against `kitchen_tools.name_en` at apply time; ambiguous names = hard error, no auto-create. |
 | `recipe_pairings` | `target_id` (UUID) + `role` | — | Composite key `(source_recipe_id, target_recipe_id, pairing_role)`. `target_name_en` is a readability assertion only. |
-| `recipe_to_tag` | tag `slug` (under category key) | — | Resolved against `recipe_tags.slug`. Hard error on miss; no auto-create — taxonomy stays human-curated. |
+| `recipe_to_tag` | tag `slug` (under category key) | — | Resolved against `recipe_tags.slug`. Categories: `cuisine`, `meal_type`, `diet`, `dish_type`, `primary_ingredient`, `occasion`, `practical` (Track H taxonomy). Hard error on miss; no auto-create — taxonomy stays human-curated. |
 
 For any `set:` block (kitchen_tools, pairings, tags), the YAML is **declarative**: it lists the full desired state, the Applier diffs against current and emits inserts + deletes. For per-row blocks (ingredient_updates, step_overrides), the YAML is **imperative**: only listed rows are touched.
 

@@ -59,10 +59,14 @@ export const PAIRING_ROLES = [
   'leftover_transform',
 ] as const;
 
+// Tag categories — must mirror the DB enum public.recipe_tag_category. Track H
+// rebuild expanded this from 5 to 7 categories.
 export const TAG_CATEGORIES = [
   'cuisine',
   'meal_type',
   'diet',
+  'dish_type',
+  'primary_ingredient',
   'occasion',
   'practical',
 ] as const;
@@ -73,17 +77,54 @@ export const THERMOMIX_TEMPERATURE_UNITS = ['C', 'F'] as const;
 // Special temperature literal allowed alongside numeric values.
 export const VAROMA = 'Varoma';
 
-// Speed: a numeric step (0.5..10) or the literal 'spoon'.
-const speedValueSchema = z.union([
-  z.number(),
-  z.literal('spoon'),
+// Valid speed values mirror the public.thermomix_speed_type enum (DB-enforced).
+// Source of truth: yyx-app/types/thermomix.types.ts:VALID_SPEEDS. Mirror here
+// because yyx-server cannot import from yyx-app.
+export const VALID_SPEED_NUMBERS = [
+  0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5,
+  5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10,
+] as const;
+
+// Valid temperature values mirror the public.thermomix_temperature_type enum.
+// The DB enum is the union of all model-supported temperatures known at the
+// time of the Track H rebuild; keep these in sync if the enum is extended.
+export const VALID_TEMPERATURE_NUMBERS = [
+  37, 40, 45, 50, 55, 60, 65, 70, 75, 80,
+  85, 90, 95, 98, 100, 105, 110, 115, 120,
+  130, 140, 150, 160, 170, 175, 185, 195, 200, 205,
+  212, 220, 230, 240, 250,
+] as const;
+
+const VALID_SPEED_SET: ReadonlySet<number | string> = new Set([
+  ...VALID_SPEED_NUMBERS,
+  'spoon',
+]);
+const VALID_TEMPERATURE_SET: ReadonlySet<number | string> = new Set([
+  ...VALID_TEMPERATURE_NUMBERS,
+  VAROMA,
 ]);
 
-// Temperature value: numeric (e.g. 100) or 'Varoma'.
-const temperatureValueSchema = z.union([
-  z.number(),
-  z.literal(VAROMA),
-]);
+// Speed: a fixed numeric step or the literal 'spoon'.
+const speedValueSchema = z
+  .union([z.number(), z.literal('spoon')])
+  .refine(
+    (v) => VALID_SPEED_SET.has(v),
+    (v) => ({
+      message: `invalid thermomix_speed value (${JSON.stringify(v)}); ` +
+        `must be one of: 0.5, 1, 1.5 ... 10 (in 0.5 increments) or 'spoon'`,
+    }),
+  );
+
+// Temperature value: a fixed numeric step or 'Varoma'.
+const temperatureValueSchema = z
+  .union([z.number(), z.literal(VAROMA)])
+  .refine(
+    (v) => VALID_TEMPERATURE_SET.has(v),
+    (v) => ({
+      message: `invalid thermomix_temperature value (${JSON.stringify(v)}); ` +
+        `must be a value from the public.thermomix_temperature_type enum or 'Varoma'`,
+    }),
+  );
 
 // Slug: lowercase snake_case, what Track H uses.
 const slugSchema = z
@@ -141,6 +182,8 @@ const tagsSchema = z.object({
   cuisine: z.array(slugSchema).optional(),
   meal_type: z.array(slugSchema).optional(),
   diet: z.array(slugSchema).optional(),
+  dish_type: z.array(slugSchema).optional(),
+  primary_ingredient: z.array(slugSchema).optional(),
   occasion: z.array(slugSchema).optional(),
   practical: z.array(slugSchema).optional(),
 }).strict();
