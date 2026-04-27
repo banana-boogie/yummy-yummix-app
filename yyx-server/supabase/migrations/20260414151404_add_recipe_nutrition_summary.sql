@@ -49,6 +49,10 @@ CREATE TABLE public.recipe_nutrition_summary (
 
 COMMENT ON TABLE public.recipe_nutrition_summary IS
     'Computed per-portion nutrition totals plus meal-type percentiles. Populated by compute_recipe_nutrition() and recompute_nutrition_percentiles(). Read by the meal planner for relative nutrition scoring.';
+COMMENT ON COLUMN public.recipe_nutrition_summary.protein_calorie_pct IS
+    'Share of total calories from protein, expressed as a percentage 0-100 (e.g. 12.50 = 12.5%).';
+COMMENT ON COLUMN public.recipe_nutrition_summary.sugar_calorie_pct IS
+    'Share of total calories from sugar, expressed as a percentage 0-100 (e.g. 8.25 = 8.25%).';
 
 -- ============================================================
 -- 2. RLS
@@ -283,6 +287,11 @@ REVOKE ALL ON FUNCTION public.compute_recipe_nutrition(UUID) FROM PUBLIC;
 -- columns. Callers classify recipes into meal types (this table
 -- doesn't store meal-type tags — a future tagging migration owns
 -- that). Recipes with missing nutrition are skipped.
+--
+-- Returns: the number of recipes that received non-null percentiles
+-- in this call. Recipes in `p_recipe_ids` whose existing percentiles
+-- were cleared (because they have no nutrition data) are NOT counted
+-- in the return value.
 
 CREATE OR REPLACE FUNCTION public.recompute_nutrition_percentiles(
     p_meal_type TEXT,
