@@ -165,14 +165,16 @@ const RecipeDetail: React.FC = () => {
                   className="mb-lg"
                 />
                 <View className="mb-lg flex-row items-center">
-                  <TouchableOpacity
-                    onPress={() => setShoppingModalVisible(true)}
-                    accessibilityLabel={i18n.t('shoppingList.addToList')}
-                    accessibilityRole="button"
-                    className="mr-md p-xs"
-                  >
-                    <Ionicons name="cart-outline" size={24} color={COLORS.text.default} />
-                  </TouchableOpacity>
+                  {Platform.OS !== 'web' && (
+                    <TouchableOpacity
+                      onPress={() => setShoppingModalVisible(true)}
+                      accessibilityLabel={i18n.t('shoppingList.addToList')}
+                      accessibilityRole="button"
+                      className="mr-md p-xs"
+                    >
+                      <Ionicons name="cart-outline" size={24} color={COLORS.text.default} />
+                    </TouchableOpacity>
+                  )}
                   <ShareButton
                     message={i18n.t('recipes.share.message', { recipeName: recipe.name })}
                     url={getShareUrl()}

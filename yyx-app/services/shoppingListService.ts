@@ -534,12 +534,14 @@ export const shoppingListService = {
             const { error } = await supabase.from('shopping_list_items').insert(toInsert);
             if (error) throw new Error(`Insert items failed: ${error.message}`);
         }
-        for (const u of toUpdate) {
-            const { error } = await supabase
-                .from('shopping_list_items')
-                .update({ quantity: u.quantity })
-                .eq('id', u.id);
-            if (error) throw new Error(`Update quantity failed: ${error.message}`);
+        if (toUpdate.length > 0) {
+            const results = await Promise.all(
+                toUpdate.map((u) =>
+                    supabase.from('shopping_list_items').update({ quantity: u.quantity }).eq('id', u.id),
+                ),
+            );
+            const failed = results.find((r) => r.error);
+            if (failed?.error) throw new Error(`Update quantity failed: ${failed.error.message}`);
         }
 
         const userId = await getCurrentUserId();

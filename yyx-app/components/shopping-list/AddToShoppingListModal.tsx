@@ -60,7 +60,11 @@ export function AddToShoppingListModal({
       })
       .catch(() => setLists([]))
       .finally(() => setLoading(false));
-  }, [visible, ingredients]);
+    // Intentionally only re-run on `visible` transition; ingredient identity may
+    // change across re-renders without us wanting to refetch lists or reset
+    // checks the user already toggled.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
 
   const toggle = useCallback((key: string) => {
     setSelectedKeys((prev) => {
