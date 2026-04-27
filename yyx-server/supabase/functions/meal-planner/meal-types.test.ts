@@ -8,6 +8,8 @@ Deno.test("toCanonicalMealType maps Spanish labels to canonical types", () => {
   assertEquals(toCanonicalMealType("comida"), "lunch");
   assertEquals(toCanonicalMealType("cena"), "dinner");
   assertEquals(toCanonicalMealType("desayuno"), "breakfast");
+  assertEquals(toCanonicalMealType("botana"), "snack");
+  assertEquals(toCanonicalMealType("postre"), "dessert");
 });
 
 Deno.test("toCanonicalMealType passes canonical types through", () => {
