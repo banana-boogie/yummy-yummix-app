@@ -15,7 +15,11 @@
 
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import type { MealSlot } from "./slot-classifier.ts";
-import { MEAL_TYPE_PRIMARY_ROLES, RETRIEVAL_LIMITS } from "./scoring-config.ts";
+import {
+  MEAL_TYPE_PRIMARY_ROLES,
+  RETRIEVAL_LIMITS,
+  SHORTLIST_SCORES,
+} from "./scoring-config.ts";
 import type { CanonicalMealType } from "./types.ts";
 import { normalizeIngredients } from "../_shared/ingredient-normalization.ts";
 import { toCanonicalMealType } from "./meal-types.ts";
@@ -233,28 +237,31 @@ function shortlistTimeScore(
   candidate: RecipeCandidate,
 ): number {
   const total = candidate.totalTimeMinutes;
+  const t = SHORTLIST_SCORES.time;
   if (!total || total <= 0) {
-    return slot.slotKind === "weekend_flexible_slot" ? 12 : 10;
+    return slot.slotKind === "weekend_flexible_slot"
+      ? t.weekend.missing
+      : t.weeknight.missing;
   }
 
   if (slot.slotKind === "weekend_flexible_slot") {
-    if (total <= 120) return 18;
-    if (total <= 180) return 14;
-    if (total <= 240) return 10;
-    return 4;
+    if (total <= 120) return t.weekend.under120;
+    if (total <= 180) return t.weekend.under180;
+    if (total <= 240) return t.weekend.under240;
+    return t.weekend.over;
   }
 
   if (slot.isBusyDay) {
-    if (total <= 30) return 24;
-    if (total <= 45) return 18;
-    if (total <= 60) return 10;
-    return 2;
+    if (total <= 30) return t.busyDay.under30;
+    if (total <= 45) return t.busyDay.under45;
+    if (total <= 60) return t.busyDay.under60;
+    return t.busyDay.over;
   }
 
-  if (total <= 45) return 20;
-  if (total <= 60) return 14;
-  if (total <= 75) return 8;
-  return 3;
+  if (total <= 45) return t.weeknight.under45;
+  if (total <= 60) return t.weeknight.under60;
+  if (total <= 75) return t.weeknight.under75;
+  return t.weeknight.over;
 }
 
 function shortlistDifficultyScore(
@@ -262,21 +269,10 @@ function shortlistDifficultyScore(
   candidate: RecipeCandidate,
 ): number {
   const level = normalizedDifficulty(candidate);
-  if (slot.slotKind === "weekend_flexible_slot") {
-    if (level === "medium") return 10;
-    if (level === "easy") return 9;
-    return 7;
-  }
-
-  if (slot.isBusyDay) {
-    if (level === "easy") return 14;
-    if (level === "medium") return 7;
-    return 1;
-  }
-
-  if (level === "easy") return 12;
-  if (level === "medium") return 9;
-  return 4;
+  const d = SHORTLIST_SCORES.difficulty;
+  if (slot.slotKind === "weekend_flexible_slot") return d.weekend[level];
+  if (slot.isBusyDay) return d.busyDay[level];
+  return d.weeknight[level];
 }
 
 function shortlistSourceScore(
@@ -285,23 +281,25 @@ function shortlistSourceScore(
 ): number {
   if (!slot.feedsFutureLeftoverTarget) return 0;
 
-  let score = candidate.leftoversFriendly ? 26 : 0;
-  if (candidate.batchFriendly) score += 6;
+  const s = SHORTLIST_SCORES.source;
+  let score = candidate.leftoversFriendly ? s.leftoversFriendly : 0;
+  if (candidate.batchFriendly) score += s.batchFriendly;
   if (candidate.portions && candidate.portions > 0) {
-    score += Math.min(candidate.portions, 8);
+    score += Math.min(candidate.portions, s.portionsCap);
   }
   return score;
 }
 
 function shortlistScore(slot: MealSlot, candidate: RecipeCandidate): number {
+  const f = SHORTLIST_SCORES.flags;
   let score = 0;
   score += shortlistSourceScore(slot, candidate);
   score += shortlistTimeScore(slot, candidate);
   score += shortlistDifficultyScore(slot, candidate);
-  if (candidate.verifiedAt) score += 18;
-  if (candidate.isComplete) score += 10;
+  if (candidate.verifiedAt) score += f.verified;
+  if (candidate.isComplete) score += f.completeMeal;
   if (candidate.leftoversFriendly && !slot.feedsFutureLeftoverTarget) {
-    score += 3;
+    score += f.leftoversFriendlyBonusWhenNotFeedingLeftover;
   }
   return score;
 }

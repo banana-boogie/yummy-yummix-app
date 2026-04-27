@@ -40,11 +40,16 @@ import {
 export interface AssembledSlot {
   slot: MealSlot;
   /**
-   * Slot kind as actually assembled. Usually matches `slot.slotKind` from
-   * classification, but may differ when `leftover_target_slot` falls back to
-   * recipe ranking at runtime (no leftover source registered). Persistence
-   * and the API response use this value so slot_type reflects what's really
-   * in the slot, not what we originally hoped.
+   * Slot kind as actually assembled — what really ended up in the slot,
+   * which may differ from the optimistic classification.
+   *
+   * Concrete example: classifier marks Tuesday-comida as `leftover_target_slot`
+   * because Monday-comida cooked a leftover-friendly stew. At assembly time,
+   * the Monday source had insufficient portions OR was swapped, so no leftover
+   * source is available. The assembler falls back to ranking Tuesday as a
+   * regular `cook_slot` and records that here. Persistence + API response use
+   * this value so the saved `slot_type` reflects reality, not the original
+   * plan.
    */
   effectiveSlotKind: MealSlot["slotKind"];
   components: SlotComponent[];
@@ -499,14 +504,6 @@ function assemblyAdjustments(
     if (count >= ASSEMBLY_THRESHOLDS.cuisineRepeatedTooOftenCount) {
       adjustments += ASSEMBLY_ADJUSTMENTS.cuisineRepeatedTooOften;
     }
-  }
-
-  // Novelty penalty in first-week mode.
-  if (
-    state.mode === "first_week_trust" &&
-    state.noveltyCount >= 1
-  ) {
-    adjustments += ASSEMBLY_ADJUSTMENTS.extraNoveltyFirstWeek;
   }
 
   // Family-flexible bonus for large households.

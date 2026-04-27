@@ -102,6 +102,10 @@ export const SLOT_FIT_SUBWEIGHTS = {
     timeCompat: 0.40,
     householdComplexity: 0.05,
   },
+  // Weekend uses the same sub-weight shape as `cook` on purpose. The actual
+  // weekend differentiation happens in TIME_BUDGETS.weekend (120 min vs 45
+  // weeknight), so a 90-min braise scores great on Saturday and poorly on
+  // Tuesday without needing a different formula.
   weekend: {
     difficulty: 0.50,
     timeCompat: 0.30,
@@ -174,6 +178,42 @@ export const RETRIEVAL_LIMITS = {
 } as const;
 
 // ============================================================
+// Shortlist (SQL-prefilter) heuristic scores
+// ============================================================
+//
+// Used by `shortlistCandidatesForSlot` (candidate-retrieval.ts) to rank the
+// hydrated candidate pool BEFORE the full 7-factor scorer runs in beam
+// search. Goal: cheaply trim to the top N (`RETRIEVAL_LIMITS.cookSlotTopN`)
+// so the expensive scorer only sees plausible candidates.
+//
+// These are NOT part of the final 100-point scoring model — they're sort
+// keys, intentionally coarse. Tune by adjusting individual values; the
+// relative magnitudes between groups (source > time > difficulty) are what
+// matters, not the absolute numbers.
+export const SHORTLIST_SCORES = {
+  source: {
+    leftoversFriendly: 26, // recipe is a viable leftover source for a future slot
+    batchFriendly: 6,
+    portionsCap: 8, // bonus = min(portions, cap)
+  },
+  time: {
+    weekend: { under120: 18, under180: 14, under240: 10, over: 4, missing: 12 },
+    busyDay: { under30: 24, under45: 18, under60: 10, over: 2 },
+    weeknight: { under45: 20, under60: 14, under75: 8, over: 3, missing: 10 },
+  },
+  difficulty: {
+    weekend: { medium: 10, easy: 9, hard: 7 },
+    busyDay: { easy: 14, medium: 7, hard: 1 },
+    weeknight: { easy: 12, medium: 9, hard: 4 },
+  },
+  flags: {
+    verified: 18,
+    completeMeal: 10,
+    leftoversFriendlyBonusWhenNotFeedingLeftover: 3,
+  },
+} as const;
+
+// ============================================================
 // Beam-search settings
 // ============================================================
 
@@ -199,7 +239,6 @@ export const ASSEMBLY_ADJUSTMENTS = {
   strongLeftoverTransform: 5,
   adjacentSameProteinRepeat: -6,
   cuisineRepeatedTooOften: -4,
-  extraNoveltyFirstWeek: -6,
   unfilledNonBusySlot: -10,
 } as const;
 
@@ -230,7 +269,6 @@ export const LEFTOVER_RESOLUTION_SUBWEIGHTS = {
 export const LEFTOVER_PLAN_QUALITY = {
   explicitTransform: 1.0,
   genericCarryForward: 0.75,
-  untrustworthy: 0.0,
 } as const;
 
 // ============================================================
@@ -319,6 +357,11 @@ export const STRUCTURE_DEFAULTS: Record<
 // can serve as the PRIMARY component for a given canonical meal type.
 // ============================================================
 
+// Breakfast accepts both `main` and `snack` planner roles because many real
+// breakfast options (granola, yogurt parfait, fruit bowl, pan dulce) are
+// catalogued as `snack`. Without snack as a fallback, breakfast slots would
+// often be unfillable on a small launch catalog. A hearty `main` breakfast
+// still wins on score when one exists.
 export const MEAL_TYPE_PRIMARY_ROLES: Record<
   CanonicalMealType,
   ReadonlyArray<string>
