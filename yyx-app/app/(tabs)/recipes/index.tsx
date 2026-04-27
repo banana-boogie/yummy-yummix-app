@@ -3,16 +3,26 @@ import { Animated, FlatList, View, NativeSyntheticEvent, NativeScrollEvent } fro
 import { useNavigation } from '@react-navigation/native';
 import { useRecipes } from '@/hooks/useRecipes';
 import { useUserProfile } from '@/contexts/UserProfileContext';
+import { useMealPlan } from '@/hooks/useMealPlan';
+import { usePersonalizedSections } from '@/hooks/usePersonalizedSections';
+import {
+  usePersonalizedFilterChips,
+  applyChipToSections,
+} from '@/hooks/usePersonalizedFilterChips';
 import { SPACING } from '@/constants/design-tokens';
+import { filterByDietarySafety } from '@/utils/dietarySafety';
 
 import { RecipeListHeader } from '@/components/recipe/RecipeListHeader';
 import { SearchBar } from '@/components/common/SearchBar';
 import { RecipeSectionList, RecipeSection } from '@/components/recipe/RecipeSectionList';
 import { RecipeList } from '@/components/recipe/RecipeList';
+import { FilterChips } from '@/components/recipe/FilterChips';
+import { ExploreRecipeCard } from '@/components/recipe/ExploreRecipeCard';
+import { AddToPlanModal } from '@/components/recipe/AddToPlanModal';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import i18n from '@/i18n';
 import { eventService } from '@/services/eventService';
-import { filterQuick, filterFamily, filterRecent } from '@/utils/recipeFilters';
+import type { Recipe } from '@/types/recipe.types';
 
 const Recipes = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -28,6 +38,7 @@ const Recipes = () => {
   } = useRecipes();
 
   const { userProfile } = useUserProfile();
+  const { plan: activePlan } = useMealPlan();
 
   const lastLoggedSearch = useRef<string>('');
 
@@ -120,40 +131,87 @@ const Recipes = () => {
   const isSearching = searchQuery.trim().length > 0;
   const animatedTranslateY = isSearching ? 0 : headerTranslateY;
 
-  // Build recipe sections for the sectioned feed
-  const sections = useMemo((): RecipeSection[] => {
-    if (!recipes.length) return [];
+  // Build personalized recipe sections (restriction-filtered by default)
+  const sections = usePersonalizedSections({
+    recipes,
+    userProfile,
+    activePlan,
+  });
 
-    const allSections: RecipeSection[] = [
-      {
-        id: 'quick',
-        title: i18n.t('recipes.sections.quick'),
-        recipes: filterQuick(recipes, 30),
-        layout: 'horizontal',
-      },
-      {
-        id: 'family',
-        title: i18n.t('recipes.sections.family'),
-        recipes: filterFamily(recipes, 4),
-        layout: 'horizontal',
-      },
-      {
-        id: 'new',
-        title: i18n.t('recipes.sections.new'),
-        recipes: filterRecent(recipes, 7),
-        layout: 'horizontal',
-      },
-      {
-        id: 'all',
-        title: i18n.t('recipes.sections.all'),
-        recipes: recipes,
-        layout: 'grid',
-      },
-    ];
+  // Filter chips — single-select, additive on top of dietary restrictions.
+  const chips = usePersonalizedFilterChips(recipes, userProfile);
+  const [selectedChipId, setSelectedChipId] = useState<string | null>(null);
+  const selectedChip = useMemo(
+    () => chips.find((c) => c.id === selectedChipId) ?? null,
+    [chips, selectedChipId],
+  );
 
-    // Remove empty sections
-    return allSections.filter(section => section.recipes.length > 0);
-  }, [recipes]);
+  // Add to Plan modal
+  const [planRecipe, setPlanRecipe] = useState<Recipe | null>(null);
+  const handleAddToPlan = useCallback((recipe: Recipe) => {
+    setPlanRecipe(recipe);
+  }, []);
+  const renderExploreCard = useCallback(
+    (recipe: Recipe, compact: boolean) => (
+      <ExploreRecipeCard recipe={recipe} compact={compact} onAddToPlan={handleAddToPlan} />
+    ),
+    [handleAddToPlan],
+  );
+  // Adapter for RecipeList (flat grid, non-compact) — keeps Add-to-Plan parity
+  // between the sectioned feed and the search results list.
+  const renderExploreCardForList = useCallback(
+    (recipe: Recipe) => (
+      <ExploreRecipeCard recipe={recipe} compact={false} onAddToPlan={handleAddToPlan} />
+    ),
+    [handleAddToPlan],
+  );
+
+  // Apply the same dietary-safety filter to the search-mode list as the
+  // sectioned feed does, so a shellfish-allergic user never sees shrimp in
+  // search results either.
+  const safeSearchRecipes = useMemo(
+    () => filterByDietarySafety(recipes, userProfile),
+    [recipes, userProfile],
+  );
+
+  const handleSectionViewed = useCallback(
+    (section: RecipeSection, position: number) => {
+      eventService.logExploreSectionViewed({
+        sectionId: section.id,
+        sectionPosition: position,
+        recipeCount: section.recipes.length,
+      });
+    },
+    [],
+  );
+
+  const handleChipSelect = useCallback(
+    (id: string | null) => {
+      setSelectedChipId(id);
+      if (id) {
+        const chip = chips.find((c) => c.id === id);
+        eventService.logExploreFilterApplied({
+          filterId: id,
+          filterType: chip?.filter.cuisine
+            ? 'cuisine'
+            : chip?.filter.dietType
+            ? 'diet'
+            : chip?.filter.maxTime
+            ? 'time'
+            : 'other',
+        });
+      }
+    },
+    [chips],
+  );
+
+  // When a chip is active, narrow only the "all_recipes" section's recipes.
+  // If the filter empties that section, drop it entirely so we don't render
+  // a lonely header with nothing under it.
+  const displaySections = useMemo<RecipeSection[]>(
+    () => applyChipToSections(sections, selectedChip),
+    [sections, selectedChip],
+  );
 
   return (
     <PageLayout contentPaddingHorizontal={0} disableMaxWidth={true}>
@@ -173,7 +231,7 @@ const Recipes = () => {
           displayName={displayName}
           onLogoPress={() => {}}
         />
-        <View className="pb-md px-md bg-background-default w-full max-w-[1200px] self-center">
+        <View className="pb-sm px-md bg-background-default w-full max-w-[1200px] self-center">
           <SearchBar
             searchQuery={searchQuery}
             setSearchQuery={handleSearchChange}
@@ -182,13 +240,22 @@ const Recipes = () => {
             variant="warm"
           />
         </View>
+        {!isSearching && chips.length > 0 && (
+          <View className="pb-sm bg-background-default w-full max-w-[1200px] self-center">
+            <FilterChips
+              chips={chips}
+              selectedId={selectedChipId}
+              onSelect={handleChipSelect}
+            />
+          </View>
+        )}
       </Animated.View>
 
       <View className="flex-1 w-full max-w-[1200px] self-center">
         {isSearching ? (
           /* When searching, fall back to flat grid list */
           <RecipeList
-            recipes={recipes}
+            recipes={safeSearchRecipes}
             loading={loading}
             initialLoading={initialLoading}
             error={error}
@@ -196,12 +263,13 @@ const Recipes = () => {
             onLoadMore={loadMore}
             onScroll={onScroll}
             contentContainerStyle={{ paddingTop: headerHeight, paddingHorizontal: SPACING.md }}
+            renderCard={renderExploreCardForList}
           />
         ) : (
           /* Default: sectioned feed */
           <RecipeSectionList
             ref={listRef}
-            sections={sections}
+            sections={displaySections}
             loading={loading}
             initialLoading={initialLoading}
             error={error}
@@ -209,9 +277,17 @@ const Recipes = () => {
             onLoadMore={loadMore}
             onScroll={onScroll}
             contentContainerStyle={{ paddingTop: headerHeight }}
+            renderCard={renderExploreCard}
+            onSectionViewed={handleSectionViewed}
           />
         )}
       </View>
+      <AddToPlanModal
+        visible={!!planRecipe}
+        recipe={planRecipe}
+        onClose={() => setPlanRecipe(null)}
+        activePlan={activePlan}
+      />
     </PageLayout>
   );
 };

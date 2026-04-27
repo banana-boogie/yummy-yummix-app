@@ -1,0 +1,188 @@
+/**
+ * AddToPlanModal
+ *
+ * Lets a user add a recipe to a day+meal slot in their active meal plan.
+ * If no active plan exists, prompts the user to create one. The Mi Menú
+ * tab destination doesn't exist yet (Track A4) — for now the CTA closes
+ * the sheet and surfaces a "coming soon" toast.
+ */
+
+import React, { useState } from 'react';
+import { Modal, Pressable, ScrollView, ToastAndroid, View, Platform, Alert } from 'react-native';
+import { Text } from '@/components/common/Text';
+import { Button } from '@/components/common/Button';
+import { COLORS, SPACING } from '@/constants/design-tokens';
+import i18n from '@/i18n';
+import type { Recipe } from '@/types/recipe.types';
+import type { MealPlan, MealPlanSlot } from '@/types/mealPlan';
+import { useMealPlan } from '@/hooks/useMealPlan';
+import { eventService } from '@/services/eventService';
+import { useLanguage } from '@/contexts/LanguageContext';
+
+export interface AddToPlanModalProps {
+  visible: boolean;
+  recipe: Recipe | null;
+  onClose: () => void;
+  activePlan?: MealPlan | null;
+}
+
+function t(key: string, fallback: string): string {
+  const value = i18n.t(`recipes.addToPlan.${key}`);
+  return value.startsWith('[missing') ? fallback : value;
+}
+
+function toast(message: string) {
+  if (Platform.OS === 'android') {
+    ToastAndroid.show(message, ToastAndroid.SHORT);
+  } else {
+    Alert.alert(message);
+  }
+}
+
+function dayLabel(slot: MealPlanSlot, bcp47Locale: string): string {
+  const date = new Date(slot.plannedDate);
+  if (Number.isNaN(date.getTime())) return slot.plannedDate;
+  return date.toLocaleDateString(bcp47Locale, {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+/**
+ * Map the app's UI language to a full BCP-47 locale for date formatting.
+ * We default Spanish to es-MX (Mexico-first) and English to en-US.
+ */
+function uiLanguageToBcp47(language: string): string {
+  return language === 'es' ? 'es-MX' : 'en-US';
+}
+
+export function AddToPlanModal({
+  visible,
+  recipe,
+  onClose,
+  activePlan,
+}: AddToPlanModalProps) {
+  const { addRecipeToSlot } = useMealPlan();
+  const { language } = useLanguage();
+  const bcp47Locale = uiLanguageToBcp47(language);
+  const [busySlotId, setBusySlotId] = useState<string | null>(null);
+
+  // Mi Menú tab doesn't exist yet (Track A4) — close the sheet and tell the
+  // user the destination is coming. When the tab lands, swap this for a real
+  // navigation call.
+  const handleCreatePlan = () => {
+    onClose();
+    toast(t('weekComingSoon', 'Mi Menú tab coming soon'));
+  };
+
+  const handleSlotPress = async (slot: MealPlanSlot) => {
+    if (!recipe || !activePlan || busySlotId) return;
+    setBusySlotId(slot.id);
+    try {
+      await addRecipeToSlot.mutateAsync({
+        mealPlanId: activePlan.planId,
+        mealPlanSlotId: slot.id,
+        recipeId: recipe.id,
+      });
+      eventService.logExploreAddToPlan({
+        recipeId: recipe.id,
+        planId: activePlan.planId,
+        slotId: slot.id,
+        dayIndex: slot.dayIndex,
+        mealType: slot.mealType,
+      });
+      toast(t('successToast', 'Added to your menu'));
+      onClose();
+    } catch {
+      toast(t('errorToast', "Couldn't add to your menu"));
+    } finally {
+      setBusySlotId(null);
+    }
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <Pressable
+        onPress={onClose}
+        style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.35)',
+          justifyContent: 'flex-end',
+        }}
+      >
+        <Pressable
+          onPress={(e) => e.stopPropagation()}
+          style={{
+            backgroundColor: COLORS.background.default,
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            paddingHorizontal: SPACING.lg,
+            paddingTop: SPACING.lg,
+            paddingBottom: SPACING.xl,
+            maxHeight: '80%',
+          }}
+        >
+          <Text preset="h2" className="text-text-default">
+            {t('title', 'Add to my menu')}
+          </Text>
+
+          {!activePlan ? (
+            <View style={{ gap: SPACING.md }}>
+              <Text preset="body" className="text-text-secondary">
+                {t('noPlanPrompt', 'No menu yet. Create one first?')}
+              </Text>
+              <Button variant="primary" onPress={handleCreatePlan}>
+                {t('createPlanCta', 'Create my menu')}
+              </Button>
+              <Button variant="outline" onPress={onClose}>
+                {t('cancel', 'Cancel')}
+              </Button>
+            </View>
+          ) : (
+            <View>
+              <Text preset="body" className="text-text-secondary mb-md">
+                {t('selectSlot', 'Pick a day and meal')}
+              </Text>
+              <ScrollView style={{ maxHeight: 400 }}>
+                {activePlan.slots.map((slot) => {
+                  const busy = busySlotId === slot.id;
+                  return (
+                    <Pressable
+                      key={slot.id}
+                      disabled={busy}
+                      onPress={() => handleSlotPress(slot)}
+                      style={{
+                        minHeight: 56,
+                        paddingHorizontal: SPACING.md,
+                        paddingVertical: SPACING.sm,
+                        marginBottom: SPACING.sm,
+                        borderRadius: 12,
+                        backgroundColor: COLORS.background.secondary,
+                        borderWidth: 1,
+                        borderColor: COLORS.grey.default,
+                        opacity: busy ? 0.6 : 1,
+                      }}
+                    >
+                      <Text preset="subheading" className="text-text-default" marginBottom={0}>
+                        {dayLabel(slot, bcp47Locale)}
+                      </Text>
+                      <Text preset="bodySmall" className="text-text-secondary">
+                        {slot.displayMealLabel || slot.mealType}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
