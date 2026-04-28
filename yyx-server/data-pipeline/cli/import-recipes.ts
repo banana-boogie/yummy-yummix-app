@@ -346,6 +346,23 @@ async function importRecipe(
       }`,
     );
     if (parsed.tipsAndTricksEn) logger.info(`Tips: ${parsed.tipsAndTricksEn}`);
+    logger.info(
+      `Planner role: ${parsed.plannerRole ?? 'null'} | Complete meal: ${parsed.isCompleteMeal} | Cooking level: ${parsed.cookingLevel ?? 'null'}`,
+    );
+    if (parsed.equipmentTags.length > 0) {
+      logger.info(`Equipment: ${parsed.equipmentTags.join(', ')}`);
+    }
+    if (parsed.mealComponents.length > 0) {
+      logger.info(`Meal components: ${parsed.mealComponents.join(', ')}`);
+    }
+    const plannerMeta = [
+      parsed.leftoversFriendly !== null ? `leftovers_friendly: ${parsed.leftoversFriendly}` : null,
+      parsed.maxHouseholdSizeSupported !== null
+        ? `max_household: ${parsed.maxHouseholdSizeSupported}`
+        : null,
+      parsed.batchFriendly !== null ? `batch_friendly: ${parsed.batchFriendly}` : null,
+    ].filter(Boolean);
+    if (plannerMeta.length > 0) logger.info(`  ${plannerMeta.join(' | ')}`);
 
     // Show entity resolution status
     const missingIngredients = parsed.ingredients.filter(
