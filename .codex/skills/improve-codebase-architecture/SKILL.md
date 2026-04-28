@@ -34,7 +34,7 @@ Key principles:
 
 Before exploring, **read [`CONTEXT.md`](../../../CONTEXT.md) and skim [`docs/decisions/`](../../../docs/decisions/)**. The first gives you the project's vocabulary; the second tells you which architectural choices are already settled and shouldn't be relitigated.
 
-Then walk the codebase. For broad exploration, dispatch a sub-agent with `subagent_type=Explore`. Don't follow rigid heuristics — explore organically and note where you experience friction:
+Then walk the codebase locally. Use `rg`, `rg --files`, and focused file reads to follow the code where the concepts lead. Don't follow rigid heuristics — explore organically and note where you experience friction:
 
 - Where does understanding one concept require bouncing between many small modules?
 - Where are modules **shallow** — interface nearly as complex as the implementation?
@@ -79,6 +79,6 @@ Side effects happen inline as decisions crystallize:
 
 ### 4. Plan and hand off
 
-Once a candidate is fully grilled, produce an implementation plan and hand it to the appropriate domain agent (`backend`, `frontend`, `ai-engineer`, `database`) for execution via the standard build/review cycle. Don't implement directly inside this skill — the skill is for *finding* and *shaping* deepening opportunities, not executing them.
+Once a candidate is fully grilled, produce an implementation plan and stop for the user's approval. If the user explicitly asks you to implement it, switch out of discovery mode and execute the approved plan in the normal Codex workflow. If the user explicitly asks for delegated or parallel agent work, use Codex `spawn_agent` with `explorer` for bounded read-only questions or `worker` for scoped implementation tasks, and give workers disjoint ownership of files/modules. Don't implement directly while you are still in the candidate-finding or grilling stages — this skill is for *finding* and *shaping* deepening opportunities first.
 
 For dependency strategy and testing approach when deepening, see [DEEPENING.md](DEEPENING.md).

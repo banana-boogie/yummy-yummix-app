@@ -1,6 +1,6 @@
 # Interface Design
 
-When the user wants to explore alternative interfaces for a chosen deepening candidate, use this parallel sub-agent pattern. Based on "Design It Twice" (Ousterhout) — your first idea is unlikely to be the best.
+When the user wants to explore alternative interfaces for a chosen deepening candidate, use this "Design It Twice" pattern (Ousterhout) — your first idea is unlikely to be the best.
 
 Uses the vocabulary in [LANGUAGE.md](LANGUAGE.md) — **module**, **interface**, **seam**, **adapter**, **leverage**.
 
@@ -8,34 +8,30 @@ Uses the vocabulary in [LANGUAGE.md](LANGUAGE.md) — **module**, **interface**,
 
 ### 1. Frame the problem space
 
-Before spawning sub-agents, write a user-facing explanation of the problem space for the chosen candidate:
+Before designing alternatives, write a user-facing explanation of the problem space for the chosen candidate:
 
 - The constraints any new interface would need to satisfy
 - The dependencies it would rely on, and which category they fall into (see [DEEPENING.md](DEEPENING.md))
 - A rough illustrative code sketch to ground the constraints — not a proposal, just a way to make the constraints concrete
 
-Show this to the user, then immediately proceed to Step 2. The user reads and thinks while the sub-agents work in parallel.
+Show this to the user, then immediately proceed to Step 2. The user can read and think while you develop the alternatives.
 
-### 2. Spawn sub-agents
+### 2. Design alternatives
 
-Spawn 3+ sub-agents in parallel using the Agent tool. Each must produce a **radically different** interface for the deepened module.
+Produce 3+ **radically different** interfaces for the deepened module. By default, do this locally in the main Codex thread so the design stays coherent and grounded in the same context.
 
-Pick the appropriate `subagent_type` for the domain:
-- Backend modules → `backend`
-- Frontend modules → `frontend`
-- AI/orchestrator modules → `ai-engineer`
-- Database/RPC → `database`
+If the user explicitly asks for parallel agent work or delegated design exploration, use Codex `spawn_agent` with `agent_type: "explorer"` for read-only interface proposals. Keep each delegated task bounded and self-contained, and ask each explorer for a different design constraint. Do not spawn agents unless the user has explicitly asked for sub-agents, delegation, or parallel agent work.
 
-Prompt each sub-agent with a separate technical brief (file paths, coupling details, dependency category from [DEEPENING.md](DEEPENING.md), what sits behind the seam). The brief is independent of the user-facing problem-space explanation in Step 1. Give each agent a different design constraint:
+For each alternative, use a separate technical brief (file paths, coupling details, dependency category from [DEEPENING.md](DEEPENING.md), what sits behind the seam). Give each alternative a different design constraint:
 
-- Agent 1: "Minimize the interface — aim for 1–3 entry points max. Maximise leverage per entry point."
-- Agent 2: "Maximise flexibility — support many use cases and extension."
-- Agent 3: "Optimise for the most common caller — make the default case trivial."
-- Agent 4 (if applicable): "Design around ports & adapters for cross-seam dependencies."
+- Alternative 1: "Minimize the interface — aim for 1–3 entry points max. Maximise leverage per entry point."
+- Alternative 2: "Maximise flexibility — support many use cases and extension."
+- Alternative 3: "Optimise for the most common caller — make the default case trivial."
+- Alternative 4 (if applicable): "Design around ports & adapters for cross-seam dependencies."
 
-Include both [LANGUAGE.md](LANGUAGE.md) vocabulary and `CONTEXT.md` vocabulary in the brief so each sub-agent names things consistently with the architecture language and the project's domain language.
+Include both [LANGUAGE.md](LANGUAGE.md) vocabulary and `CONTEXT.md` vocabulary in each brief so every alternative names things consistently with the architecture language and the project's domain language.
 
-Each sub-agent outputs:
+Each alternative outputs:
 
 1. Interface (types, methods, params — plus invariants, ordering, error modes)
 2. Usage example showing how callers use it
