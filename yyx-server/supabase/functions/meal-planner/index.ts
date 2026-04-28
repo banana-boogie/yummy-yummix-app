@@ -30,10 +30,8 @@ import {
   type ComponentRole,
   type GeneratePlanPayload,
   type GeneratePlanResponse,
-  type GenerateShoppingListResponse,
   type GetCurrentPlanResponse,
   type GetPreferencesResponse,
-  type LinkShoppingListResponse,
   type MarkMealCookedResponse,
   MEAL_PLAN_ACTIONS,
   type MealPlanAction,
@@ -124,6 +122,18 @@ function requireString(
   const value = payload[field];
   if (typeof value !== "string" || value.length === 0) {
     throw new Error(`${field} is required and must be a non-empty string`);
+  }
+  return value;
+}
+
+function optionalString(
+  payload: Record<string, unknown>,
+  field: string,
+): string | undefined {
+  const value = payload[field];
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`${field} must be a non-empty string when provided`);
   }
   return value;
 }
@@ -431,21 +441,13 @@ async function handleSwapMeal(
   userId: string,
   supabase: UserClient,
 ): Promise<Response> {
-  let mealPlanId: string;
+  let mealPlanId: string | undefined;
   let mealPlanSlotId: string;
   let selectedRecipeId: string | undefined;
   try {
-    mealPlanId = requireString(payload, "mealPlanId");
+    mealPlanId = optionalString(payload, "mealPlanId");
     mealPlanSlotId = requireString(payload, "mealPlanSlotId");
-    if (payload.selectedRecipeId !== undefined) {
-      if (
-        typeof payload.selectedRecipeId !== "string" ||
-        payload.selectedRecipeId.length === 0
-      ) {
-        throw new Error("selectedRecipeId must be a non-empty string");
-      }
-      selectedRecipeId = payload.selectedRecipeId;
-    }
+    selectedRecipeId = optionalString(payload, "selectedRecipeId");
   } catch (error) {
     return errorResponse("INVALID_INPUT", (error as Error).message);
   }
@@ -456,7 +458,7 @@ async function handleSwapMeal(
     supabase as never,
   );
   if (!ctx) return errorResponse("PLAN_NOT_FOUND", "Slot not found", 404);
-  if (ctx.plan.planId !== mealPlanId) {
+  if (mealPlanId !== undefined && ctx.plan.planId !== mealPlanId) {
     return errorResponse(
       "INVALID_INPUT",
       "mealPlanId does not match the slot's parent plan",
@@ -781,10 +783,10 @@ async function handleSkipMeal(
   userId: string,
   supabase: UserClient,
 ): Promise<Response> {
-  let mealPlanId: string;
+  let mealPlanId: string | undefined;
   let mealPlanSlotId: string;
   try {
-    mealPlanId = requireString(payload, "mealPlanId");
+    mealPlanId = optionalString(payload, "mealPlanId");
     mealPlanSlotId = requireString(payload, "mealPlanSlotId");
   } catch (error) {
     return errorResponse("INVALID_INPUT", (error as Error).message);
@@ -796,7 +798,7 @@ async function handleSkipMeal(
     supabase as never,
   );
   if (!ctx) return errorResponse("PLAN_NOT_FOUND", "Slot not found", 404);
-  if (ctx.plan.planId !== mealPlanId) {
+  if (mealPlanId !== undefined && ctx.plan.planId !== mealPlanId) {
     return errorResponse(
       "INVALID_INPUT",
       "mealPlanId does not match the slot's parent plan",
@@ -844,10 +846,10 @@ async function handleMarkMealCooked(
   userId: string,
   supabase: UserClient,
 ): Promise<Response> {
-  let mealPlanId: string;
+  let mealPlanId: string | undefined;
   let mealPlanSlotId: string;
   try {
-    mealPlanId = requireString(payload, "mealPlanId");
+    mealPlanId = optionalString(payload, "mealPlanId");
     mealPlanSlotId = requireString(payload, "mealPlanSlotId");
   } catch (error) {
     return errorResponse("INVALID_INPUT", (error as Error).message);
@@ -859,11 +861,22 @@ async function handleMarkMealCooked(
     supabase as never,
   );
   if (!ctx) return errorResponse("PLAN_NOT_FOUND", "Slot not found", 404);
-  if (ctx.plan.planId !== mealPlanId) {
+  if (mealPlanId !== undefined && ctx.plan.planId !== mealPlanId) {
     return errorResponse(
       "INVALID_INPUT",
       "mealPlanId does not match the slot's parent plan",
     );
+  }
+
+  // Idempotency guard: if the slot is already cooked, return its current
+  // state without re-writing `cooked_at` or re-emitting the analytics event.
+  // Protects against double-taps and retries.
+  if (ctx.slot.status === "cooked") {
+    const response: MarkMealCookedResponse = {
+      slot: ctx.slot,
+      warnings: [],
+    };
+    return jsonResponse(response);
   }
 
   const nowIso = new Date().toISOString();
@@ -955,25 +968,18 @@ async function handleApprovePlan(
 }
 
 function handleGenerateShoppingList(
-  payload: Record<string, unknown>,
+  _payload: Record<string, unknown>,
   _userId: string,
   _supabase: UserClient,
 ): Response {
-  try {
-    requireString(payload, "mealPlanId");
-  } catch (error) {
-    return errorResponse("INVALID_INPUT", (error as Error).message);
-  }
-
-  // Track B's shopping_lists / shopping_list_items tables aren't on this
-  // branch yet (Plan 14 § 4 Option 2). Return a stub response with a warning
-  // so the UI can show "shopping list pending"; the handler ships fully when
-  // Track B's migration lands.
-  const response: GenerateShoppingListResponse = {
-    shoppingListId: null,
-    warnings: ["SHOPPING_LIST_INTEGRATION_DEFERRED"],
-  };
-  return jsonResponse(response);
+  // Track B (shopping list integration) is not on this branch. Return 501
+  // so the UI cannot accidentally treat a stubbed null `shoppingListId` as
+  // success. When Track B lands, replace this with the real implementation.
+  return errorResponse(
+    "NOT_IMPLEMENTED",
+    "generate_shopping_list is not yet implemented (Track B pending)",
+    501,
+  );
 }
 
 async function handleGetPreferences(
@@ -1052,28 +1058,15 @@ async function handleUpdatePreferences(
 }
 
 function handleLinkShoppingList(
-  payload: Record<string, unknown>,
+  _payload: Record<string, unknown>,
   _userId: string,
   _supabase: UserClient,
 ): Response {
-  let mealPlanId: string;
-  let shoppingListId: string;
-  try {
-    mealPlanId = requireString(payload, "mealPlanId");
-    shoppingListId = requireString(payload, "shoppingListId");
-  } catch (error) {
-    return errorResponse("INVALID_INPUT", (error as Error).message);
-  }
-
-  // See `handleGenerateShoppingList`. Persistence of the link is gated on
-  // Track B's tables landing on this branch.
-  const response: LinkShoppingListResponse = {
-    linked: false,
-    mealPlanId,
-    shoppingListId,
-    warnings: ["SHOPPING_LIST_INTEGRATION_DEFERRED"],
-  };
-  return jsonResponse(response);
+  return errorResponse(
+    "NOT_IMPLEMENTED",
+    "link_shopping_list is not yet implemented (Track B pending)",
+    501,
+  );
 }
 
 const actionHandlers: Record<

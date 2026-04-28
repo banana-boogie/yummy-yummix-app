@@ -161,6 +161,7 @@ export type MealPlannerErrorCode =
   | "INVALID_INPUT"
   | "UNAUTHORIZED"
   | "LIMITED_CATALOG_COVERAGE"
+  | "NOT_IMPLEMENTED"
   | "INTERNAL_ERROR";
 
 // ============================================================
@@ -191,8 +192,13 @@ export interface GeneratePlanPayload {
   replaceExisting?: boolean;
 }
 
+/**
+ * `mealPlanId` is optional on slot mutations. The slot id alone is sufficient
+ * to resolve the parent plan via RLS-enforced ownership. When provided, the
+ * server validates the pair matches and returns INVALID_INPUT on mismatch.
+ */
 export interface SwapMealPayload {
-  mealPlanId: string;
+  mealPlanId?: string;
   mealPlanSlotId: string;
   reason?: string;
   /**
@@ -208,12 +214,12 @@ export interface ApprovePlanPayload {
 }
 
 export interface SkipMealPayload {
-  mealPlanId: string;
+  mealPlanId?: string;
   mealPlanSlotId: string;
 }
 
 export interface MarkMealCookedPayload {
-  mealPlanId: string;
+  mealPlanId?: string;
   mealPlanSlotId: string;
 }
 

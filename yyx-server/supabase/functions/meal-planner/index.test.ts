@@ -573,18 +573,19 @@ Deno.test("generate_plan rejects malformed weekStart before planner execution", 
   assertStringIncludes(body.error.message, "weekStart");
 });
 
-Deno.test("link_shopping_list rejects missing shoppingListId", async () => {
+Deno.test("link_shopping_list returns 501 NOT_IMPLEMENTED until Track B lands", async () => {
   const req = createAuthenticatedRequest({
     action: "link_shopping_list",
     payload: {
       mealPlanId: "plan-123",
+      shoppingListId: "list-123",
     },
   });
   const response = await handleMealPlannerRequest(req, mockDependencies);
   const body = await response.json();
 
-  assertEquals(response.status, 400);
-  assertEquals(body.error.code, "INVALID_INPUT");
+  assertEquals(response.status, 501);
+  assertEquals(body.error.code, "NOT_IMPLEMENTED");
 });
 
 Deno.test("swap_meal rejects missing mealPlanSlotId", async () => {
@@ -1305,7 +1306,7 @@ Deno.test("mark_meal_cooked returns INVALID_INPUT when mealPlanId mismatches the
   assertEquals(body.error.code, "INVALID_INPUT");
 });
 
-Deno.test("generate_shopping_list returns deferred warning when Track B not present", async () => {
+Deno.test("generate_shopping_list returns 501 NOT_IMPLEMENTED when Track B not present", async () => {
   const { supabase } = makeStatefulSupabase({});
   const req = createAuthenticatedRequest({
     action: "generate_shopping_list",
@@ -1316,7 +1317,37 @@ Deno.test("generate_shopping_list returns deferred warning when Track B not pres
     createUserClient: () => supabase as never,
   });
   const body = await response.json();
+  assertEquals(response.status, 501);
+  assertEquals(body.error.code, "NOT_IMPLEMENTED");
+});
+
+Deno.test("mark_meal_cooked is idempotent when slot is already cooked", async () => {
+  // Seed the plan with a pre-cooked slot. loadSlotWithPlan queries
+  // `meal_plans` and pulls the slot from `meal_plan_slots[]`, so we mutate
+  // there (the `slot` opt is the row returned for direct meal_plan_slots
+  // lookups, not used on this path).
+  const planRow = seededPlanRow() as Record<string, unknown>;
+  // deno-lint-ignore no-explicit-any
+  const slots = planRow.meal_plan_slots as any[];
+  slots[0].status = "cooked";
+  slots[0].cooked_at = "2026-04-27T00:00:00.000Z";
+
+  const { supabase, updates, inserts } = makeStatefulSupabase({
+    plan: planRow,
+    slot: seededSlotRef(),
+  });
+  const req = createAuthenticatedRequest({
+    action: "mark_meal_cooked",
+    payload: { mealPlanSlotId: SEEDED_SLOT_ID },
+  });
+  const response = await handleMealPlannerRequest(req, {
+    ...mockDependencies,
+    createUserClient: () => supabase as never,
+  });
   assertEquals(response.status, 200);
-  assertEquals(body.shoppingListId, null);
-  assertEquals(body.warnings, ["SHOPPING_LIST_INTEGRATION_DEFERRED"]);
+  const body = await response.json();
+  assertEquals(body.slot?.status, "cooked");
+  // No update or analytics insert should happen on the idempotent path.
+  assertEquals(updates.meal_plan_slots ?? [], []);
+  assertEquals(inserts.user_events ?? [], []);
 });
