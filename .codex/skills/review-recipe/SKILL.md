@@ -140,7 +140,9 @@ Required sections:
 - `review.reviewed_by_label` — your model label (e.g. `'codex-gpt-5'`)
 - `review.reviewed_at` — current ISO 8601 timestamp
 
-For all other sections, write only what changes. If a section's current state is already correct, omit it (idempotent dry-run will report zero writes for omitted sections).
+**`planner` is the exception**: always include it with at least `role`, `meal_components`, and `is_complete_meal` (per Step 4's "re-decide planner_role from scratch" rule), even when your decision matches the current DB value. Re-asserting the same value is a zero-write idempotent op and makes the role decision visible in git history.
+
+For every other section, write only what changes. If a section's current state is already correct, omit it (idempotent dry-run will report zero writes for omitted sections).
 
 Match-key rules:
 - `ingredient_updates`/`ingredient_removes`: prefer `existing_id` (the `id` from step 2's recipe_ingredients query). Fallback: `ingredient_slug` + `display_order`. Compute the slug exactly as the SQL helper does — the JS reproduction is in `data-pipeline/lib/recipe-metadata-fetch.ts:slugifyName()`. Never use names directly.

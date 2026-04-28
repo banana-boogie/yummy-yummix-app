@@ -33,6 +33,13 @@ description:
   en: 'A creamy zucchini and spinach soup made entirely in the Thermomix. Light, vegetable-forward, and easy to prep.'
   es: 'Una sopa cremosa de calabacita y espinaca preparada totalmente en la Thermomix. Ligera, llena de vegetales y fácil de preparar.'
 
+# Rewritten so the cheese suggestion no longer contradicts the `vegan`
+# diet tag — the original "Serve with feta" implied a non-vegan default.
+# Now both options are explicit and the vegan path is first-class.
+tips_and_tricks:
+  en: 'Serve with croutons. Top with feta or your favourite cheese for a non-vegan version, or with toasted pumpkin seeds for a fully plant-based finish.'
+  es: 'Acompaña con crutones. Agrega queso feta o el que prefieras si no es vegano, o semillas de calabaza tostadas para una versión 100% vegetal.'
+
 # Per-category set replacement. Categories not listed here (`dish_type` already
 # = ['soup'], unchanged) are preserved as-is.
 tags:
