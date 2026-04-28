@@ -17,7 +17,7 @@ The reviewer's job: produce a YAML config at `yyx-server/data-pipeline/data/reci
 
 ---
 
-## 16-point quality checklist
+## Quality checklist
 
 ### Deterministic auto-checks (a script can answer these)
 
@@ -26,17 +26,22 @@ The reviewer's job: produce a YAML config at `yyx-server/data-pipeline/data/reci
 3. **Zero prep time.** `recipes.prep_time = 0` and `total_time = 0` (the dual-zero is the real signal — single-zero may be intentional for raw assemblies).
 4. **Thermomix steps without equipment tag.** Step instructions mention "Thermomix", "Varoma", "TM6", or speed/temperature numerics, but `recipes.equipment_tags` does not include `thermomix`.
 5. **Missing description or tips.** `recipe_translations.description IS NULL` or `tips_and_tricks = ''` for any locale the recipe supports.
-6. **Duplicate `es-ES` rows.** Translation rows for `es-ES` that mirror `es` exactly — import artifact. Strip via `cleanup.delete_locales: ['es-ES']`.
-7. **Published without planner role.** `recipes.is_published = true` and `planner_role IS NULL`.
+6. **`es-ES` rows are retained, not stripped.** The import pipeline intentionally emits `en + es + es-ES`. `es-ES` is the override slot for future Spain-Spanish content; even when it currently mirrors `es` exactly, it stays. **Never** add `cleanup.delete_locales: ['es-ES']` — that wipes the override slot. The only legitimate use of `cleanup.delete_locales` is to remove a locale that genuinely should not exist for this recipe (e.g. an accidental third-party locale). The `es-ES = es` duplication is by design and not a defect.
+7. **Published without planner role.** `recipes.is_published = true` and `planner_role IS NULL`. See the **Publishing policy** section below for when the reviewer should flip `is_published: true`.
 8. **No kitchen tools.** Zero entries in `recipe_kitchen_tools`. (Pantry recipes that genuinely need none — e.g. spice blends — can stay empty.)
 9. **Step text vs structured Thermomix fields.** Step instructions specify temperature/speed in prose but the corresponding columns (`thermomix_speed`, `thermomix_temperature`) are NULL.
 10. **Step references unknown ingredient.** Step instruction names an ingredient that is not in `recipe_ingredients`.
-11. **Non-complete-meal mains without pairings.** `planner_role = 'main'`, `is_complete_meal = false`, and no outgoing rows in `recipe_pairings`.
-12. **Implausible quantities.** Sugar < 5 g in a sweet sauce, salt > 10 g per kg of meat, raisins > 80 g in a savory dish, etc. Use cuisine context.
-13. **Non-pantry recipes without `meal_type` tag.** Admin form enforces `requiresMealType = recipe.plannerRole !== 'pantry'` (see `MealPlanningForm.tsx`). A non-pantry recipe with no `meal_type` tag is unplannable.
-14. **`same_en_es_name`.** `recipe_translations.name` identical between `en` and `es`. Reviewer fixes via `name.es` override **only when the translation is unambiguous** (e.g. "Mongolian Beef" → "Res Mongola"). Anything subjective: flag `requires_authoring.reasons: ['same_en_es_name']`.
-15. **`no_steps`.** `recipe_steps` is empty. Always flag `requires_authoring.reasons: ['no_steps']`. Never fabricate steps.
-16. **`few_ingredients`.** `recipe_ingredients` has fewer than 3 entries. Almost always means the import was incomplete. Flag `requires_authoring.reasons: ['few_ingredients']` unless the recipe is genuinely 2-ingredient (e.g. matcha butter — confirm from name).
+11. **Step ingredient link mismatches.** `recipe_step_ingredients` must be coherent with both the step instruction and the recipe-level ingredient list:
+  - A step that directly adds or handles a recipe ingredient should have that ingredient listed in `recipe_step_ingredients`, except when the step only handles a mixture made in an earlier step. Example: "Add zucchini and water" should link zucchini + water; "blend the soup until smooth" should not relist every ingredient already in the soup.
+  - A `recipe_step_ingredients.ingredient_id` whose ingredient is not present in `recipe_ingredients` for the same recipe is an orphan link. Flag it; the step is claiming to use an ingredient the recipe does not list.
+  - A `recipe_step_ingredients` row that names an ingredient not mentioned, added, handled, or clearly implied by the step text is suspect. Phrases like "all remaining ingredients" or "the reserved sauce" can justify the link; otherwise flag it.
+  - The current YAML applier does **not** mutate `recipe_step_ingredients`. If the instruction text is wrong and fixable, use `step_overrides`; if the relationship row itself is wrong, record it in `requires_authoring.notes` for admin cleanup.
+12. **Non-complete-meal mains without pairings.** `planner_role = 'main'`, `is_complete_meal = false`, and no outgoing rows in `recipe_pairings`.
+13. **Implausible quantities.** Sugar < 5 g in a sweet sauce, salt > 10 g per kg of meat, raisins > 80 g in a savory dish, etc. Use cuisine context.
+14. **Non-pantry recipes without `meal_type` tag.** Admin form enforces `requiresMealType = recipe.plannerRole !== 'pantry'` (see `MealPlanningForm.tsx`). A non-pantry recipe with no `meal_type` tag is unplannable.
+15. **`same_en_es_name`.** `recipe_translations.name` identical between `en` and `es`. Reviewer fixes via `name.es` override **only when the translation is unambiguous** (e.g. "Mongolian Beef" → "Res Mongola"). Anything subjective: flag `requires_authoring.reasons: ['same_en_es_name']`.
+16. **`no_steps`.** `recipe_steps` is empty. Always flag `requires_authoring.reasons: ['no_steps']`. Never fabricate steps.
+17. **`few_ingredients`.** `recipe_ingredients` has fewer than 3 entries. Almost always means the import was incomplete. Flag `requires_authoring.reasons: ['few_ingredients']` unless the recipe is genuinely 2-ingredient (e.g. matcha butter — confirm from name).
 
 ### Judgment-call checks (require Claude's reasoning)
 
@@ -50,8 +55,10 @@ The reviewer's job: produce a YAML config at `yyx-server/data-pipeline/data/reci
 - **Portion size matches ingredient volume.** 4 portions from 200 g of pasta is wrong. 8 portions from 2 kg of beef is wrong.
 - **Plausible Thermomix speeds.** Speed 1.5 for sautéing — fine. Speed 4.5 for sautéing — wrong, that's a blender speed. Speed 11 — invalid (max is 10 in numeric, plus `'spoon'`).
 - **Equipment choices appropriate.** Varoma cycle for raw shrimp is suspicious if longer than 10 minutes. Oven called for a no-bake dessert is wrong. Thermomix called when the recipe is purely assembly is overkill.
+- **Step coherence.** Each step should make culinary sense on its own: the action should be possible with the listed tool/settings, the time/temperature should match the technique, the step should have a clear output state, and it should not silently depend on an ingredient, mixture, or prep action that never appeared earlier. If the step is incoherent but can be corrected without fabricating missing procedure, use `step_overrides`; if fixing it would require inventing steps, ingredients, or intent, flag `requires_authoring.notes`.
 - **Ingredient list completeness vs step narrative.** Step says "add the cilantro garnish" but cilantro isn't in `recipe_ingredients`. Step says "deglaze with white wine" but wine isn't listed.
 - **Diet-tag attestation must match user-visible content.** Exclusion-style diet tags (`vegan`, `vegetarian`, `gluten_free`, `pescatarian`) are promises to the user, not loose categorization. Whenever you add or keep one of these tags, audit the recipe's description, `tips_and_tricks`, ingredient list, and step instructions for items that violate the promise. Examples that ship as bugs if missed: `vegan` recipe whose tips suggest feta as a default garnish; `gluten_free` recipe whose description says "serve with bread"; `vegetarian` recipe whose ingredients list anchovies in the dressing. If you find a contradiction: rewrite the offending content (preferred — surface a plant-based alt alongside the existing suggestion) or drop the tag. Never ship the contradiction.
+- **Spanish voice/register follows Irmixy: tú, never usted.** The runtime source of truth (`docs/references/IRMIXY-PERSONALITY.md` and `buildPersonalityBlock()` in `system-prompt-builder.ts`) says Spanish should use **tú**. When writing or rewriting `description.es`, `tips_and_tricks.es`, `scaling_notes.es`, or step text, use natural Mexican Spanish tú forms (`Coloca`, `Acompaña`, `Agrega`, `Sirve`) unless you are preserving an already-authored quoted phrase. Existing usted step text is legacy drift, not the target voice; do not propagate it into new reviewer-authored content.
 
 ---
 
@@ -66,6 +73,26 @@ These trip every first-time reviewer. Internalize them.
 - **No cross-language fallback.** `en` and `es` are independent user groups. A Spanish user must never see English content, and vice versa. Never store base content under a regional code.
 - **`recipes.verified_by`** — UUID FK to `auth.users`, reserved for admin-UI verification. Reviewer attestation goes in YAML's `review:` section, NOT this column.
 - **PostgREST silently returns null for non-existent columns.** When fetching for review, double-check column names against the live schema if a value looks suspicious.
+- **`kitchen_tools.set[].name_en` must match `kitchen_tool_translations.name` exactly — including trademark glyphs.** The DB stores `Thermomix® Varoma` (with the ® registered-trademark symbol) and `Thermomix®` for the appliance. A YAML that writes `Varoma` or `Thermomix Varoma` (no ®) will hard-fail at apply with an "ambiguous name" or "tool not found" error. **Always query `SELECT name FROM kitchen_tool_translations WHERE locale = 'en' ORDER BY name` before authoring `kitchen_tools.set` and copy the canonical string verbatim.** No auto-create — taxonomy stays human-curated.
+- **`recipes.equipment_tags` taxonomy is lowercase free strings, conventionally `[thermomix]`.** The schema accepts `z.array(z.string().min(1))` (no enum) but the project convention is the lowercase appliance family. Do not write `Thermomix`, `TM6`, `varoma`, or other variants — match what existing YAMLs in `data-pipeline/data/recipe-metadata/*.yaml` use. As of 2026-04, `thermomix` is the only accepted value.
+
+---
+
+## Publishing policy
+
+Auto-check #7 catches the *symptom* (published without `planner_role`); this section is the *prescription* (when the reviewer should flip `is_published: true`).
+
+The reviewer **may set `is_published: true`** when **all** of these hold:
+
+1. `requires_authoring.reasons` is empty (no fabrication-blocked gaps).
+2. `planner.role` is set to a non-null value.
+3. The recipe has a `meal_type` tag — unless `planner.role = 'pantry'`, in which case `meal_type` is not required (mirrors `MealPlanningForm.tsx` which enforces `requiresMealType = recipe.plannerRole !== 'pantry'`).
+4. EN and ES translations both exist for `name`, `description`, and `tips_and_tricks`.
+5. The recipe has at least one ingredient and at least one step (the `no_steps` / `few_ingredients` guards are not tripped).
+
+The reviewer **must NOT set `is_published: true`** when any of the above fails. Leave the field unset (omit it from `planner:`) — that preserves the current DB value. **Do not** silently flip `is_published: false` either; downgrading a published recipe is an admin operation, not a reviewer one. If you believe a published recipe should be unpublished, flag it in `requires_authoring.notes` and let a human decide.
+
+`is_published` and `recipes.verified_by` are independent bits. Verification (admin-UI button) attests that a human reviewed the recipe; publishing makes it discoverable. The reviewer never touches `verified_by`.
 
 ---
 
@@ -96,6 +123,8 @@ For any `set:` block (kitchen_tools, pairings, tags), the YAML is **declarative*
 ## Stale-diff guard
 
 The Reviewer captures `recipes.updated_at` when fetching state and writes it to `recipe_match.expected_recipe_updated_at`. The Applier passes this value to the `apply_recipe_metadata` RPC, which acquires a row lock and rejects the apply with `stale_diff` if the live `updated_at` has advanced. If you see `stale_diff`, re-run `/review-recipe` to refresh the snapshot.
+
+**Timestamp format.** Postgres returns `updated_at` as `2026-03-17 20:22:55.099866+00` (space separator, microseconds, two-digit offset). Convert to canonical ISO 8601 before writing the YAML: `2026-03-17T20:22:55.099866+00:00` — `T` separator, **preserve the microseconds**, full `+00:00` offset. Truncating to seconds risks a `stale_diff` rejection when the live row's microsecond differs. The schema's `Date.parse()` is permissive enough to accept either form, but canonical ISO is the contract.
 
 ---
 

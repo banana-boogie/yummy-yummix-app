@@ -92,6 +92,23 @@ SELECT recipe_step_id, locale, instruction
   FROM public.recipe_step_translations
   WHERE recipe_step_id IN (SELECT id FROM public.recipe_steps WHERE recipe_id = '<recipe_id>');
 
+-- step ingredient links (needed for step coherence and orphan-link checks)
+SELECT rsi.recipe_step_id,
+       rs."order" AS step_order,
+       rsi.ingredient_id,
+       rsi.display_order,
+       it.name AS ingredient_name_en,
+       ri.id AS recipe_ingredient_id,
+       ri.display_order AS recipe_ingredient_display_order
+  FROM public.recipe_step_ingredients rsi
+  JOIN public.recipe_steps rs ON rs.id = rsi.recipe_step_id
+  LEFT JOIN public.ingredient_translations it
+    ON it.ingredient_id = rsi.ingredient_id AND it.locale = 'en'
+  LEFT JOIN public.recipe_ingredients ri
+    ON ri.recipe_id = rs.recipe_id AND ri.ingredient_id = rsi.ingredient_id
+  WHERE rs.recipe_id = '<recipe_id>'
+  ORDER BY rs."order", rsi.display_order;
+
 -- kitchen tools
 SELECT rkt.id, rkt.kitchen_tool_id, rkt.display_order, ktt.name AS name_en
   FROM public.recipe_kitchen_tools rkt
@@ -118,7 +135,14 @@ SELECT rt.slug, rt.categories
 
 Walk every item in the **Deterministic auto-checks** section of `RECIPE-REVIEW.md`. For each positive hit, note what the YAML needs to express.
 
-For check #15 (`no_steps`) and #16 (`few_ingredients`): **stop fixing those sections** and add the trigger to `requires_authoring.reasons`. Never fabricate steps or ingredients.
+For check #11 (`step ingredient link mismatches`): compare the step text, `recipe_step_ingredients`, and recipe-level `recipe_ingredients`.
+
+- If the step text directly adds or handles an ingredient and the link is missing, flag the missing link.
+- If `recipe_step_ingredients.recipe_ingredient_id` is null from the Step 2 query, flag it as an orphan link: the step claims to use an ingredient absent from this recipe's ingredient list.
+- If a linked step ingredient is not mentioned, handled, or clearly implied by the instruction (for example "all remaining ingredients" can be valid), flag it as suspect.
+- The YAML applier cannot currently mutate `recipe_step_ingredients`; if instruction text is wrong and fixable, use `step_overrides`, but if the relationship row itself is wrong, record it in `requires_authoring.notes` for admin cleanup.
+
+For check #16 (`no_steps`) and #17 (`few_ingredients`): **stop fixing those sections** and add the trigger to `requires_authoring.reasons`. Never fabricate steps or ingredients.
 
 For check #14 (`same_en_es_name`): if the ES translation is unambiguous (e.g. proper noun translates clearly), set `name.es`. If subjective, flag `requires_authoring.reasons: ['same_en_es_name']` and leave the name alone.
 
