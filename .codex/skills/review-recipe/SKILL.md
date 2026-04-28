@@ -15,7 +15,7 @@ Recipe quality is reputation-critical. A wrong tag, an invented Spanish translat
 
 1. Confirm you are running at the highest reasoning level your harness exposes (`$effort high` in Codex, equivalently `o1`/`gpt-5` thinking-tier or whatever the current top tier is). If you cannot confirm high reasoning, stop and tell the user:
    > Recipe review requires the highest reasoning effort available. The judgment-call portion of the rubric (planner role, tag selection, translation, ingredient/step quality) is the failure mode that hurts reputation, and high effort is the floor for those calls. Please raise effort and re-invoke `$review-recipe`.
-2. Do not start Step 1 until effort is confirmed high.
+2. Do not start Step 1 until effort is confirmed high. This is not negotiable — even on follow-up turns of an existing `$review-recipe` session, if effort drops below high, pause and prompt for re-elevation.
 3. When you are uncertain on a judgment call (translation correctness, tag fit, role assignment, ingredient quality), prefer routing to `requires_authoring.notes` over guessing. The skill never penalizes caution.
 
 ## Inputs

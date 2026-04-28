@@ -7,7 +7,12 @@
  */
 
 import { assert, assertEquals } from 'std/assert/mod.ts';
-import { computeRecipeMetadataDiff } from './recipe-metadata-diff.ts';
+import {
+  computeRecipeMetadataDiff,
+  formatDiffForCli,
+  formatRecipeSnapshot,
+  formatRequiresAuthoring,
+} from './recipe-metadata-diff.ts';
 import type { CurrentRecipeState } from './recipe-metadata-fetch.ts';
 import type { RecipeMetadata } from './recipe-metadata-schema.ts';
 import { TAG_CATEGORIES } from './recipe-metadata-schema.ts';
@@ -142,4 +147,94 @@ Deno.test('tags diff: identical state produces zero changes', () => {
   const tags = tagSection(diff);
   assert(tags);
   assertEquals(tags.changes.length, 0);
+});
+
+// ============================================================
+// Renderer golden tests
+// ============================================================
+//
+// formatDiffForCli, formatRecipeSnapshot, and formatRequiresAuthoring shape
+// the entire human-facing dry-run output. Pin the exact lines so an
+// accidental whitespace or label change shows up in CI.
+
+Deno.test('formatDiffForCli: groups set adds by parent path with stripped section prefix', () => {
+  const desired = makeDesired({
+    cuisine: ['american'],
+    meal_type: ['lunch', 'dinner'],
+    practical: ['quick', 'make_ahead'],
+  });
+  const current = makeCurrent({});
+  const diff = computeRecipeMetadataDiff(desired, current);
+  const out = formatDiffForCli(diff, false);
+  assert(out.includes('CHANGES (5)'), `expected total count header, got:\n${out}`);
+  assert(out.includes('  tags:'), `expected [tags] section header, got:\n${out}`);
+  assert(out.includes('+ cuisine: american'), `expected grouped cuisine add, got:\n${out}`);
+  assert(out.includes('+ meal_type: lunch, dinner'), `expected grouped meal_type add, got:\n${out}`);
+  assert(out.includes('+ practical: quick, make_ahead'), `expected grouped practical add, got:\n${out}`);
+});
+
+Deno.test('formatDiffForCli: zero-change diff renders the idempotency hint', () => {
+  const desired = makeDesired();
+  const current = makeCurrent();
+  const diff = computeRecipeMetadataDiff(desired, current);
+  const out = formatDiffForCli(diff, false);
+  assert(out.includes('CHANGES (0)'));
+  assert(out.includes('idempotent'));
+});
+
+Deno.test('formatRecipeSnapshot: emits one field per line under section headers', () => {
+  const out = formatRecipeSnapshot({
+    ...makeCurrent({ dish_type: ['dip_dressing'] }),
+    name_en: 'Honey Dijon Dressing',
+    planner: {
+      planner_role: 'condiment',
+      alternate_planner_roles: [],
+      meal_components: [],
+      is_complete_meal: false,
+      equipment_tags: ['thermomix'],
+      cooking_level: 'beginner',
+      leftovers_friendly: null,
+      batch_friendly: true,
+      max_household_size_supported: null,
+      is_published: true,
+    },
+    timings: { prep_time: 5, total_time: 5, portions: 10 },
+    translations: [
+      { locale: 'en', name: 'X', description: null, tips_and_tricks: null, scaling_notes: null },
+      { locale: 'es', name: 'X', description: null, tips_and_tricks: null, scaling_notes: null },
+    ],
+  });
+  assert(out.includes('RECIPE'));
+  assert(out.includes('  Name:            Honey Dijon Dressing'));
+  assert(out.includes('PLANNER'));
+  assert(out.includes('  Role:            condiment'));
+  assert(out.includes('  Equipment:       thermomix'));
+  assert(out.includes('  Batch friendly:  yes'));
+  assert(out.includes('  Leftovers:       —'), `expected em-dash for null leftovers, got:\n${out}`);
+  assert(out.includes('TIMINGS'));
+  assert(out.includes('  Prep:            5 min'));
+  assert(out.includes('  Portions:        10'));
+  assert(out.includes('CONTENT'));
+  assert(out.includes('  Locales:         en, es'));
+  assert(out.includes('TAGS'));
+  assert(out.includes('  dish_type:       dip_dressing'));
+});
+
+Deno.test('formatRequiresAuthoring: returns empty when no reasons', () => {
+  assertEquals(formatRequiresAuthoring(undefined), '');
+  assertEquals(formatRequiresAuthoring({ reasons: [] }), '');
+});
+
+Deno.test('formatRequiresAuthoring: preserves blank lines from YAML notes', () => {
+  const out = formatRequiresAuthoring({
+    reasons: ['missing_step_translation'],
+    notes: 'first paragraph.\n\nsecond paragraph.\n\nthird.',
+  });
+  assert(out.includes('REQUIRES AUTHORING'));
+  assert(out.includes('Reasons:   missing_step_translation'));
+  assert(out.includes('    first paragraph.'));
+  assert(out.includes('    second paragraph.'));
+  // Two blank lines between paragraphs (from \n\n) — assert the indent does
+  // not leak whitespace onto blank lines.
+  assert(/\n\n {4}second paragraph\./.test(out), `expected blank-line preservation, got:\n${out}`);
 });

@@ -223,6 +223,30 @@ step_overrides:
   );
 });
 
+Deno.test('accepts TM7-extended thermomix_temperature values (125 °C, 257 °F)', () => {
+  // Regression coverage for the TM7 extended enum values added in migration
+  // 20260428181507. Picks one Celsius and one Fahrenheit value to keep the
+  // schema and DB enum in lockstep on parse.
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_overrides:
+  - match: { order: 1 }
+    thermomix_temperature: 125
+    thermomix_temperature_unit: 'C'
+  - match: { order: 2 }
+    thermomix_temperature: 257
+    thermomix_temperature_unit: 'F'
+`;
+  const parsed = parseRecipeMetadataYaml(yaml);
+  assertEquals(parsed.data.step_overrides?.[0].thermomix_temperature, 125);
+  assertEquals(parsed.data.step_overrides?.[1].thermomix_temperature, 257);
+});
+
 Deno.test('accepts thermomix_speed: spoon and thermomix_temperature: Varoma', () => {
   const yaml = `recipe_match:
   id: '11111111-1111-1111-1111-111111111111'

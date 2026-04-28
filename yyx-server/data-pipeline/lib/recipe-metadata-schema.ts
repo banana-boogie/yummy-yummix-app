@@ -95,15 +95,25 @@ export const VALID_SPEED_NUMBERS = [
 // enum exactly. Same rule as VALID_SPEED_NUMBERS: the DB enum is the source of
 // truth.
 //
-// Includes TM7-extended Celsius (125/135/145/155 plus 130/140/150/160) and
-// Fahrenheit (257/266/275/284/293/302/311/320) values added in migration
-// 20260428181507_thermomix_temperature_tm7_extended.sql.
+// Order intentionally mirrors enumsortorder, NOT numeric order. Postgres
+// `ALTER TYPE ... ADD VALUE` without BEFORE/AFTER appends the new label after
+// every existing label, so the TM7-extended values from migration
+// 20260428181507_thermomix_temperature_tm7_extended.sql land at the tail of
+// the enum even though they are numerically interleaved with the originals
+// (Varoma lives between 120 and 130 in the original CREATE TYPE and is
+// expressed separately as the VAROMA literal). Set-membership validation is
+// order-insensitive so this only matters to humans reading the list against
+// `\dT+` output.
 export const VALID_TEMPERATURE_NUMBERS = [
+  // Original CREATE TYPE values, in enumsortorder:
   37, 40, 45, 50, 55, 60, 65, 70, 75, 80,
   85, 90, 95, 98, 100, 105, 110, 115, 120,
-  125, 130, 135, 140, 145, 150, 155, 160,
+  // (Varoma sorts here — see VAROMA above.)
+  130, 140, 150, 160,
   170, 175, 185, 195, 200, 205,
   212, 220, 230, 240, 250,
+  // TM7-extended values, appended in migration order:
+  125, 135, 145, 155,
   257, 266, 275, 284, 293, 302, 311, 320,
 ] as const;
 
