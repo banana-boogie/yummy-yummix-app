@@ -7,15 +7,15 @@ description: Review a YummyYummix recipe against the quality rubric and emit a Y
 
 Review the recipe identified by `$ARGUMENTS` (an EN/ES name fragment, or a UUID) and produce or refresh the YAML config at `yyx-server/data-pipeline/data/recipe-metadata/<slug>.yaml`. The YAML, once committed, is applied transactionally by `deno task pipeline:apply-recipe-metadata` (Plan 12).
 
-Read [docs/agent-guidelines/RECIPE-REVIEW.md](../../docs/agent-guidelines/RECIPE-REVIEW.md) before proceeding — that file is the rubric.
+Read [docs/agent-guidelines/RECIPE-REVIEW.md](../../../docs/agent-guidelines/RECIPE-REVIEW.md) before proceeding — that file is the rubric.
 
 ## Preflight — reasoning effort gate (required)
 
 Recipe quality is reputation-critical. A wrong tag, an invented Spanish translation, or a misclassified `planner_role` ships to real users. Before doing **anything else** in this skill:
 
-1. Check the current reasoning effort. If it is not `high`, stop and tell the user:
-   > Recipe review requires `/effort high`. The judgment-call portion of the rubric (planner role, tag selection, translation, ingredient/step quality) is the failure mode that hurts reputation, and high effort is the floor for those calls. Please run `/effort high` and re-invoke `/review-recipe`.
-2. Do not start Step 1 until effort is high. This is not negotiable — even on follow-up turns of an existing `/review-recipe` session, if effort drops below high, pause and prompt for re-elevation.
+1. Confirm you are running at the highest reasoning level your harness exposes (`$effort high` in Codex, equivalently `o1`/`gpt-5` thinking-tier or whatever the current top tier is). If you cannot confirm high reasoning, stop and tell the user:
+   > Recipe review requires the highest reasoning effort available. The judgment-call portion of the rubric (planner role, tag selection, translation, ingredient/step quality) is the failure mode that hurts reputation, and high effort is the floor for those calls. Please raise effort and re-invoke `$review-recipe`.
+2. Do not start Step 1 until effort is confirmed high.
 3. When you are uncertain on a judgment call (translation correctness, tag fit, role assignment, ingredient quality), prefer routing to `requires_authoring.notes` over guessing. The skill never penalizes caution.
 
 ## Inputs
@@ -135,7 +135,7 @@ Required sections:
 - `recipe_match.id` — the UUID from step 1
 - `recipe_match.name_en` — the live EN name (so the apply hard-fails if the YAML drifts to a different recipe)
 - `recipe_match.expected_recipe_updated_at` — the live `updated_at` from step 1
-- `review.reviewed_by_label` — your model label (e.g. `'claude-opus-4-7'`)
+- `review.reviewed_by_label` — your model label (e.g. `'codex-gpt-5'`)
 - `review.reviewed_at` — current ISO 8601 timestamp
 
 For all other sections, write only what changes. If a section's current state is already correct, omit it (idempotent dry-run will report zero writes for omitted sections).
