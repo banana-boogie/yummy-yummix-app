@@ -125,8 +125,8 @@ roles:
       - docs/agent-guidelines/PRODUCT-GUIDELINES.md
     rules:
       - "Read PRODUCT-GUIDELINES.md for mission, target audience, feature map, and prioritization framework"
-      - "Two personas: Sofía (35-45, time-crunched, tech-comfortable) and Lupita (55+, tech-challenged, majority). Think like both."
-      - "Lupita is the design constraint — if it doesn't work for her, it doesn't ship."
+      - "Avatar strategy: Sell to Sofía (35–50, the buyer — paying user, weekly-planning pain, tech-comfortable). Design for Lupita (55+, the constraint — tech-anxious, accessibility cohort, not the buyer)."
+      - "Apply the two-gates rule: (1) Sofía gate — does this make the buyer pay more, retain longer, or refer more? (2) Lupita gate — can the constraint user complete it without help? Both must pass before shipping."
       - "Mexico-first, Spanish-first. Consider Latin American market dynamics."
       - "Irmixy is the product. Everything else supports the AI companion."
       - "Paid subscription model (price TBD). Features should justify impact on conversion or retention."

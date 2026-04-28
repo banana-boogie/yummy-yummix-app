@@ -20,27 +20,29 @@ The vehicle is **Irmixy** — an AI cooking companion that delivers this mission
 
 ## Target Audience
 
-### Sofía — The Busy Professional (35-45)
+### Avatar Strategy: Sell to Sofía, Design for Lupita
 
-- Grew up with technology, comfortable with apps
-- Fairly new to Thermomix — sees it as a smart investment for efficiency
-- Both parents work; she's in charge of the kitchen
-- Demands of feeding a family, may have young kids or babies
-- Wants to ease the kitchen load, not explore gourmet cooking (yet)
-- Will try new things when she has time, but time is scarce
+### Sofía — The Buyer (35-50)
+
+- Mexican Thermomix owner, runs the household's weekly food decisions
+- Tech-comfortable, grew up with apps; matches the founder's own use case (dogfood works)
+- Acute weekly-planning pain — feeding a family on a busy schedule
+- Pays 149 MXN/mo; subscription willingness is the highest of any segment
 - Less intimidated by the machine, more frustrated by the time crunch
-- Core need: **"Make dinner happen without the stress"**
+- Defined by job-to-be-done, not demographic
+- Core need: **"Make weekly meal planning happen without the stress"**
 
-### Lupita — The Experienced Home Cook (55+) — THE MAJORITY
+### Lupita — The Design Constraint (55+)
 
-- Retired or semi-retired, grew up cooking her whole life
-- Has more time now to explore recipes she never had time for
+- Retired or semi-retired, lifelong home cook
 - Loves the Thermomix for what it makes easier — dough, cookies, desserts
 - Social — hosts friends, attends cooking workshops
-- **The majority segment** of Thermomix users (the bigger group)
-- **Technologically challenged** — needs help logging into email, that level
-- If something requires self-guided discovery or figuring things out alone, she abandons it
-- Core need: **"Help me explore and enjoy cooking without tech frustration"**
+- **Tech-anxious** — needs help logging into email, that level
+- Pain is execution and tech-anxiety, NOT weekly planning
+- Subscription willingness is weaker than Sofía's
+- Included in beta only as 3–5 usability/accessibility testers
+- If something requires self-guided discovery, she abandons it
+- Core need: **"Help me cook without tech frustration"**
 
 ### Shared Traits
 
@@ -50,13 +52,13 @@ The vehicle is **Irmixy** — an AI cooking companion that delivers this mission
 - Everyone wants cooking to feel easy and stress-free
 - Want Thermomix-specific parameters (time, temperature, speed)
 
-### Design Constraint: Lupita First
+### The Two Gates
 
-Lupita is the critical design constraint. She's the bigger segment, and if the app works for her, it works for everyone. Sofía will tolerate a slightly rough edge; Lupita will not. This means:
-- Onboarding must be guided, not self-service
-- UI must be large, clear, and obvious
-- No "figure it out yourself" flows
-- Irmixy (voice) becomes even more important — she can talk to it instead of navigating menus
+Every product and UI decision must pass both:
+- **Sofía gate** — does the buyer pay more, retain longer, or refer more after this change?
+- **Lupita gate** — can the constraint user complete it without help (44px+ targets, no self-discovery, large readable text)?
+
+If a change passes Sofía but fails Lupita, redesign until both pass. Sofía is why we get paid; Lupita is how we stay humane. Voice (Irmixy) is the primary Lupita-gate accommodation — she can talk to it instead of navigating menus.
 
 ### Per-Persona Feature Mapping
 
@@ -84,7 +86,7 @@ Lupita is the critical design constraint. She's the bigger segment, and if the a
 | Forgetting the right time/temp/speed during cooking | Medium | Step-by-step cooking guide with TM parameters per step |
 | Dietary restrictions make recipe discovery harder | Medium | AI-aware of allergies, diets, dislikes |
 | Cooking alone can feel isolating | Low-Medium | Irmixy AI companion as a conversational friend |
-| Technology is intimidating for the majority segment | High | Voice interface, guided flows, zero self-discovery |
+| Technology is intimidating for the Lupita constraint | High | Voice interface, guided flows, zero self-discovery |
 
 ### Delights
 

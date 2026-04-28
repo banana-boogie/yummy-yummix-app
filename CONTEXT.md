@@ -9,9 +9,10 @@
 ## People & Personas
 
 - **Irmixy** — The AI cooking companion (in-app brand). All AI-powered chat, voice, and recipe-generation features speak as Irmixy.
-- **Sofía** — Persona: busy professional home cook, 35–45, tech-comfortable. Wants kitchen efficiency and time savings.
-- **Lupita** — Persona: experienced home cook, 55+, **technologically challenged**. The majority segment. Design must guide her explicitly — no self-discovery.
-- **Lupita-First** — UX rule: when Sofía and Lupita pull in different directions, Lupita wins. Big tap targets, plain Spanish, no hidden gestures.
+- **Sofía** — Persona: Mexican Thermomix owner, 35–50, tech-comfortable, runs the household's weekly food decisions. **The buyer** — paying user (149 MXN/mo), acute weekly-planning pain, dogfood match for the founder.
+- **Lupita** — Persona: experienced home cook, 55+, tech-anxious. **The design constraint, not the buyer** — included as a 3–5-person accessibility/usability cohort in beta.
+- **Sell to Sofía, Design for Lupita** — Strategy rule. Surfaces are sold on Sofía's planning pain; every UI must still pass the **Lupita gate** (44px+ targets, plain Spanish, no self-discovery, large readable text).
+- **Two Gates** — Every UI decision answers (1) **Sofía gate** — does the buyer pay more / retain longer / refer more? and (2) **Lupita gate** — can the constraint user complete it without help? Both must pass.
 
 ## Product Loop
 
