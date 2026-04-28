@@ -1,0 +1,59 @@
+# Garlic Shrimp — reference fixture.
+#
+# Body fields (planner, timings, tags, descriptions, etc.) are reviewer-authored
+# starting points. Before applying, re-run the Reviewer
+# (`/review-recipe Garlic Shrimp`) to refresh recipe_match.expected_recipe_updated_at
+# against the current DB row.
+
+recipe_match:
+  id: '1df8c9b4-e8c8-480d-8d22-90735243e0ad'
+  name_en: 'Garlic Shrimp'
+  expected_recipe_updated_at: '2026-04-24T18:38:09.780099Z'
+
+review:
+  reviewed_by_label: 'claude-opus-4-7'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+
+planner:
+  role: main
+  alternate_planner_roles: []
+  meal_components: [protein]
+  is_complete_meal: false
+  equipment_tags: [thermomix]
+  cooking_level: beginner
+  leftovers_friendly: false   # shrimp doesn't reheat well
+  batch_friendly: true
+  max_household_size_supported: 6
+  is_published: true
+
+timings:
+  prep_time: 10
+  total_time: 20
+  portions: 4
+
+tags:
+  cuisine: [spanish, mediterranean]
+  meal_type: [dinner]
+  diet: [pescatarian, low_carb]
+  occasion: [weeknight, date_night]
+  practical: [one_pot, quick_assembly]
+
+description:
+  en: 'Plump shrimp sizzled with garlic, paprika, and olive oil — Spanish gambas al ajillo done in the Thermomix. On the table in 20 minutes.'
+  es: 'Camarones jugosos con ajo, pimentón y aceite de oliva — gambas al ajillo a la Thermomix. En la mesa en 20 minutos.'
+
+tips_and_tricks:
+  en: 'Use peeled, deveined shrimp 21/25 count for the right texture. Do not over-cook past step 4 — they go rubbery fast. Serve immediately with crusty bread for the oil.'
+  es: 'Usa camarones limpios y sin cáscara talla 21/25. No los cocines más allá del paso 4 — se ponen chiclosos rápido. Sirve de inmediato con pan crujiente para untar el aceite.'
+
+scaling_notes:
+  en: 'Doubles to 8 portions. Use two Thermomix batches to avoid overcrowding — shrimp will steam instead of sizzle if packed too tight.'
+  es: 'Se duplica a 8 porciones. Usa dos tandas en la Thermomix para no saturar — los camarones se cuecen en vapor si los aprietas mucho.'
+
+kitchen_tools:
+  set:
+    - name_en: 'Thermomix'
+
+requires_authoring:
+  reasons: []
+  notes: ''

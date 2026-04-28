@@ -1,0 +1,62 @@
+# Picadillo Tostadas — reference fixture.
+#
+# Body fields are reviewer-authored starting points. Re-run the Reviewer
+# (`/review-recipe Picadillo Tostadas`) before applying to refresh
+# expected_recipe_updated_at against the current DB row.
+
+recipe_match:
+  id: 'ed593a73-f851-4ae6-99d7-67575b3679d6'
+  name_en: 'Picadillo Tostadas'
+  expected_recipe_updated_at: '2026-04-24T18:53:08.952479Z'
+
+review:
+  reviewed_by_label: 'claude-opus-4-7'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+
+planner:
+  role: main
+  alternate_planner_roles: []
+  meal_components: [protein, carb]
+  is_complete_meal: true        # protein + carb + topping covers the plate
+  equipment_tags: [thermomix]
+  cooking_level: beginner
+  leftovers_friendly: true       # picadillo reheats beautifully
+  batch_friendly: true
+  max_household_size_supported: 8
+  is_published: true
+
+timings:
+  prep_time: 15
+  total_time: 35
+  portions: 6
+
+tags:
+  cuisine: [mexican]
+  meal_type: [lunch, dinner]
+  diet: []
+  occasion: [weeknight, comfort_food, kid_friendly, budget_friendly]
+  practical: [one_pot, leftover_friendly, batch_cook, quick_assembly]
+
+description:
+  en: 'Spiced ground beef with potatoes and tomato over crisp tostadas. The Thermomix browns the beef and finishes the picadillo; tostadas are store-bought and crisped in the oven.'
+  es: 'Carne molida especiada con papas y jitomate sobre tostadas crujientes. La Thermomix dora la carne y termina el picadillo; las tostadas se compran y se doran en el horno.'
+
+tips_and_tricks:
+  en: 'Look for 80/20 ground beef — leaner cuts dry out. Drain the rendered fat at step 4 unless you want a heavier finish.'
+  es: 'Busca carne molida 80/20 — los cortes magros se secan. Drena la grasa al paso 4 a menos que quieras un acabado más pesado.'
+
+scaling_notes:
+  en: 'The Thermomix bowl fits one batch of picadillo for 6. For 12 portions, run two batches and combine in a stovetop pan to keep warm.'
+  es: 'En la Thermomix cabe un lote de picadillo para 6. Para 12 porciones, haz dos tandas y combínalas en una sartén para mantener caliente.'
+
+kitchen_tools:
+  set:
+    - name_en: 'Thermomix'
+
+# Pairing note: tostadas + picadillo are typically served with a side
+# salad. The actual side recipes vary by household — leave pairings
+# unset until the catalog has the right side options indexed.
+
+requires_authoring:
+  reasons: []
+  notes: ''
