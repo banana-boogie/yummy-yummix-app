@@ -120,12 +120,12 @@ If a change passes Sofía but fails Lupita, redesign until both pass. Sofía is 
 
 ### When evaluating a feature idea, ask:
 
-1. **Who benefits?** — Does this serve Sofía, Lupita, or both?
-2. **What problem does it solve?** — Is this a real pain point or a nice-to-have?
-3. **How often would it be used?** — Daily feature vs occasional feature?
-4. **What's the smallest version that delivers value?** — MVP scope.
-5. **Does it reinforce our differentiation?** — Thermomix-specific, AI-powered, personal.
-6. **Does it work for Lupita?** — If it requires self-guided discovery, forget about it.
+1. **Sofía gate — does this strengthen the buyer's value?** Will Sofía pay more, retain longer, or refer more after this ships? If no, it probably doesn't justify the build cost.
+2. **Lupita gate — can the constraint user complete it without help?** 44px+ targets, no self-discovery, large readable text. If it requires figuring something out alone, redesign until she can.
+3. **What problem does it solve?** — Is this a real pain point or a nice-to-have?
+4. **How often would it be used?** — Daily feature vs occasional feature?
+5. **What's the smallest version that delivers value?** — MVP scope.
+6. **Does it reinforce our differentiation?** — Thermomix-specific, AI-powered, personal.
 
 ### Prioritization Lens
 
