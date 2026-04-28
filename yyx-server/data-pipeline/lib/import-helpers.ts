@@ -10,13 +10,19 @@ import type { RecipeStepInsert } from './db.ts';
 /**
  * Returns true if the markdown file has actual recipe content
  * (at least one ingredient line). Stubs have empty sections.
+ *
+ * Matches an Ingredients/Ingredientes section heading at any common level
+ * (## through ####) so future markdown sources aren't silently treated as
+ * stubs because they used a different heading depth.
  */
+const INGREDIENTS_HEADING = /^#{2,4}\s+Ingrediente?s\s*$/i;
+
 export function hasRecipeContent(content: string): boolean {
   const lines = content.split('\n');
   let inIngredients = false;
   for (const line of lines) {
     const trimmed = line.trim();
-    if (trimmed === '### Ingredientes' || trimmed === '### Ingredients') {
+    if (INGREDIENTS_HEADING.test(trimmed)) {
       inIngredients = true;
       continue;
     }

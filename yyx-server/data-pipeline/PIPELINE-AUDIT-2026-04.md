@@ -3,7 +3,7 @@
 Status: **COMPLETE** — all drift fixed, tests passing, dry-runs verified.
 
 Baseline: `deno task test:pipeline` → **120 passed, 0 failed** (before any changes).
-Final: `deno task test:pipeline` → **121 passed, 0 failed** (1 new test added).
+Final: `deno task test:pipeline` → **129 passed, 0 failed** (9 new tests added across audit + follow-up work).
 
 ---
 
@@ -155,9 +155,17 @@ None. All original open questions resolved.
 
 ## Commits
 
+**Audit phase (drift fixes):**
+
 1. `fix(pipeline): correct kitchen_tool storage bucket name`
 2. `fix(pipeline): add fiber, sugar, sodium to nutrition upsert`
 3. `fix(pipeline): add meal-planning fields and step mode/timer to parser and db`
 4. `fix(pipeline): log meal-planning fields in dry-run output`
+
+**Follow-up phase (multi-source readiness + review feedback):**
+
+5. `feat(pipeline): add English recipe support` — `hasRecipeContent()` recognizes English `### Ingredients` headers; system prompt accepts English-first H1 and English aside keys.
+6. `refactor(pipeline): decontaminate recipe parser from Notion specifics` — rename `parseRecipeMarkdown` → `parseRecipe`; reframe prompt around source-agnostic conventions so future sources (URL scrapes, AI-generated, hand-written) can feed the same `ParsedRecipeData` boundary.
+7. `refactor(pipeline): hoist meal-planning enums + tighten validators` — single source for `PLANNER_ROLES`, `EQUIPMENT_TAGS`, `MEAL_COMPONENTS`, `COOKING_LEVELS`, `THERMOMIX_MODES`; `hasRecipeContent` switched to a heading-level-tolerant regex; thermomix_mode prompt expanded with more "open lid" phrasings; new fixture-based parser test locks in round-trip of all meal-planning fields.
 
 *Authored by Claude Code, 2026-04-28.*

@@ -90,6 +90,42 @@ Deno.test('hasRecipeContent returns false for empty English Ingredients section'
   assertEquals(hasRecipeContent(content), false);
 });
 
+Deno.test('hasRecipeContent matches ## Ingredients heading level', () => {
+  const content = `# Recipe Name
+
+## Ingredients
+
+- 1 cup flour
+
+## Steps
+`;
+  assertEquals(hasRecipeContent(content), true);
+});
+
+Deno.test('hasRecipeContent matches #### Ingredientes heading level', () => {
+  const content = `# Recipe Name
+
+#### Ingredientes
+
+- 250 g harina
+
+#### Procedimiento
+`;
+  assertEquals(hasRecipeContent(content), true);
+});
+
+Deno.test('hasRecipeContent matches case-insensitive heading', () => {
+  const content = `# Recipe Name
+
+### ingredients
+
+- 1 onion
+
+### steps
+`;
+  assertEquals(hasRecipeContent(content), true);
+});
+
 // ─── buildRecipeSteps ────────────────────────────────────
 
 function makeStep(overrides: Partial<ParsedRecipeData['steps'][number]>): ParsedRecipeData['steps'][number] {

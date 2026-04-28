@@ -182,3 +182,80 @@ Deno.test('parseRecipe throws when response has no content', async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+// Locks in the contract that all meal-planning fields and step thermomix
+// fields round-trip through validation. Catches type drift in
+// ParsedRecipeData and silent removal of validator branches. Does not
+// exercise the system prompt itself — that requires a live API call.
+Deno.test('parseRecipe round-trips fully-populated meal-planning fields', async () => {
+  try {
+    const fullyPopulated: ParsedRecipeData = {
+      ...baseRecipe,
+      plannerRole: 'main',
+      equipmentTags: ['thermomix', 'air_fryer'],
+      mealComponents: ['protein', 'veg'],
+      isCompleteMeal: true,
+      cookingLevel: 'intermediate',
+      leftoversFriendly: true,
+      maxHouseholdSizeSupported: 6,
+      batchFriendly: false,
+      steps: [
+        {
+          ...baseRecipe.steps[0],
+          thermomixMode: 'steaming',
+          timerSeconds: 1800,
+        },
+      ],
+    };
+    mockOpenAIResponse({
+      output_text: JSON.stringify(fullyPopulated),
+    });
+
+    const parsed = await parseRecipe('recipe markdown', 'test-key', mockLogger);
+
+    assertEquals(parsed.plannerRole, 'main');
+    assertEquals(parsed.equipmentTags, ['thermomix', 'air_fryer']);
+    assertEquals(parsed.mealComponents, ['protein', 'veg']);
+    assertEquals(parsed.isCompleteMeal, true);
+    assertEquals(parsed.cookingLevel, 'intermediate');
+    assertEquals(parsed.leftoversFriendly, true);
+    assertEquals(parsed.maxHouseholdSizeSupported, 6);
+    assertEquals(parsed.batchFriendly, false);
+    assertEquals(parsed.steps[0].thermomixMode, 'steaming');
+    assertEquals(parsed.steps[0].timerSeconds, 1800);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+Deno.test('parseRecipe rejects invalid plannerRole enum value', async () => {
+  try {
+    mockOpenAIResponse({
+      output_text: JSON.stringify({ ...baseRecipe, plannerRole: 'breakfast' }),
+    });
+
+    await assertRejects(
+      () => parseRecipe('recipe markdown', 'test-key', mockLogger),
+      Error,
+      '"plannerRole" must be one of',
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+Deno.test('parseRecipe rejects invalid equipmentTags enum value', async () => {
+  try {
+    mockOpenAIResponse({
+      output_text: JSON.stringify({ ...baseRecipe, equipmentTags: ['microwave'] }),
+    });
+
+    await assertRejects(
+      () => parseRecipe('recipe markdown', 'test-key', mockLogger),
+      Error,
+      '"equipmentTags" contains invalid value "microwave"',
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

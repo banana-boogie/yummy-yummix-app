@@ -346,23 +346,21 @@ async function importRecipe(
       }`,
     );
     if (parsed.tipsAndTricksEn) logger.info(`Tips: ${parsed.tipsAndTricksEn}`);
-    logger.info(
-      `Planner role: ${parsed.plannerRole ?? 'null'} | Complete meal: ${parsed.isCompleteMeal} | Cooking level: ${parsed.cookingLevel ?? 'null'}`,
-    );
-    if (parsed.equipmentTags.length > 0) {
-      logger.info(`Equipment: ${parsed.equipmentTags.join(', ')}`);
-    }
-    if (parsed.mealComponents.length > 0) {
-      logger.info(`Meal components: ${parsed.mealComponents.join(', ')}`);
-    }
-    const plannerMeta = [
-      parsed.leftoversFriendly !== null ? `leftovers_friendly: ${parsed.leftoversFriendly}` : null,
-      parsed.maxHouseholdSizeSupported !== null
-        ? `max_household: ${parsed.maxHouseholdSizeSupported}`
-        : null,
-      parsed.batchFriendly !== null ? `batch_friendly: ${parsed.batchFriendly}` : null,
-    ].filter(Boolean);
-    if (plannerMeta.length > 0) logger.info(`  ${plannerMeta.join(' | ')}`);
+
+    // Meal planning fields — labels match DB column names so the dry-run
+    // output reads exactly like the row that would be written.
+    logger.info('Meal planning:');
+    const mealPlanningLines = [
+      `planner_role: ${parsed.plannerRole ?? 'null'}`,
+      `equipment_tags: [${parsed.equipmentTags.join(', ')}]`,
+      `meal_components: [${parsed.mealComponents.join(', ')}]`,
+      `is_complete_meal: ${parsed.isCompleteMeal}`,
+      `cooking_level: ${parsed.cookingLevel ?? 'null'}`,
+      `leftovers_friendly: ${parsed.leftoversFriendly ?? 'null'}`,
+      `max_household_size_supported: ${parsed.maxHouseholdSizeSupported ?? 'null'}`,
+      `batch_friendly: ${parsed.batchFriendly ?? 'null'}`,
+    ];
+    for (const line of mealPlanningLines) logger.info(`  ${line}`);
 
     // Show entity resolution status
     const missingIngredients = parsed.ingredients.filter(

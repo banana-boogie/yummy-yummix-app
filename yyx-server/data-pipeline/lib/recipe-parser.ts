@@ -99,6 +99,40 @@ const measurementUnitEnum = [
   'unit',
 ];
 
+// ─── Meal-planning enums (single source for JSON schema + validator) ───
+//
+// Each enum is the authoritative list of allowed values for a meal-planning
+// field. The JSON schema spreads these into its `enum` arrays and the
+// runtime validator uses isInArray() against the same constants, so adding
+// a value requires editing exactly one place.
+
+const PLANNER_ROLES = [
+  'main',
+  'side',
+  'dessert',
+  'beverage',
+  'snack',
+  'condiment',
+  'pantry',
+] as const;
+type PlannerRole = (typeof PLANNER_ROLES)[number];
+
+const EQUIPMENT_TAGS = ['thermomix', 'air_fryer', 'oven', 'stovetop'] as const;
+type EquipmentTag = (typeof EQUIPMENT_TAGS)[number];
+
+const MEAL_COMPONENTS = ['protein', 'carb', 'veg', 'snack'] as const;
+type MealComponent = (typeof MEAL_COMPONENTS)[number];
+
+const COOKING_LEVELS = ['beginner', 'intermediate', 'advanced'] as const;
+type CookingLevel = (typeof COOKING_LEVELS)[number];
+
+const THERMOMIX_MODES = ['open_cooking', 'steaming'] as const;
+type ThermomixMode = (typeof THERMOMIX_MODES)[number];
+
+function isInArray<T extends string>(value: unknown, arr: readonly T[]): value is T {
+  return typeof value === 'string' && (arr as readonly string[]).includes(value);
+}
+
 /** JSON Schema for OpenAI structured output - mirrors edge function */
 const recipeJsonSchema = {
   name: 'recipe',
@@ -347,8 +381,8 @@ const recipeJsonSchema = {
             thermomixMode: {
               type: ['string', 'null'],
               description:
-                'Thermomix cooking mode. Set "steaming" when the step cooks using the Varoma accessory (steam tray). Set "open_cooking" when the step explicitly says "sin tapa" or "tapa abierta" (lid open). Otherwise null.',
-              enum: ['open_cooking', 'steaming', null],
+                'Thermomix cooking mode. Set "steaming" when the step uses the Varoma accessory (steam tray). Set "open_cooking" when the step explicitly indicates an open lid — Spanish phrasings include "sin tapa", "tapa abierta", "destapa", "retira la tapa", "sin la tapa"; English equivalents include "uncovered", "lid off". Use null when uncertain or not specified.',
+              enum: [...THERMOMIX_MODES, null],
             },
             timerSeconds: {
               type: ['number', 'null'],
@@ -384,20 +418,20 @@ const recipeJsonSchema = {
       plannerRole: {
         type: ['string', 'null'],
         description:
-          'Meal planner role. Extract from "Rol:" aside field. Allowed values: main, side, dessert, beverage, snack, condiment, pantry. Null if not present.',
-        enum: ['main', 'side', 'dessert', 'beverage', 'snack', 'condiment', 'pantry', null],
+          'Meal planner role. Extract from "Rol:" aside field. Null if not present.',
+        enum: [...PLANNER_ROLES, null],
       },
       equipmentTags: {
         type: 'array',
         description:
-          'Equipment required beyond standard cookware. Extract from "Equipo:" aside field (comma-separated). Allowed values: thermomix, air_fryer, oven, stovetop. Empty array if not present.',
-        items: { type: 'string', enum: ['thermomix', 'air_fryer', 'oven', 'stovetop'] },
+          'Equipment required beyond standard cookware. Extract from "Equipo:" aside field (comma-separated). Empty array if not present.',
+        items: { type: 'string', enum: [...EQUIPMENT_TAGS] },
       },
       mealComponents: {
         type: 'array',
         description:
-          'Meal components this recipe provides. Extract from "Componentes:" aside field (comma-separated). Allowed values: protein, carb, veg, snack. Empty array if not present.',
-        items: { type: 'string', enum: ['protein', 'carb', 'veg', 'snack'] },
+          'Meal components this recipe provides. Extract from "Componentes:" aside field (comma-separated). Empty array if not present.',
+        items: { type: 'string', enum: [...MEAL_COMPONENTS] },
       },
       isCompleteMeal: {
         type: 'boolean',
@@ -407,8 +441,8 @@ const recipeJsonSchema = {
       cookingLevel: {
         type: ['string', 'null'],
         description:
-          'Cooking skill level required. Extract from "Nivel de cocina:" aside field. Allowed values: beginner, intermediate, advanced. Null if not present.',
-        enum: ['beginner', 'intermediate', 'advanced', null],
+          'Cooking skill level required. Extract from "Nivel de cocina:" aside field. Null if not present.',
+        enum: [...COOKING_LEVELS, null],
       },
       leftoversFriendly: {
         type: ['boolean', 'null'],
@@ -517,7 +551,10 @@ Extract the following if present in aside blocks. Use null / [] / false as defau
 ## Thermomix Mode and Step Timers
 
 For each step, also set:
-- thermomixMode: "steaming" when the step uses the Varoma accessory (steam). "open_cooking" when the step says "sin tapa" or "tapa abierta". Null otherwise.
+- thermomixMode:
+  - "steaming" when the step uses the Varoma accessory (steam tray).
+  - "open_cooking" when the step explicitly indicates an open lid. Spanish: "sin tapa", "tapa abierta", "destapa", "destapado/a", "retira la tapa", "sin la tapa", "quita la tapa". English: "uncovered", "lid off", "remove the lid".
+  - null when uncertain or not specified — do NOT infer from absence of a "tapa" mention.
 - timerSeconds: duration in seconds for non-Thermomix timed actions only. "hornear 30 min" → 1800. "reposar 10 minutos" → 600. If this step already has thermomixTime set, set timerSeconds to null.
 
 ## Ingredient Names
@@ -590,7 +627,7 @@ export interface ParsedRecipeData {
       end: number | string | null;
     } | null;
     thermomixIsBladeReversed: boolean | null;
-    thermomixMode: 'open_cooking' | 'steaming' | null;
+    thermomixMode: ThermomixMode | null;
     timerSeconds: number | null;
     ingredients: Array<{
       ingredient: {
@@ -609,11 +646,11 @@ export interface ParsedRecipeData {
     recipeSectionEs: string;
   }>;
   tags: string[];
-  plannerRole: string | null;
-  equipmentTags: string[];
-  mealComponents: string[];
+  plannerRole: PlannerRole | null;
+  equipmentTags: EquipmentTag[];
+  mealComponents: MealComponent[];
   isCompleteMeal: boolean;
-  cookingLevel: string | null;
+  cookingLevel: CookingLevel | null;
   leftoversFriendly: boolean | null;
   maxHouseholdSizeSupported: number | null;
   batchFriendly: boolean | null;
@@ -791,9 +828,9 @@ function validateSteps(steps: unknown[]): void {
     validateStepIngredients(step);
 
     const thermomixMode = getField(step, 'thermomixMode');
-    if (thermomixMode !== null && thermomixMode !== 'open_cooking' && thermomixMode !== 'steaming') {
+    if (thermomixMode !== null && !isInArray(thermomixMode, THERMOMIX_MODES)) {
       throw new Error(
-        'Invalid recipe parser output: "thermomixMode" must be "open_cooking", "steaming", or null',
+        `Invalid recipe parser output: "thermomixMode" must be one of ${THERMOMIX_MODES.join(', ')}, or null`,
       );
     }
 
@@ -841,25 +878,24 @@ function validateParsedRecipeData(data: unknown): ParsedRecipeData {
 
   // plannerRole: string or null, restricted enum
   const plannerRole = getField(data, 'plannerRole');
-  const validPlannerRoles = ['main', 'side', 'dessert', 'beverage', 'snack', 'condiment', 'pantry'];
-  if (plannerRole !== null && !(isString(plannerRole) && validPlannerRoles.includes(plannerRole))) {
-    throw new Error('Invalid recipe parser output: "plannerRole" must be a valid role or null');
+  if (plannerRole !== null && !isInArray(plannerRole, PLANNER_ROLES)) {
+    throw new Error(
+      `Invalid recipe parser output: "plannerRole" must be one of ${PLANNER_ROLES.join(', ')}, or null`,
+    );
   }
 
   // equipmentTags: array of valid strings
   const equipmentTags = assertArrayField(data, 'equipmentTags');
-  const validEquipment = ['thermomix', 'air_fryer', 'oven', 'stovetop'];
   for (const tag of equipmentTags) {
-    if (!isString(tag) || !validEquipment.includes(tag)) {
+    if (!isInArray(tag, EQUIPMENT_TAGS)) {
       throw new Error(`Invalid recipe parser output: "equipmentTags" contains invalid value "${tag}"`);
     }
   }
 
   // mealComponents: array of valid strings
   const mealComponents = assertArrayField(data, 'mealComponents');
-  const validComponents = ['protein', 'carb', 'veg', 'snack'];
   for (const mc of mealComponents) {
-    if (!isString(mc) || !validComponents.includes(mc)) {
+    if (!isInArray(mc, MEAL_COMPONENTS)) {
       throw new Error(`Invalid recipe parser output: "mealComponents" contains invalid value "${mc}"`);
     }
   }
@@ -871,9 +907,10 @@ function validateParsedRecipeData(data: unknown): ParsedRecipeData {
 
   // cookingLevel: string or null
   const cookingLevel = getField(data, 'cookingLevel');
-  const validLevels = ['beginner', 'intermediate', 'advanced'];
-  if (cookingLevel !== null && !(isString(cookingLevel) && validLevels.includes(cookingLevel))) {
-    throw new Error('Invalid recipe parser output: "cookingLevel" must be a valid level or null');
+  if (cookingLevel !== null && !isInArray(cookingLevel, COOKING_LEVELS)) {
+    throw new Error(
+      `Invalid recipe parser output: "cookingLevel" must be one of ${COOKING_LEVELS.join(', ')}, or null`,
+    );
   }
 
   // leftoversFriendly: boolean or null
