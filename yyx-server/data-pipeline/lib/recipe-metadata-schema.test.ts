@@ -265,6 +265,65 @@ step_overrides:
   assertEquals(data.step_overrides?.[0].thermomix_temperature, 'Varoma');
 });
 
+Deno.test('rejects tips_and_tricks with only en (forces no-drift en+es lockstep)', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+tips_and_tricks:
+  en: 'Serve hot.'
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  assert(
+    err.issues.some((i) => /both.*en.*es/i.test(i.message)),
+    `expected en+es lockstep error, got: ${JSON.stringify(err.issues)}`,
+  );
+});
+
+Deno.test('rejects name override with only es (forces no-drift en+es lockstep)', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+name:
+  es: 'Solo Español'
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  assert(
+    err.issues.some((i) => /both.*en.*es/i.test(i.message)),
+    `expected en+es lockstep error, got: ${JSON.stringify(err.issues)}`,
+  );
+});
+
+Deno.test('accepts description with both en and es', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+description:
+  en: 'A simple dish.'
+  es: 'Un platillo sencillo.'
+`;
+  const { data } = parseRecipeMetadataYaml(yaml);
+  assertEquals(data.description?.en, 'A simple dish.');
+  assertEquals(data.description?.es, 'Un platillo sencillo.');
+});
+
 Deno.test('accepts dish_type and primary_ingredient tag categories', () => {
   const yaml = `recipe_match:
   id: '11111111-1111-1111-1111-111111111111'

@@ -210,6 +210,12 @@ const tagsSchema = z.object({
   practical: z.array(slugSchema).optional(),
 }).strict();
 
+// Localized text sections (description, tips_and_tricks, scaling_notes) must
+// supply BOTH `en` and `es` together. Per the project's locale rules there is
+// no cross-language fallback (es and en are independent user groups), so
+// updating one without the other silently drifts the locales apart and ships
+// stale content to half the audience. The schema enforces lockstep at parse
+// time.
 const localizedTextSchema = z
   .object({
     en: z.string().optional(),
@@ -217,8 +223,8 @@ const localizedTextSchema = z
   })
   .strict()
   .refine(
-    (v) => v.en !== undefined || v.es !== undefined,
-    'localized text section requires at least one locale (en or es)',
+    (v) => v.en !== undefined && v.es !== undefined,
+    'localized text section must include both `en` and `es` (no cross-language drift)',
   );
 
 const localizedNonEmptySchema = z
@@ -228,8 +234,8 @@ const localizedNonEmptySchema = z
   })
   .strict()
   .refine(
-    (v) => v.en !== undefined || v.es !== undefined,
-    'name override section requires at least one locale (en or es)',
+    (v) => v.en !== undefined && v.es !== undefined,
+    'name override section must include both `en` and `es` (no cross-language drift)',
   );
 
 // Match keys for child rows. Each table picks its preferred key set; pure name
