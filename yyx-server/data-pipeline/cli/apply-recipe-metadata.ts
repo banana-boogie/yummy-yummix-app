@@ -38,6 +38,8 @@ import { fetchCurrentRecipeState } from '../lib/recipe-metadata-fetch.ts';
 import {
   computeRecipeMetadataDiff,
   formatDiffForCli,
+  formatRecipeSnapshot,
+  formatRequiresAuthoring,
 } from '../lib/recipe-metadata-diff.ts';
 import {
   applyRecipeMetadata,
@@ -262,12 +264,6 @@ async function processFile(
     logger.warn(`${filePath}:${w.line ?? '?'} — ${w.message}`);
   }
 
-  if (parsed.data.requires_authoring && parsed.data.requires_authoring.reasons.length > 0) {
-    logger.warn(
-      `${filePath} — flagged requires_authoring (${parsed.data.requires_authoring.reasons.join(', ')}); apply will proceed for the parts the YAML covers, but the recipe is not publishable until a human authors the missing pieces.`,
-    );
-  }
-
   let current;
   try {
     current = await fetchCurrentRecipeState(config.supabase, parsed.data.recipe_match.id);
@@ -298,7 +294,14 @@ async function processFile(
   const diff = computeRecipeMetadataDiff(parsed.data, current);
 
   logger.section(`${filePath.split('/').pop()}`);
+  logger.info(formatRecipeSnapshot(current));
+  logger.info('');
   logger.info(formatDiffForCli(diff, opts.verbose));
+  const ra = formatRequiresAuthoring(parsed.data.requires_authoring);
+  if (ra) {
+    logger.info('');
+    logger.info(ra);
+  }
 
   if (diff.stale_diff) {
     return {

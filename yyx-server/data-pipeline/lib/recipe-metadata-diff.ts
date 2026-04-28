@@ -415,26 +415,146 @@ function equalsLoose(a: unknown, b: unknown): boolean {
 
 export function formatDiffForCli(diff: RecipeMetadataDiff, verbose: boolean): string {
   const lines: string[] = [];
-  lines.push(`recipe: ${diff.recipe_name_en ?? '?'} (${diff.recipe_id})`);
   if (diff.stale_diff) {
     lines.push(
-      `  ⚠ STALE DIFF: db updated_at=${diff.stale_diff_detail?.db} > expected=${diff.stale_diff_detail?.expected}`,
+      `⚠ STALE DIFF: db updated_at=${diff.stale_diff_detail?.db} > expected=${diff.stale_diff_detail?.expected}`,
     );
-    lines.push(`     re-run /review-recipe to refresh state before applying`);
+    lines.push(`  re-run /review-recipe to refresh state before applying`);
+    lines.push('');
   }
   if (diff.total_changes === 0) {
-    lines.push(`  no changes (idempotent — apply would be a no-op)`);
+    lines.push(`Changes: none (idempotent — apply would be a no-op)`);
     return lines.join('\n');
   }
-  lines.push(`  total changes: ${diff.total_changes}`);
+  lines.push(`Changes (${diff.total_changes}):`);
   for (const sec of diff.sections) {
     if (sec.changes.length === 0) {
       if (verbose) lines.push(`  [${sec.section}] no changes`);
       continue;
     }
-    lines.push(`  [${sec.section}] ${sec.changes.length} change(s)`);
-    for (const c of sec.changes) {
-      lines.push(`    - ${c.path}: ${formatVal(c.before)} → ${formatVal(c.after)}`);
+    lines.push(`  [${sec.section}]`);
+    formatSectionChanges(sec, lines);
+  }
+  return lines.join('\n');
+}
+
+/**
+ * Render a section's changes. Set-replacement adds/removes (paths ending in
+ * `.+` or `.-`) are grouped by the parent path so reviewers see one line per
+ * field instead of one line per slug.
+ */
+function formatSectionChanges(sec: SectionDiff, lines: string[]): void {
+  const adds = new Map<string, string[]>();
+  const removes = new Map<string, string[]>();
+  const scalar: DiffEntry[] = [];
+
+  for (const c of sec.changes) {
+    if (c.path.endsWith('.+')) {
+      const key = c.path.slice(0, -2);
+      const list = adds.get(key) ?? [];
+      list.push(formatVal(c.after));
+      adds.set(key, list);
+    } else if (c.path.endsWith('.-')) {
+      const key = c.path.slice(0, -2);
+      const list = removes.get(key) ?? [];
+      list.push(formatVal(c.before));
+      removes.set(key, list);
+    } else {
+      scalar.push(c);
+    }
+  }
+
+  // Emit grouped adds/removes per parent path, then scalar changes.
+  const setKeys = new Set<string>([...adds.keys(), ...removes.keys()]);
+  for (const key of setKeys) {
+    const a = adds.get(key);
+    const r = removes.get(key);
+    if (a) lines.push(`    + ${key}  ${a.join(', ')}`);
+    if (r) lines.push(`    - ${key}  ${r.join(', ')}`);
+  }
+  for (const c of scalar) {
+    lines.push(`    ~ ${c.path}: ${formatVal(c.before)} → ${formatVal(c.after)}`);
+  }
+}
+
+/**
+ * Renders an at-a-glance summary of the recipe's current DB state. Goes above
+ * the diff in --dry-run output so reviewers can quickly verify the YAML is
+ * pointed at the right recipe and gauge what's already populated.
+ */
+export function formatRecipeSnapshot(current: CurrentRecipeState): string {
+  const lines: string[] = [];
+  const updated = current.updated_at
+    ? new Date(current.updated_at).toISOString().replace('T', ' ').slice(0, 16) + ' UTC'
+    : '?';
+  lines.push(`Recipe: ${current.name_en ?? '?'}`);
+  lines.push(`  id:           ${current.recipe_id}`);
+  lines.push(`  updated:      ${updated}`);
+
+  const p = current.planner;
+  const t = current.timings;
+
+  lines.push(
+    `  role:         ${p.planner_role ?? '—'}` +
+      `${p.alternate_planner_roles.length ? ` (alt: ${p.alternate_planner_roles.join(', ')})` : ''}` +
+      `   published: ${p.is_published === null ? '—' : p.is_published ? 'yes' : 'no'}`,
+  );
+  lines.push(
+    `  components:   ${p.meal_components.length ? p.meal_components.join(', ') : '—'}` +
+      `   complete-meal: ${p.is_complete_meal === null ? '—' : p.is_complete_meal ? 'yes' : 'no'}`,
+  );
+  lines.push(
+    `  equipment:    ${p.equipment_tags.length ? p.equipment_tags.join(', ') : '—'}` +
+      `   level:     ${p.cooking_level ?? '—'}`,
+  );
+  lines.push(
+    `  batch:        ${p.batch_friendly === null ? '—' : p.batch_friendly ? 'yes' : 'no'}` +
+      `   leftovers: ${p.leftovers_friendly === null ? '—' : p.leftovers_friendly ? 'yes' : 'no'}` +
+      `   household: ${p.max_household_size_supported ?? '—'}`,
+  );
+
+  const time = t.prep_time === null && t.total_time === null
+    ? '—'
+    : `${t.prep_time ?? '?'} min prep, ${t.total_time ?? '?'} min total`;
+  lines.push(`  time:         ${time}   portions: ${t.portions ?? '—'}`);
+
+  lines.push(`  ingredients:  ${current.ingredients.length}`);
+  lines.push(`  steps:        ${current.steps.length}`);
+  lines.push(`  kitchen-tools:${current.kitchen_tools.length ? ' ' + current.kitchen_tools.map((k) => k.name_en).join(', ') : ' —'}`);
+  lines.push(`  pairings:     ${current.pairings.length}`);
+
+  const locales = [...new Set(current.translations.map((tr) => tr.locale))].sort();
+  lines.push(`  locales:      ${locales.length ? locales.join(', ') : '—'}`);
+
+  const tagCats = Object.keys(current.tags_by_category).sort();
+  if (tagCats.length === 0) {
+    lines.push(`  tags:         —`);
+  } else {
+    lines.push(`  tags:`);
+    for (const cat of tagCats) {
+      const slugs = current.tags_by_category[cat] ?? [];
+      lines.push(`    ${cat.padEnd(20)} ${slugs.join(', ') || '—'}`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Renders the YAML's requires_authoring block. Returns empty string when no
+ * reasons are flagged so the CLI can skip emitting the section header.
+ */
+export function formatRequiresAuthoring(
+  ra: { reasons: string[]; notes?: string } | undefined,
+): string {
+  if (!ra || ra.reasons.length === 0) return '';
+  const lines: string[] = [];
+  lines.push(`Requires authoring (not publishable until human-authored):`);
+  lines.push(`  reasons: ${ra.reasons.join(', ')}`);
+  if (ra.notes && ra.notes.trim()) {
+    lines.push(`  notes:`);
+    for (const noteLine of ra.notes.split('\n')) {
+      lines.push(`    ${noteLine}`);
     }
   }
   return lines.join('\n');
