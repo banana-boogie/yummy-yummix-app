@@ -13,14 +13,14 @@ import type { RecipeStepInsert } from './db.ts';
  */
 export function hasRecipeContent(content: string): boolean {
   const lines = content.split('\n');
-  let inIngredientes = false;
+  let inIngredients = false;
   for (const line of lines) {
     const trimmed = line.trim();
-    if (trimmed === '### Ingredientes') {
-      inIngredientes = true;
+    if (trimmed === '### Ingredientes' || trimmed === '### Ingredients') {
+      inIngredients = true;
       continue;
     }
-    if (inIngredientes) {
+    if (inIngredients) {
       if (trimmed.startsWith('#')) break; // Hit next section — nothing found
       if (trimmed.startsWith('-') && trimmed.length > 2) return true;
     }

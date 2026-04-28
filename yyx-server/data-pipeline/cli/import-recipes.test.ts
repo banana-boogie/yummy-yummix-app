@@ -65,6 +65,31 @@ Deno.test('hasRecipeContent returns true even with blank lines before ingredient
   assertEquals(hasRecipeContent(content), true);
 });
 
+Deno.test('hasRecipeContent returns true for English ### Ingredients section', () => {
+  const content = `# Recipe Name
+
+### Ingredients
+
+- 2 cups flour
+- 1 cup milk
+
+### Steps
+`;
+  assertEquals(hasRecipeContent(content), true);
+});
+
+Deno.test('hasRecipeContent returns false for empty English Ingredients section', () => {
+  const content = `# Recipe Name
+
+### Ingredients
+
+-
+
+### Steps
+`;
+  assertEquals(hasRecipeContent(content), false);
+});
+
 // ─── buildRecipeSteps ────────────────────────────────────
 
 function makeStep(overrides: Partial<ParsedRecipeData['steps'][number]>): ParsedRecipeData['steps'][number] {

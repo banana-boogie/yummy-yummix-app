@@ -458,10 +458,9 @@ The file starts with Notion metadata lines — IGNORE these for recipe content:
   Status: ...      ← IGNORE
   Chat '25: ...    ← IGNORE
 
-The H1 heading (# Recipe Name) is ALWAYS the Spanish recipe name. Use it as nameEs and translate it to English for nameEn.
+The H1 heading (# Recipe Name) may be in Spanish OR English. Set nameEs to the Spanish name and nameEn to the English name; translate whichever is missing.
 
-Content is typically in a "## Receta en Español" section with:
-  ### Ingredientes, ### Procedimiento, ### Tips, ### Kitchen tools
+Content may be in a "## Receta en Español" section with ### Ingredientes / ### Procedimiento / ### Tips, or an English-first file with ### Ingredients / ### Steps / ### Tips. Both structures are valid.
 
 There may also be a "## English Recipe" section — if populated, use it; if empty, translate from Spanish.
 
@@ -500,14 +499,14 @@ Example: "licúa 20 seg/vel 4-8, aumentando la velocidad progresivamente"
 
 Extract the following if present in aside blocks. Use null / [] / false as defaults when absent.
 
-- plannerRole: "Rol: main" → "main". Values: main, side, dessert, beverage, snack, condiment, pantry. Null if absent.
-- equipmentTags: "Equipo: thermomix, air_fryer" → ["thermomix", "air_fryer"]. Values: thermomix, air_fryer, oven, stovetop. [] if absent.
-- mealComponents: "Componentes: protein, carb" → ["protein", "carb"]. Values: protein, carb, veg, snack. [] if absent.
-- isCompleteMeal: "Comida completa: Sí" → true, "No" → false. Default false if absent.
-- cookingLevel: "Nivel de cocina: beginner" → "beginner". Values: beginner, intermediate, advanced. Null if absent.
-- leftoversFriendly: "Apto para sobras: Sí" → true, "No" → false. Null if absent.
-- maxHouseholdSizeSupported: "Porciones máximas: 6" → 6 (integer). Null if absent.
-- batchFriendly: "Batch cooking: Sí" → true, "No" → false. Null if absent.
+- plannerRole: "Rol: main" or "Role: main" → "main". Values: main, side, dessert, beverage, snack, condiment, pantry. Null if absent.
+- equipmentTags: "Equipo: thermomix, air_fryer" or "Equipment: thermomix, air_fryer" → ["thermomix", "air_fryer"]. Values: thermomix, air_fryer, oven, stovetop. [] if absent.
+- mealComponents: "Componentes: protein, carb" or "Components: protein, carb" → ["protein", "carb"]. Values: protein, carb, veg, snack. [] if absent.
+- isCompleteMeal: "Comida completa: Sí/No" or "Complete meal: Yes/No" → true/false. Default false if absent.
+- cookingLevel: "Nivel de cocina: beginner" or "Cooking level: beginner" → "beginner". Values: beginner, intermediate, advanced. Null if absent.
+- leftoversFriendly: "Apto para sobras: Sí/No" or "Good for leftovers: Yes/No" → true/false. Null if absent.
+- maxHouseholdSizeSupported: "Porciones máximas: 6" or "Max servings: 6" → 6 (integer). Null if absent.
+- batchFriendly: "Batch cooking: Sí/No" or "Batch cooking: Yes/No" → true/false. Null if absent.
 
 ## Thermomix Mode and Step Timers
 
