@@ -17,11 +17,13 @@ type TabConfigItem = {
   icon?: string;
   iconActive?: string;
   image?: ReturnType<typeof require>;
+  emphasized?: boolean;
 };
 
 const TAB_CONFIG: TabConfigItem[] = [
   { name: 'recipes', icon: 'compass-outline', iconActive: 'compass', href: '/recipes' },
   { name: 'chat', image: require('@/assets/images/irmixy-avatar/irmixy-face.png'), href: '/chat' },
+  { name: 'menu', icon: 'calendar-outline', iconActive: 'calendar', href: '/menu', emphasized: true },
   { name: 'profile', icon: 'person-outline', iconActive: 'person', href: '/profile' },
 ];
 
@@ -188,7 +190,12 @@ function MobileTabBar({ state, navigation }: BottomTabBarProps) {
       <View className="flex-row items-center justify-around px-lg">
         {TAB_CONFIG.map((tab, tabIndex) => {
           const isActive = activeRouteName === tab.name;
-          const iconSize = tab.image ? (isActive ? 34 : 32) : (isActive ? 26 : 24);
+          const emphasisBoost = tab.emphasized ? 4 : 0;
+          const iconSize = tab.image
+            ? (isActive ? 34 : 32) + emphasisBoost
+            : (isActive ? 26 : 24) + emphasisBoost;
+          const activeBg = tab.emphasized ? 'bg-primary-default' : 'bg-primary-light';
+          const baseSize = SPACING.xxl;
 
           return (
             <TouchableOpacity
@@ -199,9 +206,12 @@ function MobileTabBar({ state, navigation }: BottomTabBarProps) {
               style={{ minWidth: SPACING.xxl }}
             >
               <View
-                className={`rounded-md items-center justify-center ${isActive ? 'bg-primary-light' : 'bg-transparent'
+                className={`rounded-md items-center justify-center ${isActive ? activeBg : 'bg-transparent'
                   }`}
-                style={{ width: SPACING['2xl'], height: SPACING['2xl'] }}
+                style={{
+                  width: baseSize + emphasisBoost,
+                  height: baseSize + emphasisBoost,
+                }}
               >
                 {renderTabIcon(tab, isActive, iconSize)}
               </View>

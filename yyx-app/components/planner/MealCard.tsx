@@ -1,0 +1,129 @@
+import React from 'react';
+import { View, Pressable } from 'react-native';
+import { Image } from 'expo-image';
+import { Text, Button } from '@/components/common';
+import { COLORS } from '@/constants/design-tokens';
+import i18n from '@/i18n';
+import type { MealPlanSlotResponse } from '@/types/mealPlan';
+
+export type PlanMode = 'draft' | 'active';
+
+interface MealCardProps {
+  slot: MealPlanSlotResponse;
+  mode: PlanMode;
+  onCook?: (slot: MealPlanSlotResponse) => void;
+  onRemove?: (slot: MealPlanSlotResponse) => void;
+}
+
+// Swap is deferred to a follow-up PR. The server returns alternatives the
+// UI cannot yet present, so shipping the button would dead-end the user.
+export function MealCard({ slot, mode, onCook, onRemove }: MealCardProps) {
+  const primary =
+    slot.components.find((c) => c.isPrimary) ?? slot.components[0];
+  const isLeftover = slot.slotType === 'leftover_target_slot';
+  const isCooked = slot.status === 'cooked';
+  const isRemoved = slot.status === 'skipped';
+
+  const opacity = isRemoved ? 0.5 : 1;
+  const cardClass = isLeftover
+    ? 'bg-background-secondary border border-grey-light'
+    : 'bg-neutral-white border border-grey-light';
+
+  return (
+    <View
+      className={`rounded-lg p-md ${cardClass}`}
+      style={{ opacity }}
+      accessibilityLabel={`${slot.displayMealLabel}: ${primary?.title ?? ''}`}
+    >
+      <Text preset="caption" className="text-text-secondary mb-xs uppercase">
+        {slot.displayMealLabel}
+      </Text>
+
+      <View className="flex-row items-center">
+        {primary?.imageUrl ? (
+          <Image
+            source={{ uri: primary.imageUrl }}
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: 8,
+              backgroundColor: COLORS.grey.light,
+            }}
+            contentFit="cover"
+          />
+        ) : (
+          <View
+            className="bg-grey-light rounded-md"
+            style={{ width: 64, height: 64 }}
+          />
+        )}
+        <View className="flex-1 ml-md">
+          <Text preset="subheading" numberOfLines={2}>
+            {primary?.title ?? i18n.t('planner.card.untitled')}
+          </Text>
+          <Text preset="bodySmall" className="text-text-secondary mt-xxs">
+            {formatMeta(slot, primary)}
+          </Text>
+          {isLeftover && (
+            <Text preset="caption" className="text-text-secondary mt-xxs">
+              {i18n.t('planner.card.leftover')}
+            </Text>
+          )}
+        </View>
+      </View>
+
+      {isRemoved ? (
+        <Text preset="bodySmall" className="text-text-secondary mt-md">
+          {i18n.t('planner.card.removed')}
+        </Text>
+      ) : isCooked ? (
+        <Text preset="bodySmall" className="text-status-success mt-md">
+          {i18n.t('planner.card.cooked')}
+        </Text>
+      ) : (
+        <View className="flex-row flex-wrap gap-sm mt-md">
+          {mode === 'active' && !isLeftover && onCook && (
+            <Button
+              variant="primary"
+              size="small"
+              onPress={() => onCook(slot)}
+              accessibilityLabel={i18n.t('planner.card.cookNow')}
+              style={{ minHeight: 44 }}
+            >
+              {i18n.t('planner.card.cookNow')}
+            </Button>
+          )}
+          {onRemove && (
+            <Pressable
+              onPress={() => onRemove(slot)}
+              accessibilityLabel={i18n.t('planner.card.remove')}
+              className="px-md items-center justify-center"
+              style={{ minHeight: 44 }}
+            >
+              <Text preset="bodySmall" className="text-text-secondary">
+                {i18n.t('planner.card.remove')}
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
+function formatMeta(
+  slot: MealPlanSlotResponse,
+  primary: MealPlanSlotResponse['components'][number] | undefined,
+): string {
+  const parts: string[] = [];
+  if (primary?.totalTimeMinutes != null) {
+    parts.push(i18n.t('planner.card.minutes', { n: primary.totalTimeMinutes }));
+  }
+  if (primary?.difficulty) {
+    parts.push(i18n.t(`planner.difficulty.${primary.difficulty}`));
+  }
+  if (primary?.portions != null) {
+    parts.push(i18n.t('planner.card.portions', { n: primary.portions }));
+  }
+  return parts.join(' · ');
+}
