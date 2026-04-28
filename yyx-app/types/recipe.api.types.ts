@@ -9,6 +9,7 @@ export interface RecipeTranslation {
   recipe_id: string;
   locale: string;
   name: string;
+  description: string | null;
   tips_and_tricks: string | null;
 }
 
@@ -109,6 +110,7 @@ export interface RawMeasurementUnit {
 export interface RawRecipeTag {
   recipe_tags: {
     id: string;
+    slug: string | null;
     categories: string[];
     translations: RecipeTagTranslation[];
   }

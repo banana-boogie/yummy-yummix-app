@@ -38,6 +38,7 @@ import type {
   RecipeStepIngredient,
 } from '@/types/recipe.types';
 import { RecipeDifficulty } from '@/types/recipe.types';
+import type { ThermomixSpeedValue, ThermomixTemperature } from '@/types/thermomix.types';
 
 // ============================================================
 // COUNTER FOR UNIQUE IDS
@@ -105,7 +106,13 @@ const tagNames = [
   'Date Night',
 ];
 
-const tagCategories = ['diet', 'cuisine', 'occasion', 'difficulty', 'time'];
+const tagCategories = ['cuisine', 'meal_type', 'diet', 'occasion', 'practical'];
+const thermomixSpeedValues: ThermomixSpeedValue[] = [
+  1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+];
+const thermomixTemperatures: ThermomixTemperature[] = [
+  37, 40, 50, 60, 70, 80, 90, 100,
+];
 
 // ============================================================
 // HELPER FUNCTIONS
@@ -223,9 +230,10 @@ export function createStep(overrides?: Partial<RecipeStep>): RecipeStep {
     thermomix: Math.random() > 0.7
       ? {
           time: randomInt(5, 30),
-          speed: randomInt(1, 10),
-          temperature: randomInt(37, 100),
-          isReversed: Math.random() > 0.5,
+          speed: { type: 'single', value: randomElement(thermomixSpeedValues) },
+          temperature: randomElement(thermomixTemperatures),
+          temperatureUnit: 'C',
+          isBladeReversed: Math.random() > 0.5,
         }
       : undefined,
     ingredients: Math.random() > 0.5 ? [createStepIngredient()] : [],
@@ -244,12 +252,18 @@ export function createStepList(count: number): RecipeStep[] {
 // ============================================================
 
 export function createTag(overrides?: Partial<RecipeTag>): RecipeTag {
+  const name = overrides?.name ?? randomElement(tagNames);
   return {
     id: generateId(),
-    name: randomElement(tagNames),
+    slug: normalizeTagSlug(name),
+    name,
     categories: [randomElement(tagCategories)],
     ...overrides,
   };
+}
+
+function normalizeTagSlug(value: string): string {
+  return value.toLowerCase().replace(/[\s-]+/g, '_');
 }
 
 export function createTagList(count: number): RecipeTag[] {

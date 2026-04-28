@@ -40,6 +40,8 @@ const getRecipeListQuery = () => {
     tags:recipe_to_tag (
       recipe_tags (
         id,
+        slug,
+        categories,
         translations:recipe_tag_translations (
           locale,
           name
@@ -143,6 +145,8 @@ const getRecipeDetailQuery = () => {
     tags:recipe_to_tag (
       recipe_tags!inner (
         id,
+        slug,
+        categories,
         translations:recipe_tag_translations (
           locale,
           name

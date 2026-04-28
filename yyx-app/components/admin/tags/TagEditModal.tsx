@@ -6,25 +6,28 @@ import { TextInput } from '@/components/form/TextInput';
 import { FormGroup } from '@/components/form/FormGroup';
 import { AdminRecipeTag, AdminRecipeTagTranslation, pickTranslation } from '@/types/recipe.admin.types';
 import { COLORS } from '@/constants/design-tokens';
-import { adminRecipeTagService } from '@/services/admin/adminRecipeTagService';
+import { CANONICAL_TAG_CATEGORIES, adminRecipeTagService } from '@/services/admin/adminRecipeTagService';
 import { Ionicons } from '@expo/vector-icons';
 import { AutoTranslateButton } from '@/components/admin/shared';
 import i18n from '@/i18n';
 import { useActiveLocales } from '@/hooks/admin/useActiveLocales';
 import { translateContent } from '@/services/admin/adminTranslateService';
 import logger from '@/services/logger';
+import { formatCategoryForDisplay } from '@/utils/formatters';
 
 interface TagEditModalProps {
   visible: boolean;
   tag?: AdminRecipeTag | null;
   isNew: boolean;
+  categories?: string[];
   onClose: () => void;
   onSave: (tag: AdminRecipeTag, isNew: boolean) => void;
 }
 
-export function TagEditModal({ visible, tag, isNew, onClose, onSave }: TagEditModalProps) {
+export function TagEditModal({ visible, tag, isNew, categories, onClose, onSave }: TagEditModalProps) {
   const { locales } = useActiveLocales();
   const [translations, setTranslations] = useState<AdminRecipeTagTranslation[]>([]);
+  const [slug, setSlug] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [categorySearch, setCategorySearch] = useState('');
@@ -37,14 +40,16 @@ export function TagEditModal({ visible, tag, isNew, onClose, onSave }: TagEditMo
       if (isNew) {
         // Initialize with empty translations for each locale
         setTranslations(locales.map(l => ({ locale: l.code, name: '' })));
+        setSlug('');
         setSelectedCategories([]);
       } else if (tag) {
         setTranslations(tag.translations || []);
+        setSlug(tag.slug || '');
         setSelectedCategories(tag.categories || []);
       }
       fetchCategories();
     }
-  }, [visible, tag, isNew, locales]);
+  }, [visible, tag, isNew, locales, categories]);
 
   useEffect(() => {
     if (categorySearch.trim() === '') {
@@ -53,20 +58,19 @@ export function TagEditModal({ visible, tag, isNew, onClose, onSave }: TagEditMo
       const query = categorySearch.toLowerCase();
       setFilteredCategories(
         availableCategories.filter(category =>
-          category.toLowerCase().includes(query)
+          category.toLowerCase().includes(query) ||
+          formatCategoryForDisplay(category).toLowerCase().includes(query)
         )
       );
     }
   }, [categorySearch, availableCategories]);
 
-  const fetchCategories = async () => {
-    try {
-      const categories = await adminRecipeTagService.getTagCategories();
-      setAvailableCategories(categories);
-      setFilteredCategories(categories);
-    } catch (error) {
-      logger.error('Failed to fetch categories:', error);
-    }
+  const fetchCategories = () => {
+    const nextCategories = categories?.length
+      ? categories
+      : [...CANONICAL_TAG_CATEGORIES];
+    setAvailableCategories(nextCategories);
+    setFilteredCategories(nextCategories);
   };
 
   const getTranslationName = (locale: string): string => {
@@ -105,6 +109,16 @@ export function TagEditModal({ visible, tag, isNew, onClose, onSave }: TagEditMo
       locales.forEach(l => {
         newErrors[`name_${l.code}`] = i18n.t('validation.required');
       });
+    }
+
+    if (!slug.trim()) {
+      newErrors.slug = i18n.t('validation.required');
+    } else if (!/^[a-z0-9]+(?:_[a-z0-9]+)*$/.test(slug.trim())) {
+      newErrors.slug = i18n.t('admin.tags.errors.slugInvalid');
+    }
+
+    if (selectedCategories.length === 0) {
+      newErrors.categories = i18n.t('validation.required');
     }
 
     setErrors(newErrors);
@@ -155,6 +169,7 @@ export function TagEditModal({ visible, tag, isNew, onClose, onSave }: TagEditMo
     if (!validateForm()) return;
 
     const tagData: Omit<AdminRecipeTag, 'id'> = {
+      slug: slug.trim(),
       translations: translations.filter(t => t.name?.trim()),
       categories: selectedCategories,
     };
@@ -202,6 +217,17 @@ export function TagEditModal({ visible, tag, isNew, onClose, onSave }: TagEditMo
             {/* Names Section - Dynamic locales */}
             <View className="mt-lg mb-xl">
               <Text preset="bodySmall" className="text-text-secondary font-medium mb-sm">{i18n.t('admin.tags.basicInfo')}</Text>
+              <FormGroup
+                label={i18n.t('admin.tags.slug')}
+                error={errors.slug}
+                className="mb-md"
+              >
+                <TextInput
+                  value={slug}
+                  onChangeText={setSlug}
+                  autoCapitalize="none"
+                />
+              </FormGroup>
               {locales.map(locale => (
                 <FormGroup
                   key={locale.code}
@@ -221,6 +247,9 @@ export function TagEditModal({ visible, tag, isNew, onClose, onSave }: TagEditMo
             {/* Categories Section */}
             <View className="mt-lg mb-xl">
               <Text preset="bodySmall" className="text-text-secondary font-medium mb-sm">{i18n.t('admin.tags.categories')}</Text>
+              {errors.categories ? (
+                <Text preset="caption" className="text-status-error mb-sm">{errors.categories}</Text>
+              ) : null}
               {/* Selected Categories */}
               <View className="mb-lg">
                 <Text preset="subheading" className="mb-md">
@@ -237,7 +266,7 @@ export function TagEditModal({ visible, tag, isNew, onClose, onSave }: TagEditMo
                   <View className="flex-row flex-wrap gap-sm">
                     {selectedCategories.map((category, index) => (
                       <View key={index} className="flex-row items-center bg-primary-light rounded-md py-xs px-sm mb-sm mr-sm">
-                        <Text className="mr-xs">{category}</Text>
+                        <Text className="mr-xs">{formatCategoryForDisplay(category)}</Text>
                         <TouchableOpacity onPress={() => removeCategory(category)}>
                           <Ionicons name="close-circle" size={20} color="#333333" />
                         </TouchableOpacity>
@@ -287,7 +316,7 @@ export function TagEditModal({ visible, tag, isNew, onClose, onSave }: TagEditMo
                             )}
                           </View>
                           <Text className={`text-text-default ${isSelected ? 'font-bold' : ''}`}>
-                            {category}
+                            {formatCategoryForDisplay(category)}
                           </Text>
                         </TouchableOpacity>
                       );

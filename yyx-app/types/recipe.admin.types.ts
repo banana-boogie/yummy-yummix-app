@@ -100,6 +100,7 @@ export interface AdminRecipeIngredient {
 
 export interface AdminRecipeTag {
   id: string;
+  slug: string | null;
   translations: AdminRecipeTagTranslation[];
   categories: string[];
 }
