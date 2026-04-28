@@ -138,7 +138,7 @@ Required sections:
 
 - `recipe_match.id` — the UUID from step 1
 - `recipe_match.name_en` — the live EN name (so the apply hard-fails if the YAML drifts to a different recipe)
-- `recipe_match.expected_recipe_updated_at` — the live `updated_at` from step 1
+- `recipe_match.expected_recipe_updated_at` — the live `updated_at` from step 1, **converted to canonical ISO 8601**: `T` separator, preserve microseconds, full `+00:00` offset. Postgres returns `2026-03-17 20:22:55.099866+00` — write it as `'2026-03-17T20:22:55.099866+00:00'`. Truncating to seconds risks `stale_diff` rejection.
 - `review.reviewed_by_label` — your model label (e.g. `'codex-gpt-5'`)
 - `review.reviewed_at` — current ISO 8601 timestamp
 
@@ -150,6 +150,18 @@ Match-key rules:
 - `ingredient_updates`/`ingredient_removes`: prefer `existing_id` (the `id` from step 2's recipe_ingredients query). Fallback: `ingredient_slug` + `display_order`. Compute the slug exactly as the SQL helper does — the JS reproduction is in `data-pipeline/lib/recipe-metadata-fetch.ts:slugifyName()`. Never use names directly.
 - `step_overrides`: prefer `step_id`. Fallback: `order`.
 - `kitchen_tools` and `pairings`: declarative `set:` blocks list the full desired state.
+
+**Before writing a `kitchen_tools.set` block — query the canonical names.** The DB stores `Thermomix®` and `Thermomix® Varoma` (with the registered-trademark glyph). A YAML that writes `Thermomix` or `Varoma` (no ®) will hard-fail at apply with an opaque "ambiguous name" error. Run this read-only `execute_sql` once and copy strings verbatim:
+
+```sql
+SELECT name FROM public.kitchen_tool_translations WHERE locale = 'en' ORDER BY name;
+```
+
+**`equipment_tags` taxonomy.** The schema accepts free strings but the convention is lowercase, currently just `[thermomix]`. Match what existing YAMLs in `data-pipeline/data/recipe-metadata/*.yaml` use — never invent variants like `Thermomix`, `TM6`, or `varoma`.
+
+**`is_published` policy.** Only set `is_published: true` when (a) `requires_authoring.reasons` is empty, (b) `planner.role` is non-null, (c) a `meal_type` tag exists (or `planner.role = 'pantry'`), (d) en+es exist for name/description/tips_and_tricks, and (e) at least one ingredient and one step exist. If any condition fails, **omit `is_published` from the YAML** — that preserves the current DB value. Never silently flip a published recipe to `false` from a review; if you think it should be unpublished, flag in `requires_authoring.notes`.
+
+**`cleanup.delete_locales` is rare.** The pipeline intentionally emits `en + es + es-ES`. `es-ES` is the override slot for future Spain-Spanish content; **never** add `cleanup.delete_locales: ['es-ES']` even when it currently mirrors `es` exactly. Use `cleanup.delete_locales` only to remove a locale that genuinely should not exist for the recipe (e.g. a stray third-party locale).
 
 Validate the YAML before stopping:
 
@@ -182,6 +194,8 @@ Tell the user, in 3-5 short bullets:
 - Next step: `deno task pipeline:apply-recipe-metadata --local --recipe <slug> --dry-run`
 
 Do not apply the YAML yourself — that is the human's call after reviewing the diff.
+
+**Exception:** if the user explicitly authorizes apply in the same session (e.g. "go ahead and apply", "run the pipeline", "apply the changes"), proceed with --apply after running a final dry-run. The skill's default is "stop after the YAML is written"; the user's explicit instruction overrides that default.
 
 ## Things this skill never does
 
