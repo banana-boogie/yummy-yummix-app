@@ -1,7 +1,7 @@
 recipe_match:
   id: 'd1cad0e8-3295-4da1-ba4a-e2a789c6b9ee'
   name_en: 'Zucchini Soup'
-  expected_recipe_updated_at: '2026-04-28T19:12:58.028034+00:00'
+  expected_recipe_updated_at: '2026-04-28T19:45:51.538062+00:00'
 
 review:
   reviewed_by_label: 'claude-opus-4-7'
