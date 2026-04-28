@@ -26,6 +26,7 @@ AGENT-ROLES.yaml  →  agents-sync.js  →  .claude/agents/*.md
 | `.claude/skills/*.md` | Hand-authored skills | Yes — not managed by sync |
 | `.codex/skills/review-pr/*` | Hand-authored skill | Yes — excluded from role sync |
 | `.codex/skills/review-changes/*` | Hand-authored skill | Yes — excluded from role sync |
+| `.codex/skills/improve-codebase-architecture/*` | Hand-authored skill | Yes — excluded from role sync |
 
 ## Commands
 
@@ -119,4 +120,4 @@ Check YAML syntax. Common issues: missing quotes around strings with colons, inc
 ## Codex Notes
 
 - Role-derived Codex skills are generated under `.codex/skills/<role-id>/`.
-- Existing workflow skills such as `.codex/skills/review-pr/` and `.codex/skills/review-changes/` remain hand-authored and are intentionally not managed by this generator.
+- Hand-authored workflow skills under `.codex/skills/` (e.g. `review-pr/`, `review-changes/`, `improve-codebase-architecture/`) are intentionally not managed by this generator. Only role-derived skills are regenerated; everything else is left untouched.
