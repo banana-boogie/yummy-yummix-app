@@ -11,27 +11,22 @@ export const DIETARY_RESTRICTIONS = [
 export type DietaryRestriction = typeof DIETARY_RESTRICTIONS[number];
 
 export const DIET_TYPES = [
-  'none',
-  'keto',
-  'lactoVegetarian',
-  'mediterranean',
-  'ovoVegetarian',
-  'paleo',
-  'pescatarian',
-  'sugarFree',
-  'vegan',
   'vegetarian',
-  'other'
+  'vegan',
+  'keto',
+  'low_carb',
+  'paleo',
+  'low_sodium',
+  'low_sugar',
+  'high_protein',
+  'pescatarian',
+  'gluten_free',
+  'healthy',
 ] as const;
 
 export type DietType = typeof DIET_TYPES[number];
 
-export const LEGACY_DIET_TYPE_MEDITERRANEAN = 'mediterranean' as const;
-
-export const SELECTABLE_DIET_TYPES = DIET_TYPES.filter(
-  (dietType): dietType is Exclude<DietType, typeof LEGACY_DIET_TYPE_MEDITERRANEAN> =>
-    dietType !== LEGACY_DIET_TYPE_MEDITERRANEAN
-);
+export const SELECTABLE_DIET_TYPES = DIET_TYPES;
 
 export const CUISINE_PREFERENCES = [
   'mediterranean',

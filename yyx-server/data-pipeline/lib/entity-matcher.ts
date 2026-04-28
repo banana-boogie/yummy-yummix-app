@@ -36,6 +36,7 @@ export interface DbKitchenTool {
 
 export interface DbRecipeTag {
   id: string;
+  slug: string;
   name_en: string;
   name_es: string;
   categories: string[];
@@ -155,6 +156,12 @@ export function matchIngredient(
     similarity(normalize(search.nameEs), normalize(db.name_es)) >= SIMILARITY_THRESHOLD
   );
   return fuzzy || null;
+}
+
+/** Match a tag by canonical slug (case-insensitive). */
+export function matchTagBySlug(slug: string, dbTags: DbRecipeTag[]): DbRecipeTag | null {
+  const target = slug.toLowerCase();
+  return dbTags.find((tag) => tag.slug.toLowerCase() === target) || null;
 }
 
 /** Match a tag name against existing tags (EN or ES, with or without #) */

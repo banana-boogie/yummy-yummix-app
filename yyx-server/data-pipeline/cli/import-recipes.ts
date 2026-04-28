@@ -25,17 +25,18 @@ import { ProgressTracker } from '../lib/progress-tracker.ts';
 import { type ParsedRecipeData, parseRecipeMarkdown } from '../lib/recipe-parser.ts';
 import {
   type DbIngredient,
+  type DbKitchenTool,
   type DbMeasurementUnit,
   type DbRecipeTag,
-  type DbKitchenTool,
   matchIngredient,
+  matchKitchenTool,
   matchMeasurementUnit,
   matchTag,
-  matchKitchenTool,
+  matchTagBySlug,
 } from '../lib/entity-matcher.ts';
 import { resolveStepIngredients } from '../lib/step-ingredient-resolver.ts';
 import { buildRecipeSteps, hasRecipeContent } from '../lib/import-helpers.ts';
-import { resolveNotionTag } from '../lib/notion-tag-map.ts';
+import { INTENTIONAL_DROPS, resolveNotionTag } from '../lib/notion-tag-map.ts';
 import * as db from '../lib/db.ts';
 import { adaptToSpainSpanish, type SpainAdaptOutput } from '../lib/spain-adapter.ts';
 import { assertRequiredApiKey } from '../lib/cli-validations.ts';
@@ -61,7 +62,9 @@ if (hasFlag(Deno.args, '--reset')) {
 
 // ─── Load Markdown Files ─────────────────────────────────
 
-function loadMarkdownFiles(dir: string): Array<{ filename: string; content: string }> {
+function loadMarkdownFiles(
+  dir: string,
+): Array<{ filename: string; content: string }> {
   const files: Array<{ filename: string; content: string }> = [];
   for (const entry of Deno.readDirSync(dir)) {
     if (entry.isFile && entry.name.endsWith('.md')) {
@@ -83,11 +86,15 @@ async function resolveIngredients(
 ): Promise<{
   recipeIngredients: db.RecipeIngredientInsert[];
   ingredientMap: Map<string, DbIngredient>;
-  newlyCreatedIngredients: Array<{ id: string; nameEs: string; pluralNameEs: string }>;
+  newlyCreatedIngredients: Array<
+    { id: string; nameEs: string; pluralNameEs: string }
+  >;
 }> {
   const recipeIngredients: db.RecipeIngredientInsert[] = [];
   const ingredientMap = new Map<string, DbIngredient>();
-  const newlyCreatedIngredients: Array<{ id: string; nameEs: string; pluralNameEs: string }> = [];
+  const newlyCreatedIngredients: Array<
+    { id: string; nameEs: string; pluralNameEs: string }
+  > = [];
 
   for (const item of parsed.ingredients) {
     let matched = matchIngredient(item.ingredient, allIngredients);
@@ -134,8 +141,12 @@ async function resolveIngredients(
   return { recipeIngredients, ingredientMap, newlyCreatedIngredients };
 }
 
-/** Resolve tags using the Notion tag map for exact matching.
- * Falls back to fuzzy DB match for unmapped tags, creates if truly new. */
+/** Resolve tags via the Notion tag map (slug-first), then fall back to a
+ * direct name match for tags that happen to share a canonical display name.
+ * Tags that resolve to neither and are not in INTENTIONAL_DROPS are logged
+ * as "unmapped" so they can be triaged into the map.
+ *
+ * The taxonomy is seeded via migration; this importer never creates tags. */
 async function resolveTags(
   tagNames: string[],
   allTags: DbRecipeTag[],
@@ -144,35 +155,26 @@ async function resolveTags(
   const seen = new Set<string>();
 
   for (const tagName of tagNames) {
-    // 1. Try Notion tag map first (exact, deterministic)
-    const mapped = resolveNotionTag(tagName);
-    let matched: DbRecipeTag | null = null;
+    const matched = matchCanonicalTag(tagName, allTags);
 
-    if (mapped) {
-      // Look up by the mapped EN or ES name
-      matched = matchTag(mapped.en, allTags) || matchTag(mapped.es, allTags);
-      if (!matched) {
-        logger.info(`Creating mapped tag: ${mapped.en} / ${mapped.es}`);
-        matched = await db.createTag(config.supabase, {
-          name_en: mapped.en,
-          name_es: mapped.es,
-          categories: ['GENERAL'],
-        });
-        allTags.push(matched);
+    if (!matched) {
+      const isIntentionalDrop = INTENTIONAL_DROPS.includes(tagName);
+      const mapped = resolveNotionTag(tagName);
+
+      if (isIntentionalDrop) {
+        logger.info(`Tag "${tagName}" intentionally dropped — skipping`);
+      } else if (mapped) {
+        // Mapping exists but the canonical tag is missing from the DB. This
+        // means the migration hasn't been applied or the seed is stale.
+        logger.warn(
+          `Mapped tag "${tagName}" -> ${mapped.slug} not found in DB — apply migration?`,
+        );
+      } else {
+        logger.warn(
+          `Unmapped tag "${tagName}" — add to NOTION_TAG_MAP or INTENTIONAL_DROPS`,
+        );
       }
-    } else {
-      // 2. Fallback: try matching the raw tag name against DB
-      matched = matchTag(tagName, allTags);
-      if (!matched) {
-        const cleanName = tagName.startsWith('#') ? tagName.substring(1) : tagName;
-        logger.warn(`Unmapped tag "${tagName}" — creating with same name for EN/ES`);
-        matched = await db.createTag(config.supabase, {
-          name_en: cleanName,
-          name_es: cleanName,
-          categories: ['GENERAL'],
-        });
-        allTags.push(matched);
-      }
+      continue;
     }
 
     if (!seen.has(matched.id)) {
@@ -184,16 +186,42 @@ async function resolveTags(
   return tagIds;
 }
 
+/** Resolve a Notion tag string to a canonical DB tag.
+ *  Order: NOTION_TAG_MAP slug -> canonical en/es display name. */
+function matchCanonicalTag(
+  tagName: string,
+  allTags: DbRecipeTag[],
+): DbRecipeTag | null {
+  const mapped = resolveNotionTag(tagName);
+  if (mapped) {
+    return matchTagBySlug(mapped.slug, allTags);
+  }
+
+  return matchTag(tagName, allTags);
+}
+
 /** Resolve kitchen tools: match existing or create new ones */
 async function resolveKitchenTools(
   parsed: ParsedRecipeData,
   allItems: DbKitchenTool[],
 ): Promise<{
-  items: Array<{ kitchen_tool_id: string; display_order: number; notes_en: string; notes_es: string }>;
+  items: Array<
+    {
+      kitchen_tool_id: string;
+      display_order: number;
+      notes_en: string;
+      notes_es: string;
+    }
+  >;
   newlyCreatedTools: Array<{ id: string; nameEs: string }>;
 }> {
   const items: Array<
-    { kitchen_tool_id: string; display_order: number; notes_en: string; notes_es: string }
+    {
+      kitchen_tool_id: string;
+      display_order: number;
+      notes_en: string;
+      notes_es: string;
+    }
   > = [];
   const newlyCreatedTools: Array<{ id: string; nameEs: string }> = [];
 
@@ -201,7 +229,9 @@ async function resolveKitchenTools(
     let matched = matchKitchenTool(item, allItems);
 
     if (!matched) {
-      logger.info(`Creating missing kitchen tool: ${item.nameEn} / ${item.nameEs}`);
+      logger.info(
+        `Creating missing kitchen tool: ${item.nameEn} / ${item.nameEs}`,
+      );
       matched = await db.createKitchenTool(config.supabase, {
         name_en: item.nameEn,
         name_es: item.nameEs,
@@ -232,11 +262,17 @@ async function importRecipe(
   allUnits: DbMeasurementUnit[],
 ): Promise<string> {
   // 1. Parse markdown with OpenAI
-  const parsed = await parseRecipeMarkdown(markdown, config.openaiApiKey, logger);
+  const parsed = await parseRecipeMarkdown(
+    markdown,
+    config.openaiApiKey,
+    logger,
+  );
 
   // Validate critical data
   if (!parsed.steps || parsed.steps.length === 0) {
-    throw new Error(`Recipe "${parsed.nameEn}" has no steps — skipping to avoid incomplete data`);
+    throw new Error(
+      `Recipe "${parsed.nameEn}" has no steps — skipping to avoid incomplete data`,
+    );
   }
   if (!parsed.ingredients || parsed.ingredients.length === 0) {
     throw new Error(
@@ -246,23 +282,35 @@ async function importRecipe(
 
   // 2. Check for duplicate
   if (skipExisting && !dryRun) {
-    const existingId = await db.findRecipeByName(config.supabase, parsed.nameEn, parsed.nameEs);
+    const existingId = await db.findRecipeByName(
+      config.supabase,
+      parsed.nameEn,
+      parsed.nameEs,
+    );
     if (existingId) {
-      logger.warn(`Skipping existing recipe: "${parsed.nameEn}" (${existingId})`);
+      logger.warn(
+        `Skipping existing recipe: "${parsed.nameEn}" (${existingId})`,
+      );
       return existingId;
     }
   }
 
   // 3. Resolve all entities (matching only — no DB writes in dry-run)
   const ingredientResult = dryRun
-    ? { ...(await resolveIngredientsDry(parsed, allIngredients, allUnits)), newlyCreatedIngredients: [] }
+    ? {
+      ...(await resolveIngredientsDry(parsed, allIngredients, allUnits)),
+      newlyCreatedIngredients: [],
+    }
     : await resolveIngredients(parsed, allIngredients, allUnits);
   const { recipeIngredients, ingredientMap, newlyCreatedIngredients } = ingredientResult;
   const tagIds = dryRun
     ? await resolveTagsDry(parsed.tags, allTags)
     : await resolveTags(parsed.tags, allTags);
   const kitchenToolResult = dryRun
-    ? { items: await resolveKitchenToolsDry(parsed, allItems), newlyCreatedTools: [] }
+    ? {
+      items: await resolveKitchenToolsDry(parsed, allItems),
+      newlyCreatedTools: [],
+    }
     : await resolveKitchenTools(parsed, allItems);
   const { items: kitchenTools, newlyCreatedTools } = kitchenToolResult;
 
@@ -271,51 +319,70 @@ async function importRecipe(
     logger.info('--- DRY RUN OUTPUT ---');
     logger.info(`Name (EN): ${parsed.nameEn}`);
     logger.info(`Name (ES): ${parsed.nameEs}`);
-    logger.info(`Difficulty: ${parsed.difficulty} | Prep: ${parsed.prepTime}min | Total: ${parsed.totalTime}min | Portions: ${parsed.portions}`);
+    logger.info(
+      `Difficulty: ${parsed.difficulty} | Prep: ${parsed.prepTime}min | Total: ${parsed.totalTime}min | Portions: ${parsed.portions}`,
+    );
     logger.info(`Tags (${parsed.tags.length}): ${parsed.tags.join(', ')}`);
     logger.info(`Ingredients (${parsed.ingredients.length}):`);
     for (const ing of parsed.ingredients) {
       logger.info(
-        `  - ${ing.quantity} ${ing.measurementUnitID || ''} ${ing.ingredient.nameEn} / ${ing.ingredient.nameEs}`,
+        `  - ${ing.quantity} ${
+          ing.measurementUnitID || ''
+        } ${ing.ingredient.nameEn} / ${ing.ingredient.nameEs}`,
       );
     }
     logger.info(`Steps (${parsed.steps.length}):`);
     for (const step of parsed.steps) {
       const tmx = step.thermomixTime
-        ? ` [TM: ${step.thermomixTime}s ${step.thermomixTemperature ? step.thermomixTemperature + '°' : ''} vel${step.thermomixSpeed?.type === 'single' ? step.thermomixSpeed.value : '?'}]`
+        ? ` [TM: ${step.thermomixTime}s ${
+          step.thermomixTemperature ? step.thermomixTemperature + '°' : ''
+        } vel${step.thermomixSpeed?.type === 'single' ? step.thermomixSpeed.value : '?'}]`
         : '';
       logger.info(`  ${step.order}. ${step.instructionEn}${tmx}`);
     }
-    logger.info(`Kitchen tools (${parsed.kitchenTools.length}): ${parsed.kitchenTools.map((i) => i.nameEn).join(', ')}`);
+    logger.info(
+      `Kitchen tools (${parsed.kitchenTools.length}): ${
+        parsed.kitchenTools.map((i) => i.nameEn).join(', ')
+      }`,
+    );
     if (parsed.tipsAndTricksEn) logger.info(`Tips: ${parsed.tipsAndTricksEn}`);
 
     // Show entity resolution status
     const missingIngredients = parsed.ingredients.filter(
-      (i) => !allIngredients.some(
-        (db) =>
-          (db.name_en?.toLowerCase() ?? '') === i.ingredient.nameEn.toLowerCase() ||
-          (db.name_es?.toLowerCase() ?? '') === i.ingredient.nameEs.toLowerCase(),
-      ),
+      (i) =>
+        !allIngredients.some(
+          (db) =>
+            (db.name_en?.toLowerCase() ?? '') ===
+              i.ingredient.nameEn.toLowerCase() ||
+            (db.name_es?.toLowerCase() ?? '') ===
+              i.ingredient.nameEs.toLowerCase(),
+        ),
     );
-    const missingTags = parsed.tags.filter(
-      (t) => !allTags.some(
-        (db) =>
-          (db.name_en?.toLowerCase() ?? '') === t.toLowerCase() ||
-          (db.name_es?.toLowerCase() ?? '') === t.toLowerCase(),
-      ),
+    const missingTags = parsed.tags.filter((tag) =>
+      !matchCanonicalTag(tag, allTags) && !INTENTIONAL_DROPS.includes(tag)
     );
     const missingItems = parsed.kitchenTools.filter(
       (i) => !allItems.some((db) => (db.name_en?.toLowerCase() ?? '') === i.nameEn.toLowerCase()),
     );
 
     if (missingIngredients.length > 0) {
-      logger.warn(`Would create ${missingIngredients.length} new ingredient(s): ${missingIngredients.map((i) => i.ingredient.nameEn).join(', ')}`);
+      logger.warn(
+        `Would create ${missingIngredients.length} new ingredient(s): ${
+          missingIngredients.map((i) => i.ingredient.nameEn).join(', ')
+        }`,
+      );
     }
     if (missingTags.length > 0) {
-      logger.warn(`Would create ${missingTags.length} new tag(s): ${missingTags.join(', ')}`);
+      logger.warn(
+        `Would skip ${missingTags.length} non-canonical tag(s): ${missingTags.join(', ')}`,
+      );
     }
     if (missingItems.length > 0) {
-      logger.warn(`Would create ${missingItems.length} new kitchen tool(s): ${missingItems.map((i) => i.nameEn).join(', ')}`);
+      logger.warn(
+        `Would create ${missingItems.length} new kitchen tool(s): ${
+          missingItems.map((i) => i.nameEn).join(', ')
+        }`,
+      );
     }
 
     logger.info('--- END DRY RUN ---');
@@ -344,7 +411,10 @@ async function importRecipe(
       ...ri,
       recipe_id: recipeId,
     }));
-    const ingredientOrderToId = await db.insertRecipeIngredients(config.supabase, ingredientsWithRecipeId);
+    const ingredientOrderToId = await db.insertRecipeIngredients(
+      config.supabase,
+      ingredientsWithRecipeId,
+    );
 
     // 6. Insert recipe steps
     const steps = buildRecipeSteps(recipeId, parsed);
@@ -362,9 +432,7 @@ async function importRecipe(
     if (unresolved.length > 0) {
       const preview = unresolved
         .slice(0, 3)
-        .map((item) =>
-          `[step ${item.stepOrder}] ${item.ingredientNameEn || item.ingredientNameEs}`
-        )
+        .map((item) => `[step ${item.stepOrder}] ${item.ingredientNameEn || item.ingredientNameEs}`)
         .join(', ');
       logger.warn(
         `${unresolved.length} unresolved step-ingredient link(s) for "${parsed.nameEs}" (${preview}) — importing without them`,
@@ -404,7 +472,11 @@ async function importRecipe(
       })),
     };
 
-    const spainOutput = await adaptToSpainSpanish(spainInput, config.openaiApiKey, logger);
+    const spainOutput = await adaptToSpainSpanish(
+      spainInput,
+      config.openaiApiKey,
+      logger,
+    );
 
     // Build step ID mapping (order → DB id)
     const stepOrderToId = new Map(insertedSteps.map((s) => [s.order, s.id]));
@@ -413,7 +485,8 @@ async function importRecipe(
       recipe: {
         recipeId,
         name: spainOutput.recipeName || parsed.nameEs,
-        tipsAndTricks: spainOutput.tipsAndTricks || parsed.tipsAndTricksEs || '',
+        tipsAndTricks: spainOutput.tipsAndTricks || parsed.tipsAndTricksEs ||
+          '',
       },
       steps: (() => {
         const mapped = (spainOutput.steps || []).map((s) => ({
@@ -423,7 +496,11 @@ async function importRecipe(
           tip: s.tip,
         }));
         const dropped = mapped.filter((s) => !s.stepId).length;
-        if (dropped) logger.warn(`es-ES: ${dropped} step(s) dropped — order mismatch with inserted steps`);
+        if (dropped) {
+          logger.warn(
+            `es-ES: ${dropped} step(s) dropped — order mismatch with inserted steps`,
+          );
+        }
         return mapped.filter((s) => s.stepId);
       })(),
       ingredientNotes: (() => {
@@ -434,7 +511,11 @@ async function importRecipe(
           section: ri.section,
         }));
         const dropped = mapped.filter((ri) => !ri.recipeIngredientId).length;
-        if (dropped) logger.warn(`es-ES: ${dropped} ingredient note(s) dropped — displayOrder mismatch`);
+        if (dropped) {
+          logger.warn(
+            `es-ES: ${dropped} ingredient note(s) dropped — displayOrder mismatch`,
+          );
+        }
         return mapped.filter((ri) => ri.recipeIngredientId);
       })(),
       ingredients: (() => {
@@ -467,7 +548,9 @@ async function importRecipe(
     });
   } catch (childError) {
     // Clean up the orphaned recipe row (FK cascades delete children)
-    logger.warn(`Cleaning up partial recipe "${parsed.nameEn}" (${recipeId}) after error`);
+    logger.warn(
+      `Cleaning up partial recipe "${parsed.nameEn}" (${recipeId}) after error`,
+    );
     try {
       await db.deleteRecipe(config.supabase, recipeId);
     } catch (cleanupError) {
@@ -485,7 +568,12 @@ function resolveIngredientsDry(
   parsed: ParsedRecipeData,
   allIngredients: DbIngredient[],
   allUnits: DbMeasurementUnit[],
-): Promise<{ recipeIngredients: db.RecipeIngredientInsert[]; ingredientMap: Map<string, DbIngredient> }> {
+): Promise<
+  {
+    recipeIngredients: db.RecipeIngredientInsert[];
+    ingredientMap: Map<string, DbIngredient>;
+  }
+> {
   const recipeIngredients: db.RecipeIngredientInsert[] = [];
   const ingredientMap = new Map<string, DbIngredient>();
 
@@ -515,10 +603,13 @@ function resolveIngredientsDry(
   return Promise.resolve({ recipeIngredients, ingredientMap });
 }
 
-function resolveTagsDry(tagNames: string[], allTags: DbRecipeTag[]): Promise<string[]> {
+function resolveTagsDry(
+  tagNames: string[],
+  allTags: DbRecipeTag[],
+): Promise<string[]> {
   return Promise.resolve(
     tagNames
-      .map((name) => matchTag(name, allTags)?.id)
+      .map((name) => matchCanonicalTag(name, allTags)?.id)
       .filter((id): id is string => id !== undefined),
   );
 }
@@ -526,13 +617,27 @@ function resolveTagsDry(tagNames: string[], allTags: DbRecipeTag[]): Promise<str
 function resolveKitchenToolsDry(
   parsed: ParsedRecipeData,
   allItems: DbKitchenTool[],
-): Promise<Array<{ kitchen_tool_id: string; display_order: number; notes_en: string; notes_es: string }>> {
+): Promise<
+  Array<
+    {
+      kitchen_tool_id: string;
+      display_order: number;
+      notes_en: string;
+      notes_es: string;
+    }
+  >
+> {
   return Promise.resolve(
     parsed.kitchenTools
       .map((item, i) => {
         const matched = matchKitchenTool(item, allItems);
         return matched
-          ? { kitchen_tool_id: matched.id, display_order: i, notes_en: '', notes_es: '' }
+          ? {
+            kitchen_tool_id: matched.id,
+            display_order: i,
+            notes_en: '',
+            notes_es: '',
+          }
           : null;
       })
       .filter((x): x is NonNullable<typeof x> => x !== null),
@@ -543,7 +648,9 @@ function resolveKitchenToolsDry(
 
 async function main() {
   logger.section(`Recipe Import (${env})${dryRun ? ' [DRY RUN]' : ''}`);
-  if (dryRun) logger.warn('Dry-run mode: no data will be written to the database');
+  if (dryRun) {
+    logger.warn('Dry-run mode: no data will be written to the database');
+  }
 
   try {
     assertRequiredApiKey('OPENAI_API_KEY', config.openaiApiKey);
@@ -595,7 +702,9 @@ async function main() {
 
   logger.info(`Already completed: ${alreadyDone}`);
   logger.info(`Skipped (no content): ${stubs.length}`);
-  logger.info(`Ready to import: ${pending.length}${limit !== Infinity ? ` (limit: ${limit})` : ''}`);
+  logger.info(
+    `Ready to import: ${pending.length}${limit !== Infinity ? ` (limit: ${limit})` : ''}`,
+  );
 
   // Mark stubs as completed so they don't re-appear on next run (skip in dry-run)
   if (!dryRun) {
@@ -624,10 +733,14 @@ async function main() {
       );
       if (!dryRun) tracker.markCompleted(file.filename);
       successCount++;
-      logger.success(`${dryRun ? 'Parsed' : 'Imported'} "${file.filename}"${dryRun ? '' : ` -> ${recipeId}`}`);
+      logger.success(
+        `${dryRun ? 'Parsed' : 'Imported'} "${file.filename}"${dryRun ? '' : ` -> ${recipeId}`}`,
+      );
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      logger.error(`Failed to ${dryRun ? 'parse' : 'import'} "${file.filename}": ${msg}`);
+      logger.error(
+        `Failed to ${dryRun ? 'parse' : 'import'} "${file.filename}": ${msg}`,
+      );
       if (!dryRun) tracker.markFailed(file.filename, msg);
       failCount++;
     }
