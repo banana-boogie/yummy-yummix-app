@@ -26,7 +26,7 @@ Examples in this codebase that **deserve** an ADR:
 
 ## File naming
 
-`YYYY-MM-DD-kebab-case-title.md` is the long form, but the existing files in this folder use plain kebab-case (`ai-model-selection.md`). Either is fine — keep it short and searchable.
+Use plain kebab-case: `ai-model-selection.md`, `no-cross-language-fallback.md`. Prefix with `YYYY-MM-DD-` only when an ADR is one of several revisions of the same topic and chronological order matters for disambiguation.
 
 ## Template
 

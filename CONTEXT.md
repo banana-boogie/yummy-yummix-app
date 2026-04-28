@@ -30,7 +30,7 @@
 
 - **Meal Plan** — A user's plan over a date range, composed of meal-plan slots.
 - **Slot** — A single (date, meal-type) cell in a meal plan, optionally filled with a recipe.
-- **generate_plan** — Edge Function entry point that ranks recipes for a user and fills slots. See `docs/agent-guidelines/MEAL-PLANNER-SCORING.md`.
+- **generate_plan** — Edge Function entry point that ranks recipes for a user and fills slots. See `docs/MEAL-PLANNER-SCORING.md`.
 
 ## Localization
 

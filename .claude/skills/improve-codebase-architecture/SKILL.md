@@ -34,7 +34,7 @@ Key principles:
 
 Before exploring, **read [`CONTEXT.md`](../../../CONTEXT.md) and skim [`docs/decisions/`](../../../docs/decisions/)**. The first gives you the project's vocabulary; the second tells you which architectural choices are already settled and shouldn't be relitigated.
 
-Then walk the codebase. For broad exploration, dispatch a sub-agent with `subagent_type=Explore`. Don't follow rigid heuristics — explore organically and note where you experience friction:
+Then walk the codebase. For broad exploration, dispatch a sub-agent via the Agent tool with `subagent_type=Explore` (the built-in Claude Code search agent — not a project agent in `.claude/agents/`). Don't follow rigid heuristics — explore organically and note where you experience friction:
 
 - Where does understanding one concept require bouncing between many small modules?
 - Where are modules **shallow** — interface nearly as complex as the implementation?
