@@ -441,23 +441,27 @@ export function formatDiffForCli(diff: RecipeMetadataDiff, verbose: boolean): st
 /**
  * Render a section's changes. Set-replacement adds/removes (paths ending in
  * `.+` or `.-`) are grouped by the parent path so reviewers see one line per
- * field instead of one line per slug.
+ * field instead of one line per slug. The section name is stripped from the
+ * displayed path because it is already the [section] header above.
  */
 function formatSectionChanges(sec: SectionDiff, lines: string[]): void {
   const adds = new Map<string, string[]>();
   const removes = new Map<string, string[]>();
   const scalar: DiffEntry[] = [];
 
+  const stripSectionPrefix = (path: string): string =>
+    path.startsWith(`${sec.section}.`) ? path.slice(sec.section.length + 1) : path;
+
   for (const c of sec.changes) {
     if (c.path.endsWith('.+')) {
-      const key = c.path.slice(0, -2);
+      const key = stripSectionPrefix(c.path.slice(0, -2));
       const list = adds.get(key) ?? [];
-      list.push(formatVal(c.after));
+      list.push(formatSetValue(c.after));
       adds.set(key, list);
     } else if (c.path.endsWith('.-')) {
-      const key = c.path.slice(0, -2);
+      const key = stripSectionPrefix(c.path.slice(0, -2));
       const list = removes.get(key) ?? [];
-      list.push(formatVal(c.before));
+      list.push(formatSetValue(c.before));
       removes.set(key, list);
     } else {
       scalar.push(c);
@@ -469,12 +473,22 @@ function formatSectionChanges(sec: SectionDiff, lines: string[]): void {
   for (const key of setKeys) {
     const a = adds.get(key);
     const r = removes.get(key);
-    if (a) lines.push(`    + ${key}  ${a.join(', ')}`);
-    if (r) lines.push(`    - ${key}  ${r.join(', ')}`);
+    if (a) lines.push(`    + ${key}: ${a.join(', ')}`);
+    if (r) lines.push(`    - ${key}: ${r.join(', ')}`);
   }
   for (const c of scalar) {
-    lines.push(`    ~ ${c.path}: ${formatVal(c.before)} → ${formatVal(c.after)}`);
+    lines.push(`    ~ ${stripSectionPrefix(c.path)}: ${formatVal(c.before)} → ${formatVal(c.after)}`);
   }
+}
+
+/**
+ * Set-replacement values are known to be slugs or short identifiers — strip
+ * the surrounding quotes formatVal would add for arbitrary strings, so
+ * `+ cuisine: american` reads cleanly instead of `+ cuisine: 'american'`.
+ */
+function formatSetValue(v: unknown): string {
+  if (typeof v === 'string') return v;
+  return formatVal(v);
 }
 
 /**

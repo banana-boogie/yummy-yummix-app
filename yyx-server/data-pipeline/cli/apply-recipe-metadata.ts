@@ -294,13 +294,13 @@ async function processFile(
   const diff = computeRecipeMetadataDiff(parsed.data, current);
 
   logger.section(`${filePath.split('/').pop()}`);
-  logger.info(formatRecipeSnapshot(current));
-  logger.info('');
-  logger.info(formatDiffForCli(diff, opts.verbose));
+  console.log(formatRecipeSnapshot(current));
+  console.log('');
+  console.log(formatDiffForCli(diff, opts.verbose));
   const ra = formatRequiresAuthoring(parsed.data.requires_authoring);
   if (ra) {
-    logger.info('');
-    logger.info(ra);
+    console.log('');
+    console.log(ra);
   }
 
   if (diff.stale_diff) {
