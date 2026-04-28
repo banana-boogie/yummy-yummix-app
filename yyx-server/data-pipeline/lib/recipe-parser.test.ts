@@ -1,5 +1,5 @@
 import { assertEquals, assertRejects } from 'std/assert/mod.ts';
-import { type ParsedRecipeData, parseRecipeMarkdown } from './recipe-parser.ts';
+import { type ParsedRecipeData, parseRecipe } from './recipe-parser.ts';
 import type { Logger } from './logger.ts';
 
 const mockLogger = {
@@ -98,14 +98,14 @@ function mockOpenAIResponse(payload: unknown): void {
     );
 }
 
-Deno.test('parseRecipeMarkdown parses fenced JSON from output_text', async () => {
+Deno.test('parseRecipe parses fenced JSON from output_text', async () => {
   try {
     const json = JSON.stringify(baseRecipe, null, 2);
     mockOpenAIResponse({
       output_text: `\`\`\`json\n${json}\n\`\`\``,
     });
 
-    const parsed = await parseRecipeMarkdown('recipe markdown', 'test-key', mockLogger);
+    const parsed = await parseRecipe('recipe markdown', 'test-key', mockLogger);
 
     assertEquals(parsed.nameEn, baseRecipe.nameEn);
     assertEquals(parsed.difficulty, 'easy');
@@ -115,7 +115,7 @@ Deno.test('parseRecipeMarkdown parses fenced JSON from output_text', async () =>
   }
 });
 
-Deno.test('parseRecipeMarkdown parses nested content fallback', async () => {
+Deno.test('parseRecipe parses nested content fallback', async () => {
   try {
     mockOpenAIResponse({
       output: [
@@ -125,7 +125,7 @@ Deno.test('parseRecipeMarkdown parses nested content fallback', async () => {
       ],
     });
 
-    const parsed = await parseRecipeMarkdown('recipe markdown', 'test-key', mockLogger);
+    const parsed = await parseRecipe('recipe markdown', 'test-key', mockLogger);
     assertEquals(parsed.nameEs, baseRecipe.nameEs);
     assertEquals(parsed.ingredients.length, 1);
   } finally {
@@ -133,14 +133,14 @@ Deno.test('parseRecipeMarkdown parses nested content fallback', async () => {
   }
 });
 
-Deno.test('parseRecipeMarkdown throws on invalid JSON', async () => {
+Deno.test('parseRecipe throws on invalid JSON', async () => {
   try {
     mockOpenAIResponse({
       output_text: '```json\n{not-valid-json}\n```',
     });
 
     await assertRejects(
-      () => parseRecipeMarkdown('recipe markdown', 'test-key', mockLogger),
+      () => parseRecipe('recipe markdown', 'test-key', mockLogger),
       Error,
     );
   } finally {
@@ -148,7 +148,7 @@ Deno.test('parseRecipeMarkdown throws on invalid JSON', async () => {
   }
 });
 
-Deno.test('parseRecipeMarkdown throws on schema mismatch', async () => {
+Deno.test('parseRecipe throws on schema mismatch', async () => {
   try {
     mockOpenAIResponse({
       output_text: JSON.stringify({
@@ -158,7 +158,7 @@ Deno.test('parseRecipeMarkdown throws on schema mismatch', async () => {
     });
 
     await assertRejects(
-      () => parseRecipeMarkdown('recipe markdown', 'test-key', mockLogger),
+      () => parseRecipe('recipe markdown', 'test-key', mockLogger),
       Error,
       '"difficulty" must be easy, medium, or hard',
     );
@@ -167,14 +167,14 @@ Deno.test('parseRecipeMarkdown throws on schema mismatch', async () => {
   }
 });
 
-Deno.test('parseRecipeMarkdown throws when response has no content', async () => {
+Deno.test('parseRecipe throws when response has no content', async () => {
   try {
     mockOpenAIResponse({
       output: [],
     });
 
     await assertRejects(
-      () => parseRecipeMarkdown('recipe markdown', 'test-key', mockLogger),
+      () => parseRecipe('recipe markdown', 'test-key', mockLogger),
       Error,
       'No content in OpenAI response',
     );

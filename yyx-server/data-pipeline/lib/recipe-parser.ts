@@ -1,8 +1,14 @@
 /**
  * Recipe Parser
  *
- * Parses bilingual recipe markdown using OpenAI gpt-4.1-mini with structured output.
- * Uses the same JSON schema as the admin-ai-recipe-import edge function.
+ * Parses bilingual recipe markdown into ParsedRecipeData using OpenAI gpt-4.1-mini
+ * with structured output. Source-agnostic: accepts markdown from Notion exports,
+ * AI-generated content, hand-written files, or web scrapes — extracts what's
+ * present and leaves optional fields null/empty when absent.
+ *
+ * ParsedRecipeData is the format-agnostic boundary between source and pipeline:
+ * everything downstream (entity resolution, DB writes, Spain adaptation) consumes
+ * this shape and doesn't care where it came from.
  */
 
 import { Logger } from './logger.ts';
@@ -448,29 +454,29 @@ const recipeJsonSchema = {
 };
 
 const systemPrompt = `
-You are a recipe parser specializing in converting Notion-exported recipe Markdown files into structured JSON data.
+You are a recipe parser that converts recipe Markdown into structured JSON data. The input may come from a variety of sources (Notion exports, AI generation, hand-written, web scrapes). Be permissive about structure — extract what's present, leave optional fields null/empty/false when absent. Never invent content.
 
-## Recipe Format
+## Recipe Identity
 
-The file starts with Notion metadata lines — IGNORE these for recipe content:
+The H1 heading (# Recipe Name) is the recipe name. It may be in Spanish OR English. Set nameEs to the Spanish name and nameEn to the English name; translate whichever is missing.
+
+## Optional Conventions (use if present, ignore if absent)
+
+Files may include a metadata header before the content with lines like:
   Recipe URL: ...
   Tags: X, Y, Z   ← USE this line for the tags field
   Status: ...      ← IGNORE
   Chat '25: ...    ← IGNORE
 
-The H1 heading (# Recipe Name) may be in Spanish OR English. Set nameEs to the Spanish name and nameEn to the English name; translate whichever is missing.
+Recipes may use Spanish section headings (### Ingredientes / ### Procedimiento / ### Tips / ### Kitchen tools) or English (### Ingredients / ### Steps / ### Tips). Both are valid. If a two-language layout is present (e.g., "## Receta en Español" + "## English Recipe"), use both; if one side is empty, translate from the other.
 
-Content may be in a "## Receta en Español" section with ### Ingredientes / ### Procedimiento / ### Tips, or an English-first file with ### Ingredients / ### Steps / ### Tips. Both structures are valid.
-
-There may also be a "## English Recipe" section — if populated, use it; if empty, translate from Spanish.
-
-<aside> blocks are Notion formatting — extract timing/difficulty/portions if present inside them, otherwise ignore.
+Aside blocks (e.g., Notion <aside>…</aside> or Markdown blockquote callouts) commonly hold timing, difficulty, portions, and meal-planning metadata — extract from inside them when present.
 
 ## Tags
 
-Extract tags ONLY from the metadata line at the top: " Tags: X, Y, Z" or "Tags: X, Y, Z".
-Split on commas or hyphens. Do NOT include tags from "- **Tags**" lines (those are empty placeholders).
-If no "Tags:" metadata line exists, or it is empty, return an EMPTY array. Do NOT invent or infer tags.
+Extract tags ONLY from the metadata line at the top: "Tags: X, Y, Z" (with or without leading whitespace).
+Split on commas or hyphens. Do NOT include tags from "- **Tags**" placeholder lines.
+If no "Tags:" metadata line exists, or it is empty, return an EMPTY array. Do NOT invent or infer tags from content.
 
 ## Thermomix Patterns (Spanish)
 
@@ -931,8 +937,8 @@ function extractContentText(responseData: unknown): string | null {
   return null;
 }
 
-/** Parse a recipe markdown file using OpenAI structured output */
-export async function parseRecipeMarkdown(
+/** Parse recipe markdown text into ParsedRecipeData using OpenAI structured output. */
+export async function parseRecipe(
   markdown: string,
   openaiApiKey: string,
   logger: Logger,

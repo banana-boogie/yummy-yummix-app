@@ -22,7 +22,7 @@ import { createPipelineConfig, hasFlag, parseEnvironment, parseFlag } from '../l
 import { sleep } from '../lib/utils.ts';
 import { Logger } from '../lib/logger.ts';
 import { ProgressTracker } from '../lib/progress-tracker.ts';
-import { type ParsedRecipeData, parseRecipeMarkdown } from '../lib/recipe-parser.ts';
+import { type ParsedRecipeData, parseRecipe } from '../lib/recipe-parser.ts';
 import {
   type DbIngredient,
   type DbKitchenTool,
@@ -262,7 +262,7 @@ async function importRecipe(
   allUnits: DbMeasurementUnit[],
 ): Promise<string> {
   // 1. Parse markdown with OpenAI
-  const parsed = await parseRecipeMarkdown(
+  const parsed = await parseRecipe(
     markdown,
     config.openaiApiKey,
     logger,
