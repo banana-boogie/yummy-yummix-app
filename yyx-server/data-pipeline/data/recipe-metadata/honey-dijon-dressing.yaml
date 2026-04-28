@@ -1,7 +1,7 @@
 recipe_match:
   id: '3dd00e3f-7e49-45bc-8730-988599e8ef5e'
   name_en: 'Honey Dijon Dressing'
-  expected_recipe_updated_at: '2026-04-27T14:20:21.536489+00:00'
+  expected_recipe_updated_at: '2026-04-28T18:38:26.503278+00:00'
 
 review:
   reviewed_by_label: 'claude-opus-4-7'
