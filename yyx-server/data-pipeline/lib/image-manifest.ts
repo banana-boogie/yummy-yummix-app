@@ -28,7 +28,7 @@ const PROMPT_HINTS: Record<ImageEntityType, string> = {
 export function getImageBucket(entityType: ImageEntityType): string {
   if (entityType === 'ingredient') return 'ingredients';
   if (entityType === 'recipe') return 'recipes';
-  return 'useful-items';
+  return 'kitchen-tools';
 }
 
 export function normalizeFileName(name: string): string {
