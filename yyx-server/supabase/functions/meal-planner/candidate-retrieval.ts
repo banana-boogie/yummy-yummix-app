@@ -175,14 +175,14 @@ function toCandidate(
   for (const rt of row.recipe_to_tag ?? []) {
     const tag = rt.recipe_tags;
     if (!tag) continue;
-    if (tag.categories?.includes("CULTURAL_CUISINE")) {
+    if (tag.categories?.includes("cuisine")) {
       const name = pickTranslationName(
         tag.recipe_tag_translations ?? [],
         ctx.localeChain,
       );
       if (name) cuisineTags.push(name.toLowerCase());
     }
-    if (tag.categories?.includes("MEAL_TYPE")) {
+    if (tag.categories?.includes("meal_type")) {
       for (const translation of tag.recipe_tag_translations ?? []) {
         if (!translation.name) continue;
         try {

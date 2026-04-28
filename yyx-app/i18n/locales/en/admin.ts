@@ -762,8 +762,10 @@ export const admin = {
   },
   tags: {
     name: "Name",
+    slug: "Slug",
     searchPlaceholder: "Search Tags, Categories...",
     addNew: "Add New Tag",
+    createTag: "Create Tag",
     createTitle: "Create New Tag",
     editTitle: "Edit Tag",
     englishName: "English Name",
@@ -785,6 +787,19 @@ export const admin = {
     newCategoryTitle: "Add New Category",
     categoryNamePlaceholder: "Enter category name",
     categoryCreated: "Category created successfully",
+    categoryLabels: {
+      cuisine: "Cuisine",
+      meal_type: "Meal Type",
+      diet: "Diet",
+      dish_type: "Dish Type",
+      primary_ingredient: "Primary Ingredient",
+      occasion: "Occasion",
+      practical: "Practical",
+    },
+    errors: {
+      loadCategoriesFailed: "Failed to load tag categories",
+      slugInvalid: "Use lower_snake_case",
+    },
   },
   kitchenTools: {
     title: "Manage Kitchen Tools",

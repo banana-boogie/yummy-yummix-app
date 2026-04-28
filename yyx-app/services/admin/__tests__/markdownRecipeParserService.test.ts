@@ -388,8 +388,8 @@ describe('MarkdownRecipeParserService', () => {
       expect(tagIds?.length).toBe(uniqueTagIds.length);
     });
 
-    it('maps inferred mealTypes to existing Meal Type category tags', async () => {
-      // Extend mock tags with a Meal Type-categorized tag
+    it('maps inferred mealTypes to existing meal_type category tags', async () => {
+      // Extend mock tags with meal_type-categorized tags
       mockGetAllTags.mockResolvedValue([
         ...mockTags,
         {
@@ -398,7 +398,7 @@ describe('MarkdownRecipeParserService', () => {
             { locale: 'en', name: 'Breakfast' },
             { locale: 'es', name: 'Desayuno' },
           ],
-          categories: ['Meal Type'],
+          categories: ['meal_type'],
         },
         {
           id: 'mt-lunch',
@@ -406,7 +406,7 @@ describe('MarkdownRecipeParserService', () => {
             { locale: 'en', name: 'Lunch' },
             { locale: 'es', name: 'Almuerzo' },
           ],
-          categories: ['mealtype'],
+          categories: ['meal_type'],
         },
       ]);
 

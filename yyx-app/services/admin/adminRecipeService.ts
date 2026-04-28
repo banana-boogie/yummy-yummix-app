@@ -144,6 +144,7 @@ class AdminRecipeService extends BaseService {
         tags:recipe_to_tag(
           tag:recipe_tags(
             id,
+            slug,
             categories,
             translations:recipe_tag_translations (
               locale,
@@ -817,6 +818,7 @@ class AdminRecipeService extends BaseService {
       .from('recipe_tags')
       .select(`
         id,
+        slug,
         categories,
         translations:recipe_tag_translations (
           locale,
@@ -828,6 +830,7 @@ class AdminRecipeService extends BaseService {
     const data = await this.transformedSelect<any[]>(query);
     return (data || []).map((item: any) => ({
       id: item.id,
+      slug: item.slug ?? null,
       translations: (item.translations || []).map((t: any) => ({
         locale: t.locale,
         name: t.name || '',
@@ -991,6 +994,7 @@ class AdminRecipeService extends BaseService {
         if (!tag) return null;
         return {
           id: tag.id,
+          slug: tag.slug ?? null,
           translations: (tag.translations || []).map((tr: any) => ({
             locale: tr.locale,
             name: tr.name || '',

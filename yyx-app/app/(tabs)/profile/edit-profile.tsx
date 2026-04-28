@@ -128,7 +128,8 @@ export default function EditProfile() {
     if (userProfile) {
       const normalizedPreferences = normalizeDietAndCuisinePreferences(
         userProfile.dietTypes || [],
-        userProfile.cuisinePreferences || []
+        userProfile.cuisinePreferences || [],
+        userProfile.otherDiet || [],
       );
 
       setName(userProfile.name || '');
@@ -143,7 +144,7 @@ export default function EditProfile() {
         dietaryRestrictions: userProfile.dietaryRestrictions || [],
         dietTypes: normalizedPreferences.dietTypes,
         cuisinePreferences: normalizedPreferences.cuisinePreferences,
-        otherDiet: userProfile.otherDiet || [],
+        otherDiet: normalizedPreferences.otherDiet,
         otherAllergy: userProfile.otherAllergy || [],
       });
       setIsLoading(false);
@@ -173,7 +174,8 @@ export default function EditProfile() {
       setSaveError(null);
       const normalizedPreferences = normalizeDietAndCuisinePreferences(
         currentFormData.dietTypes,
-        currentFormData.cuisinePreferences
+        currentFormData.cuisinePreferences,
+        currentFormData.otherDiet,
       );
 
       const birthDate = new Date(currentFormData.birthDate);
@@ -190,7 +192,7 @@ export default function EditProfile() {
         dietaryRestrictions: currentFormData.dietaryRestrictions,
         dietTypes: normalizedPreferences.dietTypes,
         cuisinePreferences: normalizedPreferences.cuisinePreferences,
-        otherDiet: currentFormData.otherDiet,
+        otherDiet: normalizedPreferences.otherDiet,
         otherAllergy: currentFormData.otherAllergy,
       });
       setSaveStatus('saved');
@@ -299,22 +301,23 @@ export default function EditProfile() {
       () => setShowDietaryModal(false),
     );
 
-  const handleDietUpdate = (dietTypes: DietType[], otherDiet: string[]) =>
+  const handleDietUpdate = (dietTypes: DietType[]) =>
     {
       const normalizedPreferences = normalizeDietAndCuisinePreferences(
         dietTypes,
-        formData.cuisinePreferences
+        formData.cuisinePreferences,
+        [],
       );
       return handlePreferenceUpdate(
         {
           dietTypes: normalizedPreferences.dietTypes,
           cuisinePreferences: normalizedPreferences.cuisinePreferences,
-          otherDiet
+          otherDiet: normalizedPreferences.otherDiet,
         },
         {
           dietTypes: normalizedPreferences.dietTypes,
           cuisinePreferences: normalizedPreferences.cuisinePreferences,
-          otherDiet
+          otherDiet: normalizedPreferences.otherDiet,
         },
         () => setShowDietModal(false),
       );
@@ -352,7 +355,6 @@ export default function EditProfile() {
   // --- Display name mappers ---
 
   const dietDisplayNames = formData.dietTypes
-    .filter(slug => slug !== 'none')
     .map(slug => i18n.t(`onboarding.steps.diet.options.${slug}`));
 
   const allergyDisplayNames = formData.dietaryRestrictions
@@ -541,7 +543,6 @@ export default function EditProfile() {
         visible={showDietModal}
         onClose={() => setShowDietModal(false)}
         currentDietTypes={formData.dietTypes}
-        currentOtherDiet={formData.otherDiet}
         onSave={handleDietUpdate}
       />
 

@@ -74,7 +74,13 @@ const dietaryRestrictions = [
 
 const dietTypes = [
   'vegetarian', 'vegan', 'pescatarian', 'keto',
-  'paleo', 'mediterranean', 'low_carb',
+  'paleo', 'low_carb', 'low_sodium', 'low_sugar', 'high_protein',
+];
+
+const cuisinePreferences = [
+  'mediterranean', 'italian', 'mexican', 'asian', 'japanese',
+  'chinese', 'thai', 'indian', 'middle_eastern', 'greek',
+  'spanish', 'french', 'american',
 ];
 
 // ============================================================
@@ -210,8 +216,9 @@ export function createUserProfile(overrides?: Partial<UserProfile>): UserProfile
     ] as ActivityLevel[]),
     dietaryRestrictions: randomSubset(dietaryRestrictions, 3) as any[],
     dietTypes: randomSubset(dietTypes, 2) as any[],
+    cuisinePreferences: randomSubset(cuisinePreferences, 3) as any[],
     measurementSystem: randomElement([MeasurementSystem.METRIC, MeasurementSystem.IMPERIAL]),
-    language: randomElement(['en', 'es']),
+    locale: randomElement(['en', 'es']),
     profileImageUrl: Math.random() > 0.3
       ? `https://images.test.com/profiles/${generateId()}.jpg`
       : null,

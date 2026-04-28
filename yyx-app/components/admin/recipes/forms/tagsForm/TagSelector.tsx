@@ -16,6 +16,7 @@ import { useDevice } from '@/hooks/useDevice';
 import { COLORS } from '@/constants/design-tokens';
 import { TagEditModal } from '@/components/admin/tags/TagEditModal';
 import logger from '@/services/logger';
+import { formatCategoryForDisplay } from '@/utils/formatters';
 
 // Local filters interface with categories
 interface LocalFilters {
@@ -26,10 +27,11 @@ interface LocalFilters {
 
 export interface RecipeTagOption {
   id: string;
+  slug: string | null;
   name: string;
   nameEn?: string;
   nameEs?: string;
-  translations?: { locale: string; name: string }[];
+  translations: { locale: string; name: string }[];
   categories: string[];
 }
 
@@ -74,7 +76,7 @@ export function TagSelector({ selectedTags, onTagsChange, displayLocale = 'es' }
       setCategories(fetchedCategories);
     } catch (error) {
       logger.error('Error fetching categories:', error);
-      setAlertMessage('Failed to load tag categories');
+      setAlertMessage(i18n.t('admin.tags.errors.loadCategoriesFailed'));
       setShowAlert(true);
     }
   };
@@ -141,6 +143,7 @@ export function TagSelector({ selectedTags, onTagsChange, displayLocale = 'es' }
       const nameEn = getTranslatedField(tag.translations, 'en', 'name');
       onTagsChange([...selectedTags, {
         id: tag.id,
+        slug: tag.slug,
         name: nameEn,
         translations: tag.translations,
         categories: tag.categories
@@ -216,7 +219,7 @@ export function TagSelector({ selectedTags, onTagsChange, displayLocale = 'es' }
           className="flex-row items-center gap-xxs"
         >
           <Ionicons name="add" size={14} color={COLORS.text.secondary} />
-          <Text preset="caption" className="text-text-secondary">Create Tag</Text>
+          <Text preset="caption" className="text-text-secondary">{i18n.t('admin.tags.createTag')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -238,7 +241,7 @@ export function TagSelector({ selectedTags, onTagsChange, displayLocale = 'es' }
             <MultiSelect
               selectedValues={filters.categories || []}
               options={categories.map(cat => ({
-                label: cat,
+                label: formatCategoryForDisplay(cat),
                 value: cat
               }))}
               onValueChange={(values) => setFilters(prev => ({ ...prev, categories: values }))}
@@ -324,7 +327,7 @@ export function TagSelector({ selectedTags, onTagsChange, displayLocale = 'es' }
                             className={`px-xs py-xxs rounded-sm ${isSelected ? 'bg-white/30' : 'bg-background-secondary'}`}
                           >
                             <Text className={`text-xs ${isSelected ? 'text-text-default' : 'text-text-secondary'}`}>
-                              {cat}
+                              {formatCategoryForDisplay(cat)}
                             </Text>
                           </View>
                         ))}
@@ -345,7 +348,7 @@ export function TagSelector({ selectedTags, onTagsChange, displayLocale = 'es' }
                     </View>
                     <Text className="flex-[3] px-xs text-base">{getTranslatedField(tag.translations, displayLocale, 'name')}</Text>
                     <Text className="flex-[3] px-xs text-base">
-                      {tag.categories.join(', ')}
+                      {tag.categories.map(formatCategoryForDisplay).join(', ')}
                     </Text>
                   </View>
                 )}
@@ -372,6 +375,7 @@ export function TagSelector({ selectedTags, onTagsChange, displayLocale = 'es' }
       <TagEditModal
         visible={createTagModalVisible}
         isNew={true}
+        categories={categories}
         onClose={() => setCreateTagModalVisible(false)}
         onSave={(tag) => {
           setCreateTagModalVisible(false);

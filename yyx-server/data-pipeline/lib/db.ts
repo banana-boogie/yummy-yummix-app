@@ -68,7 +68,7 @@ export async function fetchAllIngredients(supabase: SupabaseClient): Promise<DbI
 export async function fetchAllTags(supabase: SupabaseClient): Promise<DbRecipeTag[]> {
   const { data, error } = await supabase
     .from('recipe_tags')
-    .select('id, categories, translations:recipe_tag_translations(locale, name)')
+    .select('id, slug, categories, translations:recipe_tag_translations(locale, name)')
     .limit(FETCH_LIMIT);
   if (error) throw new Error(`Failed to fetch tags: ${error.message}`);
   warnIfTruncated('tags', (data || []).length);
@@ -77,6 +77,7 @@ export async function fetchAllTags(supabase: SupabaseClient): Promise<DbRecipeTa
       const t = row.translations || [];
       return {
         id: row.id,
+        slug: row.slug,
         categories: row.categories,
         name_en: tr(t, 'en', 'name'),
         name_es: tr(t, 'es', 'name'),
@@ -241,32 +242,11 @@ export async function createKitchenTool(
   };
 }
 
-export async function createTag(
-  supabase: SupabaseClient,
-  tag: { name_en: string; name_es: string; categories: string[] },
-): Promise<DbRecipeTag> {
-  const { data, error } = await supabase
-    .from('recipe_tags')
-    .insert({ categories: tag.categories })
-    .select('id')
-    .single();
-  if (error) throw new Error(`Failed to create tag "${tag.name_en}": ${error.message}`);
-
-  const { error: tErr } = await supabase
-    .from('recipe_tag_translations')
-    .insert([
-      { recipe_tag_id: data.id, locale: 'en', name: tag.name_en },
-      { recipe_tag_id: data.id, locale: 'es', name: tag.name_es },
-    ]);
-  if (tErr) throw new Error(`Failed to create tag translations: ${tErr.message}`);
-
-  return {
-    id: data.id,
-    name_en: tag.name_en,
-    name_es: tag.name_es,
-    categories: tag.categories,
-  };
-}
+// NOTE: createTag was removed as part of the tag-system rebuild. The
+// taxonomy is now seeded via migration and tags are never created at
+// import time — the importer skips any Notion tag without a canonical
+// mapping. If a new canonical tag is needed, add it to the seed in
+// supabase/migrations/20260427022448_tag_system_rebuild.sql.
 
 // ─── Create Recipe (with all related entities) ───────────
 

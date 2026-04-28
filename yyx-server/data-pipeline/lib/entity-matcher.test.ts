@@ -11,13 +11,14 @@
 import { assertEquals } from 'std/assert/mod.ts';
 import {
   type DbIngredient,
+  type DbKitchenTool,
   type DbMeasurementUnit,
   type DbRecipeTag,
-  type DbKitchenTool,
   matchIngredient,
+  matchKitchenTool,
   matchMeasurementUnit,
   matchTag,
-  matchKitchenTool,
+  matchTagBySlug,
 } from './entity-matcher.ts';
 
 // ─── Test Data ────────────────────────────────────────────
@@ -58,8 +59,14 @@ const ingredients: DbIngredient[] = [
 ];
 
 const tags: DbRecipeTag[] = [
-  { id: 'tag-1', name_en: 'Breakfast', name_es: 'Desayuno', categories: ['meal'] },
-  { id: 'tag-2', name_en: 'Vegan', name_es: 'Vegano', categories: ['diet'] },
+  {
+    id: 'tag-1',
+    slug: 'breakfast',
+    name_en: 'Breakfast',
+    name_es: 'Desayuno',
+    categories: ['meal_type'],
+  },
+  { id: 'tag-2', slug: 'vegan', name_en: 'Vegan', name_es: 'Vegano', categories: ['diet'] },
 ];
 
 const kitchenTools: DbKitchenTool[] = [
@@ -167,6 +174,25 @@ Deno.test('matchTag - Spanish match', () => {
 
 Deno.test('matchTag - null on unknown', () => {
   const result = matchTag('Unknown', tags);
+  assertEquals(result, null);
+});
+
+// ============================================================
+// matchTagBySlug
+// ============================================================
+
+Deno.test('matchTagBySlug - exact slug match', () => {
+  const result = matchTagBySlug('breakfast', tags);
+  assertEquals(result?.id, 'tag-1');
+});
+
+Deno.test('matchTagBySlug - case insensitive', () => {
+  const result = matchTagBySlug('VEGAN', tags);
+  assertEquals(result?.id, 'tag-2');
+});
+
+Deno.test('matchTagBySlug - null on unknown slug', () => {
+  const result = matchTagBySlug('does_not_exist', tags);
   assertEquals(result, null);
 });
 
