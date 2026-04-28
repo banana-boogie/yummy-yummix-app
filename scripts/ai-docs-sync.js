@@ -37,6 +37,7 @@ const KNOWN_BLOCKS = [
   'development-setup',
   'architecture',
   'conventions',
+  'context-and-decisions',
   'testing',
   'git-conventions',
   'analytics',
