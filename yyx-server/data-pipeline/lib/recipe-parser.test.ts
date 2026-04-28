@@ -54,6 +54,8 @@ const baseRecipe: ParsedRecipeData = {
       thermomixTemperatureUnit: null,
       thermomixSpeed: null,
       thermomixIsBladeReversed: null,
+      thermomixMode: null,
+      timerSeconds: null,
       ingredients: [
         {
           ingredient: {
@@ -74,6 +76,14 @@ const baseRecipe: ParsedRecipeData = {
     },
   ],
   tags: ['Soup'],
+  plannerRole: null,
+  equipmentTags: [],
+  mealComponents: [],
+  isCompleteMeal: false,
+  cookingLevel: null,
+  leftoversFriendly: null,
+  maxHouseholdSizeSupported: null,
+  batchFriendly: null,
 };
 
 const originalFetch = globalThis.fetch;

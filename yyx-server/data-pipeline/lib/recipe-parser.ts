@@ -338,6 +338,17 @@ const recipeJsonSchema = {
               type: 'string',
               description: 'Section title in Spanish, default: Principal',
             },
+            thermomixMode: {
+              type: ['string', 'null'],
+              description:
+                'Thermomix cooking mode. Set "steaming" when the step cooks using the Varoma accessory (steam tray). Set "open_cooking" when the step explicitly says "sin tapa" or "tapa abierta" (lid open). Otherwise null.',
+              enum: ['open_cooking', 'steaming', null],
+            },
+            timerSeconds: {
+              type: ['number', 'null'],
+              description:
+                'Duration in seconds of a non-Thermomix timed action in this step (e.g., baking, resting, preheating). Extract from phrases like "hornear 30 min" → 1800, "reposar 10 minutos" → 600. If thermomixTime is set for this step, set timerSeconds to null.',
+            },
           },
           required: [
             'order',
@@ -353,6 +364,8 @@ const recipeJsonSchema = {
             'tipEs',
             'recipeSectionEn',
             'recipeSectionEs',
+            'thermomixMode',
+            'timerSeconds',
           ],
           additionalProperties: false,
         },
@@ -361,6 +374,50 @@ const recipeJsonSchema = {
         type: 'array',
         description: 'List of all tags from both English and Spanish sections.',
         items: { type: 'string', description: 'Tag name without # prefix.' },
+      },
+      plannerRole: {
+        type: ['string', 'null'],
+        description:
+          'Meal planner role. Extract from "Rol:" aside field. Allowed values: main, side, dessert, beverage, snack, condiment, pantry. Null if not present.',
+        enum: ['main', 'side', 'dessert', 'beverage', 'snack', 'condiment', 'pantry', null],
+      },
+      equipmentTags: {
+        type: 'array',
+        description:
+          'Equipment required beyond standard cookware. Extract from "Equipo:" aside field (comma-separated). Allowed values: thermomix, air_fryer, oven, stovetop. Empty array if not present.',
+        items: { type: 'string', enum: ['thermomix', 'air_fryer', 'oven', 'stovetop'] },
+      },
+      mealComponents: {
+        type: 'array',
+        description:
+          'Meal components this recipe provides. Extract from "Componentes:" aside field (comma-separated). Allowed values: protein, carb, veg, snack. Empty array if not present.',
+        items: { type: 'string', enum: ['protein', 'carb', 'veg', 'snack'] },
+      },
+      isCompleteMeal: {
+        type: 'boolean',
+        description:
+          'Whether this recipe is a complete meal on its own. Extract from "Comida completa: Sí/No" aside field. Default false if not present.',
+      },
+      cookingLevel: {
+        type: ['string', 'null'],
+        description:
+          'Cooking skill level required. Extract from "Nivel de cocina:" aside field. Allowed values: beginner, intermediate, advanced. Null if not present.',
+        enum: ['beginner', 'intermediate', 'advanced', null],
+      },
+      leftoversFriendly: {
+        type: ['boolean', 'null'],
+        description:
+          'Whether this recipe keeps well as leftovers. Extract from "Apto para sobras: Sí/No" aside field. Null if not present.',
+      },
+      maxHouseholdSizeSupported: {
+        type: ['number', 'null'],
+        description:
+          'Maximum household size this recipe can serve. Extract from "Porciones máximas:" aside field as an integer. Null if not present.',
+      },
+      batchFriendly: {
+        type: ['boolean', 'null'],
+        description:
+          'Whether this recipe is suitable for batch cooking (make ahead in large quantities). Extract from "Batch cooking: Sí/No" aside field. Null if not present.',
       },
     },
     required: [
@@ -376,6 +433,14 @@ const recipeJsonSchema = {
       'ingredients',
       'steps',
       'tags',
+      'plannerRole',
+      'equipmentTags',
+      'mealComponents',
+      'isCompleteMeal',
+      'cookingLevel',
+      'leftoversFriendly',
+      'maxHouseholdSizeSupported',
+      'batchFriendly',
     ],
     additionalProperties: false,
   },
@@ -430,6 +495,25 @@ Example: "licúa 20 seg/vel 4-8, aumentando la velocidad progresivamente"
 - portions: extract from aside blocks ("Porciones: 4"). Must be a whole number of servings. If a weight is given instead (e.g., "200g", "1 kg"), use 4 as default. If missing, use 4.
 - difficulty: extract from aside blocks ("Nivel de dificultad: fácil" → "easy", "medio/media" → "medium", "difícil" → "hard"). If missing, use "medium".
 - If English content is empty or missing, translate the Spanish content to English.
+
+## Meal Planning Metadata (from aside blocks, all optional)
+
+Extract the following if present in aside blocks. Use null / [] / false as defaults when absent.
+
+- plannerRole: "Rol: main" → "main". Values: main, side, dessert, beverage, snack, condiment, pantry. Null if absent.
+- equipmentTags: "Equipo: thermomix, air_fryer" → ["thermomix", "air_fryer"]. Values: thermomix, air_fryer, oven, stovetop. [] if absent.
+- mealComponents: "Componentes: protein, carb" → ["protein", "carb"]. Values: protein, carb, veg, snack. [] if absent.
+- isCompleteMeal: "Comida completa: Sí" → true, "No" → false. Default false if absent.
+- cookingLevel: "Nivel de cocina: beginner" → "beginner". Values: beginner, intermediate, advanced. Null if absent.
+- leftoversFriendly: "Apto para sobras: Sí" → true, "No" → false. Null if absent.
+- maxHouseholdSizeSupported: "Porciones máximas: 6" → 6 (integer). Null if absent.
+- batchFriendly: "Batch cooking: Sí" → true, "No" → false. Null if absent.
+
+## Thermomix Mode and Step Timers
+
+For each step, also set:
+- thermomixMode: "steaming" when the step uses the Varoma accessory (steam). "open_cooking" when the step says "sin tapa" or "tapa abierta". Null otherwise.
+- timerSeconds: duration in seconds for non-Thermomix timed actions only. "hornear 30 min" → 1800. "reposar 10 minutos" → 600. If this step already has thermomixTime set, set timerSeconds to null.
 
 ## Ingredient Names
 
@@ -501,6 +585,8 @@ export interface ParsedRecipeData {
       end: number | string | null;
     } | null;
     thermomixIsBladeReversed: boolean | null;
+    thermomixMode: 'open_cooking' | 'steaming' | null;
+    timerSeconds: number | null;
     ingredients: Array<{
       ingredient: {
         nameEn: string;
@@ -518,6 +604,14 @@ export interface ParsedRecipeData {
     recipeSectionEs: string;
   }>;
   tags: string[];
+  plannerRole: string | null;
+  equipmentTags: string[];
+  mealComponents: string[];
+  isCompleteMeal: boolean;
+  cookingLevel: string | null;
+  leftoversFriendly: boolean | null;
+  maxHouseholdSizeSupported: number | null;
+  batchFriendly: boolean | null;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -690,6 +784,18 @@ function validateSteps(steps: unknown[]): void {
 
     validateStepSpeed(step);
     validateStepIngredients(step);
+
+    const thermomixMode = getField(step, 'thermomixMode');
+    if (thermomixMode !== null && thermomixMode !== 'open_cooking' && thermomixMode !== 'steaming') {
+      throw new Error(
+        'Invalid recipe parser output: "thermomixMode" must be "open_cooking", "steaming", or null',
+      );
+    }
+
+    const timerSeconds = getField(step, 'timerSeconds');
+    if (!isNumberOrNull(timerSeconds)) {
+      throw new Error('Invalid recipe parser output: "timerSeconds" must be a number or null');
+    }
   }
 }
 
@@ -727,6 +833,62 @@ function validateParsedRecipeData(data: unknown): ParsedRecipeData {
   validateIngredients(ingredients);
   validateSteps(steps);
   validateTags(tags);
+
+  // plannerRole: string or null, restricted enum
+  const plannerRole = getField(data, 'plannerRole');
+  const validPlannerRoles = ['main', 'side', 'dessert', 'beverage', 'snack', 'condiment', 'pantry'];
+  if (plannerRole !== null && !(isString(plannerRole) && validPlannerRoles.includes(plannerRole))) {
+    throw new Error('Invalid recipe parser output: "plannerRole" must be a valid role or null');
+  }
+
+  // equipmentTags: array of valid strings
+  const equipmentTags = assertArrayField(data, 'equipmentTags');
+  const validEquipment = ['thermomix', 'air_fryer', 'oven', 'stovetop'];
+  for (const tag of equipmentTags) {
+    if (!isString(tag) || !validEquipment.includes(tag)) {
+      throw new Error(`Invalid recipe parser output: "equipmentTags" contains invalid value "${tag}"`);
+    }
+  }
+
+  // mealComponents: array of valid strings
+  const mealComponents = assertArrayField(data, 'mealComponents');
+  const validComponents = ['protein', 'carb', 'veg', 'snack'];
+  for (const mc of mealComponents) {
+    if (!isString(mc) || !validComponents.includes(mc)) {
+      throw new Error(`Invalid recipe parser output: "mealComponents" contains invalid value "${mc}"`);
+    }
+  }
+
+  // isCompleteMeal: boolean
+  if (typeof getField(data, 'isCompleteMeal') !== 'boolean') {
+    throw new Error('Invalid recipe parser output: "isCompleteMeal" must be a boolean');
+  }
+
+  // cookingLevel: string or null
+  const cookingLevel = getField(data, 'cookingLevel');
+  const validLevels = ['beginner', 'intermediate', 'advanced'];
+  if (cookingLevel !== null && !(isString(cookingLevel) && validLevels.includes(cookingLevel))) {
+    throw new Error('Invalid recipe parser output: "cookingLevel" must be a valid level or null');
+  }
+
+  // leftoversFriendly: boolean or null
+  const leftoversFriendly = getField(data, 'leftoversFriendly');
+  if (leftoversFriendly !== null && typeof leftoversFriendly !== 'boolean') {
+    throw new Error('Invalid recipe parser output: "leftoversFriendly" must be a boolean or null');
+  }
+
+  // maxHouseholdSizeSupported: number or null
+  if (!isNumberOrNull(getField(data, 'maxHouseholdSizeSupported'))) {
+    throw new Error(
+      'Invalid recipe parser output: "maxHouseholdSizeSupported" must be a number or null',
+    );
+  }
+
+  // batchFriendly: boolean or null
+  const batchFriendly = getField(data, 'batchFriendly');
+  if (batchFriendly !== null && typeof batchFriendly !== 'boolean') {
+    throw new Error('Invalid recipe parser output: "batchFriendly" must be a boolean or null');
+  }
 
   return data as unknown as ParsedRecipeData;
 }

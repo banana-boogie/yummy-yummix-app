@@ -63,6 +63,8 @@ export function buildRecipeSteps(
       thermomix_temperature: step.thermomixTemperature,
       thermomix_temperature_unit: step.thermomixTemperatureUnit,
       thermomix_is_blade_reversed: step.thermomixIsBladeReversed,
+      thermomix_mode: step.thermomixMode ?? null,
+      timer_seconds: step.timerSeconds ?? null,
       recipe_section_en: step.recipeSectionEn || 'Main',
       recipe_section_es: step.recipeSectionEs || 'Principal',
       tip_en: step.tipEn || '',

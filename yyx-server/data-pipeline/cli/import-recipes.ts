@@ -400,6 +400,14 @@ async function importRecipe(
     is_published: false, // Safety: require manual publish
     tips_and_tricks_en: parsed.tipsAndTricksEn || '',
     tips_and_tricks_es: parsed.tipsAndTricksEs || '',
+    planner_role: parsed.plannerRole,
+    equipment_tags: parsed.equipmentTags,
+    meal_components: parsed.mealComponents,
+    is_complete_meal: parsed.isCompleteMeal,
+    cooking_level: parsed.cookingLevel,
+    leftovers_friendly: parsed.leftoversFriendly,
+    max_household_size_supported: parsed.maxHouseholdSizeSupported,
+    batch_friendly: parsed.batchFriendly,
   });
 
   logger.info(`Created recipe: ${recipeId}`);

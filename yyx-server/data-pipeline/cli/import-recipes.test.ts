@@ -77,6 +77,8 @@ function makeStep(overrides: Partial<ParsedRecipeData['steps'][number]>): Parsed
     thermomixTemperatureUnit: null,
     thermomixSpeed: null,
     thermomixIsBladeReversed: null,
+    thermomixMode: null,
+    timerSeconds: null,
     ingredients: [],
     tipEn: '',
     tipEs: '',
@@ -100,6 +102,14 @@ function makeParsed(steps: ParsedRecipeData['steps']): ParsedRecipeData {
     ingredients: [],
     steps,
     tags: [],
+    plannerRole: null,
+    equipmentTags: [],
+    mealComponents: [],
+    isCompleteMeal: false,
+    cookingLevel: null,
+    leftoversFriendly: null,
+    maxHouseholdSizeSupported: null,
+    batchFriendly: null,
   };
 }
 
