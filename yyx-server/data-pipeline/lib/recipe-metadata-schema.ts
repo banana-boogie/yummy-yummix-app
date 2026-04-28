@@ -95,17 +95,16 @@ export const VALID_SPEED_NUMBERS = [
 // enum exactly. Same rule as VALID_SPEED_NUMBERS: the DB enum is the source of
 // truth.
 //
-// Known gap: the app's TEMPERATURES_BY_MODEL.TM7 lists Celsius extended values
-// (125/135/145/155) and Fahrenheit extended values (257/266/275/284/293/302/
-// 311/320). These are NOT in the DB enum yet, so they are deliberately omitted
-// here — a YAML using them would be schema-rejected with a clear line number
-// rather than failing at apply with an opaque cast error. To unblock TM7
-// recipes, extend the DB enum first via a migration, then add here.
+// Includes TM7-extended Celsius (125/135/145/155 plus 130/140/150/160) and
+// Fahrenheit (257/266/275/284/293/302/311/320) values added in migration
+// 20260428181507_thermomix_temperature_tm7_extended.sql.
 export const VALID_TEMPERATURE_NUMBERS = [
   37, 40, 45, 50, 55, 60, 65, 70, 75, 80,
   85, 90, 95, 98, 100, 105, 110, 115, 120,
-  130, 140, 150, 160, 170, 175, 185, 195, 200, 205,
+  125, 130, 135, 140, 145, 150, 155, 160,
+  170, 175, 185, 195, 200, 205,
   212, 220, 230, 240, 250,
+  257, 266, 275, 284, 293, 302, 311, 320,
 ] as const;
 
 const VALID_SPEED_SET: ReadonlySet<number | string> = new Set([
