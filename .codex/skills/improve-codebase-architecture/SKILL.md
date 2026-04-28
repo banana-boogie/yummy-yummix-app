@@ -79,6 +79,12 @@ Side effects happen inline as decisions crystallize:
 
 ### 4. Plan and hand off
 
-Once a candidate is fully grilled, produce an implementation plan and stop for the user's approval. If the user explicitly asks you to implement it, switch out of discovery mode and execute the approved plan in the normal Codex workflow. If the user explicitly asks for delegated or parallel agent work, use Codex `spawn_agent` with `explorer` for bounded read-only questions or `worker` for scoped implementation tasks, and give workers disjoint ownership of files/modules. Don't implement directly while you are still in the candidate-finding or grilling stages — this skill is for *finding* and *shaping* deepening opportunities first.
+Once a candidate is fully grilled, produce an implementation plan and stop. Then, depending on what the user asks for next:
+
+- **No further instruction** — wait for approval. Don't implement.
+- **"Go ahead and implement"** — execute the approved plan in the normal Codex workflow.
+- **"Delegate" or "do this in parallel"** — use Codex `spawn_agent` with `agent_type: "explorer"` for bounded read-only questions or `agent_type: "worker"` for scoped implementation tasks. Use `fork_context: true` so the spawned agent inherits the design context from this session. Give workers disjoint ownership of files/modules so they don't collide.
+
+Don't implement directly while you are still in the candidate-finding or grilling stages — this skill is for *finding* and *shaping* deepening opportunities first.
 
 For dependency strategy and testing approach when deepening, see [DEEPENING.md](DEEPENING.md).
