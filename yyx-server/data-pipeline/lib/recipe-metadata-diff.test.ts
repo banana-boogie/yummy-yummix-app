@@ -43,6 +43,7 @@ function makeCurrent(
     kitchen_tools: [],
     pairings: [],
     tags_by_category: tagsByCategory,
+    translation_counts_by_locale: {},
   };
 }
 
@@ -218,6 +219,54 @@ Deno.test('formatRecipeSnapshot: emits one field per line under section headers'
   assert(out.includes('  Locales:         en, es'));
   assert(out.includes('TAGS'));
   assert(out.includes('  dish_type:       dip_dressing'));
+});
+
+Deno.test('cleanup.delete_locales: attaches per-layer row counts and renders breakdown', () => {
+  const desired: RecipeMetadata = {
+    ...makeDesired(),
+    cleanup: { delete_locales: ['es-ES'] },
+  };
+  const current: CurrentRecipeState = {
+    ...makeCurrent(),
+    translation_counts_by_locale: {
+      'es-ES': { recipe: 1, steps: 7, ingredients: 0 },
+    },
+  };
+  const diff = computeRecipeMetadataDiff(desired, current);
+  const cleanup = diff.sections.find((s) => s.section === 'cleanup');
+  assert(cleanup);
+  assertEquals(cleanup.changes.length, 1);
+  assertEquals(cleanup.changes[0].details, {
+    recipe_translations: 1,
+    step_translations: 7,
+    ingredient_translations: 0,
+  });
+
+  const out = formatDiffForCli(diff, false);
+  assert(out.includes("~ delete_locales: 'es-ES' → null"));
+  assert(out.includes('recipe_translations'));
+  assert(/recipe_translations\s+1 row\b/.test(out), `expected '1 row', got:\n${out}`);
+  assert(/step_translations\s+7 rows\b/.test(out), `expected '7 rows', got:\n${out}`);
+  assert(/ingredient_translations\s+0 rows\b/.test(out));
+});
+
+Deno.test('cleanup.delete_locales: skips locales with zero rows at every layer', () => {
+  const desired: RecipeMetadata = {
+    ...makeDesired(),
+    cleanup: { delete_locales: ['fr'] },
+  };
+  const current: CurrentRecipeState = {
+    ...makeCurrent(),
+    translation_counts_by_locale: {},
+  };
+  const diff = computeRecipeMetadataDiff(desired, current);
+  const cleanup = diff.sections.find((s) => s.section === 'cleanup');
+  assert(cleanup);
+  assertEquals(
+    cleanup.changes.length,
+    0,
+    'expected no diff entry when locale has zero rows at every layer',
+  );
 });
 
 Deno.test('formatRequiresAuthoring: returns empty when no reasons', () => {

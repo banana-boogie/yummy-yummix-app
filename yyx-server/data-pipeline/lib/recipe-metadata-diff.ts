@@ -19,6 +19,13 @@ export interface DiffEntry {
   path: string;
   before: unknown;
   after: unknown;
+  /**
+   * Optional structured detail rendered alongside before/after for sections
+   * that need a richer view (e.g. cleanup row-count breakdowns showing
+   * how many recipe/step/ingredient translation rows a locale delete
+   * will actually remove).
+   */
+  details?: Record<string, number>;
 }
 
 export interface SectionDiff {
@@ -351,9 +358,23 @@ export function computeRecipeMetadataDiff(
   if (desired.cleanup?.delete_locales) {
     const changes: DiffEntry[] = [];
     for (const locale of desired.cleanup.delete_locales) {
-      if (current.translations.some((t) => t.locale === locale)) {
-        changes.push({ path: `cleanup.delete_locales`, before: locale, after: null });
-      }
+      const c = current.translation_counts_by_locale[locale];
+      const recipe = c?.recipe ?? 0;
+      const steps = c?.steps ?? 0;
+      const ingredients = c?.ingredients ?? 0;
+      // Only emit if the locale actually exists at any layer; otherwise the
+      // RPC's DELETE statements would no-op and the dry-run would mislead.
+      if (recipe + steps + ingredients === 0) continue;
+      changes.push({
+        path: `cleanup.delete_locales`,
+        before: locale,
+        after: null,
+        details: {
+          recipe_translations: recipe,
+          step_translations: steps,
+          ingredient_translations: ingredients,
+        },
+      });
     }
     sections.push({ section: 'cleanup', changes });
   }
@@ -485,6 +506,13 @@ function formatSectionChanges(sec: SectionDiff, lines: string[]): void {
   }
   for (const c of scalar) {
     lines.push(`    ~ ${stripSectionPrefix(c.path)}: ${formatVal(c.before)} → ${formatVal(c.after)}`);
+    if (c.details) {
+      for (const [key, count] of Object.entries(c.details)) {
+        const label = key.padEnd(24);
+        const unit = count === 1 ? 'row' : 'rows';
+        lines.push(`        ${label} ${count} ${unit}`);
+      }
+    }
   }
 }
 

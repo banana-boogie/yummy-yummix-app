@@ -18,6 +18,16 @@ export interface CurrentRecipeState {
   kitchen_tools: KitchenToolSnapshot[];
   pairings: PairingSnapshot[];
   tags_by_category: Record<string, string[]>;
+  /**
+   * Row counts at the three translation layers, keyed by locale. Used by the
+   * cleanup-section diff renderer to show what `delete_locales` will actually
+   * remove. Recipe-scoped only — recipe_translations is one row per recipe,
+   * step/ingredient translations are joined back to this recipe's children.
+   */
+  translation_counts_by_locale: Record<
+    string,
+    { recipe: number; steps: number; ingredients: number }
+  >;
 }
 
 export interface PlannerSnapshot {
@@ -142,13 +152,22 @@ export async function fetchCurrentRecipeState(
     portions: number | null;
   };
 
-  const [translations, ingredients, steps, kitchenTools, pairings, tags] = await Promise.all([
+  const [
+    translations,
+    ingredients,
+    steps,
+    kitchenTools,
+    pairings,
+    tags,
+    translationCounts,
+  ] = await Promise.all([
     fetchTranslations(supabase, recipeId),
     fetchIngredients(supabase, recipeId),
     fetchSteps(supabase, recipeId),
     fetchKitchenTools(supabase, recipeId),
     fetchPairings(supabase, recipeId),
     fetchTagsByCategory(supabase, recipeId),
+    fetchTranslationCountsByLocale(supabase, recipeId),
   ]);
 
   const enName = translations.find((t) => t.locale === 'en')?.name ?? null;
@@ -180,7 +199,44 @@ export async function fetchCurrentRecipeState(
     kitchen_tools: kitchenTools,
     pairings,
     tags_by_category: tags,
+    translation_counts_by_locale: translationCounts,
   };
+}
+
+async function fetchTranslationCountsByLocale(
+  supabase: SupabaseClient,
+  recipeId: string,
+): Promise<CurrentRecipeState['translation_counts_by_locale']> {
+  const counts: CurrentRecipeState['translation_counts_by_locale'] = {};
+  const bump = (locale: string, key: 'recipe' | 'steps' | 'ingredients') => {
+    counts[locale] ??= { recipe: 0, steps: 0, ingredients: 0 };
+    counts[locale][key] += 1;
+  };
+
+  const [recipeRows, stepRows, ingRows] = await Promise.all([
+    supabase
+      .from('recipe_translations')
+      .select('locale')
+      .eq('recipe_id', recipeId),
+    supabase
+      .from('recipe_step_translations')
+      .select('locale, recipe_steps!inner(recipe_id)')
+      .eq('recipe_steps.recipe_id', recipeId),
+    supabase
+      .from('recipe_ingredient_translations')
+      .select('locale, recipe_ingredients!inner(recipe_id)')
+      .eq('recipe_ingredients.recipe_id', recipeId),
+  ]);
+
+  if (recipeRows.error) throw new Error(`fetch recipe locales: ${recipeRows.error.message}`);
+  if (stepRows.error) throw new Error(`fetch step locales: ${stepRows.error.message}`);
+  if (ingRows.error) throw new Error(`fetch ingredient locales: ${ingRows.error.message}`);
+
+  for (const r of recipeRows.data ?? []) bump((r as { locale: string }).locale, 'recipe');
+  for (const r of stepRows.data ?? []) bump((r as { locale: string }).locale, 'steps');
+  for (const r of ingRows.data ?? []) bump((r as { locale: string }).locale, 'ingredients');
+
+  return counts;
 }
 
 async function fetchTranslations(
