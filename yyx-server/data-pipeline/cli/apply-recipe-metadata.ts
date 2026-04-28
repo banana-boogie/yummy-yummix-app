@@ -293,15 +293,26 @@ async function processFile(
 
   const diff = computeRecipeMetadataDiff(parsed.data, current);
 
-  logger.section(`${filePath.split('/').pop()}`);
+  const fileName = filePath.split('/').pop() ?? '';
+  const divider = '─'.repeat(72);
+  console.log('');
+  console.log(divider);
+  console.log(`  ${fileName}`);
+  console.log(divider);
+  console.log('');
   console.log(formatRecipeSnapshot(current));
+  console.log('');
+  console.log(divider);
   console.log('');
   console.log(formatDiffForCli(diff, opts.verbose));
   const ra = formatRequiresAuthoring(parsed.data.requires_authoring);
   if (ra) {
     console.log('');
+    console.log(divider);
+    console.log('');
     console.log(ra);
   }
+  console.log('');
 
   if (diff.stale_diff) {
     return {

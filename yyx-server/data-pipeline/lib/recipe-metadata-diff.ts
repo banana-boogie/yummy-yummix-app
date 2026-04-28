@@ -422,18 +422,25 @@ export function formatDiffForCli(diff: RecipeMetadataDiff, verbose: boolean): st
     lines.push(`  re-run /review-recipe to refresh state before applying`);
     lines.push('');
   }
+  lines.push(`CHANGES (${diff.total_changes})`);
   if (diff.total_changes === 0) {
-    lines.push(`Changes: none (idempotent — apply would be a no-op)`);
+    lines.push(`  (idempotent — apply would be a no-op)`);
     return lines.join('\n');
   }
-  lines.push(`Changes (${diff.total_changes}):`);
+  let firstSection = true;
   for (const sec of diff.sections) {
     if (sec.changes.length === 0) {
-      if (verbose) lines.push(`  [${sec.section}] no changes`);
+      if (verbose) {
+        if (!firstSection) lines.push('');
+        lines.push(`  ${sec.section}: (no changes)`);
+        firstSection = false;
+      }
       continue;
     }
-    lines.push(`  [${sec.section}]`);
+    if (!firstSection) lines.push('');
+    lines.push(`  ${sec.section}:`);
     formatSectionChanges(sec, lines);
+    firstSection = false;
   }
   return lines.join('\n');
 }
@@ -495,59 +502,71 @@ function formatSetValue(v: unknown): string {
  * Renders an at-a-glance summary of the recipe's current DB state. Goes above
  * the diff in --dry-run output so reviewers can quickly verify the YAML is
  * pointed at the right recipe and gauge what's already populated.
+ *
+ * One field per line — no multi-column rows — so a reviewer's eye scans
+ * straight down without parsing visual columns.
  */
 export function formatRecipeSnapshot(current: CurrentRecipeState): string {
   const lines: string[] = [];
+  const yn = (v: boolean | null) => v === null ? '—' : v ? 'yes' : 'no';
+  const dash = (v: string | null | undefined) =>
+    v === null || v === undefined || v === '' ? '—' : v;
+  const list = (arr: readonly string[]) => arr.length ? arr.join(', ') : '—';
   const updated = current.updated_at
     ? new Date(current.updated_at).toISOString().replace('T', ' ').slice(0, 16) + ' UTC'
     : '?';
-  lines.push(`Recipe: ${current.name_en ?? '?'}`);
-  lines.push(`  id:           ${current.recipe_id}`);
-  lines.push(`  updated:      ${updated}`);
 
   const p = current.planner;
   const t = current.timings;
-
-  lines.push(
-    `  role:         ${p.planner_role ?? '—'}` +
-      `${p.alternate_planner_roles.length ? ` (alt: ${p.alternate_planner_roles.join(', ')})` : ''}` +
-      `   published: ${p.is_published === null ? '—' : p.is_published ? 'yes' : 'no'}`,
-  );
-  lines.push(
-    `  components:   ${p.meal_components.length ? p.meal_components.join(', ') : '—'}` +
-      `   complete-meal: ${p.is_complete_meal === null ? '—' : p.is_complete_meal ? 'yes' : 'no'}`,
-  );
-  lines.push(
-    `  equipment:    ${p.equipment_tags.length ? p.equipment_tags.join(', ') : '—'}` +
-      `   level:     ${p.cooking_level ?? '—'}`,
-  );
-  lines.push(
-    `  batch:        ${p.batch_friendly === null ? '—' : p.batch_friendly ? 'yes' : 'no'}` +
-      `   leftovers: ${p.leftovers_friendly === null ? '—' : p.leftovers_friendly ? 'yes' : 'no'}` +
-      `   household: ${p.max_household_size_supported ?? '—'}`,
-  );
-
-  const time = t.prep_time === null && t.total_time === null
-    ? '—'
-    : `${t.prep_time ?? '?'} min prep, ${t.total_time ?? '?'} min total`;
-  lines.push(`  time:         ${time}   portions: ${t.portions ?? '—'}`);
-
-  lines.push(`  ingredients:  ${current.ingredients.length}`);
-  lines.push(`  steps:        ${current.steps.length}`);
-  lines.push(`  kitchen-tools:${current.kitchen_tools.length ? ' ' + current.kitchen_tools.map((k) => k.name_en).join(', ') : ' —'}`);
-  lines.push(`  pairings:     ${current.pairings.length}`);
-
   const locales = [...new Set(current.translations.map((tr) => tr.locale))].sort();
-  lines.push(`  locales:      ${locales.length ? locales.join(', ') : '—'}`);
-
   const tagCats = Object.keys(current.tags_by_category).sort();
+
+  lines.push('RECIPE');
+  lines.push(`  Name:            ${current.name_en ?? '?'}`);
+  lines.push(`  ID:              ${current.recipe_id}`);
+  lines.push(`  Updated:         ${updated}`);
+  lines.push(`  Published:       ${yn(p.is_published)}`);
+  lines.push('');
+
+  lines.push('PLANNER');
+  lines.push(`  Role:            ${dash(p.planner_role)}`);
+  lines.push(`  Alt roles:       ${list(p.alternate_planner_roles)}`);
+  lines.push(`  Components:      ${list(p.meal_components)}`);
+  lines.push(`  Complete meal:   ${yn(p.is_complete_meal)}`);
+  lines.push(`  Equipment:       ${list(p.equipment_tags)}`);
+  lines.push(`  Cooking level:   ${dash(p.cooking_level)}`);
+  lines.push(`  Batch friendly:  ${yn(p.batch_friendly)}`);
+  lines.push(`  Leftovers:       ${yn(p.leftovers_friendly)}`);
+  lines.push(`  Max household:   ${p.max_household_size_supported ?? '—'}`);
+  lines.push('');
+
+  lines.push('TIMINGS');
+  lines.push(`  Prep:            ${t.prep_time === null ? '—' : `${t.prep_time} min`}`);
+  lines.push(`  Total:           ${t.total_time === null ? '—' : `${t.total_time} min`}`);
+  lines.push(`  Portions:        ${t.portions ?? '—'}`);
+  lines.push('');
+
+  lines.push('CONTENT');
+  lines.push(`  Ingredients:     ${current.ingredients.length}`);
+  lines.push(`  Steps:           ${current.steps.length}`);
+  lines.push(
+    `  Kitchen tools:   ${
+      current.kitchen_tools.length
+        ? current.kitchen_tools.map((k) => k.name_en).join(', ')
+        : '—'
+    }`,
+  );
+  lines.push(`  Pairings:        ${current.pairings.length}`);
+  lines.push(`  Locales:         ${locales.length ? locales.join(', ') : '—'}`);
+  lines.push('');
+
+  lines.push('TAGS');
   if (tagCats.length === 0) {
-    lines.push(`  tags:         —`);
+    lines.push(`  (none)`);
   } else {
-    lines.push(`  tags:`);
     for (const cat of tagCats) {
       const slugs = current.tags_by_category[cat] ?? [];
-      lines.push(`    ${cat.padEnd(20)} ${slugs.join(', ') || '—'}`);
+      lines.push(`  ${(cat + ':').padEnd(17)}${slugs.join(', ') || '—'}`);
     }
   }
 
@@ -557,18 +576,26 @@ export function formatRecipeSnapshot(current: CurrentRecipeState): string {
 /**
  * Renders the YAML's requires_authoring block. Returns empty string when no
  * reasons are flagged so the CLI can skip emitting the section header.
+ *
+ * Notes are reflowed: existing newline structure is preserved, but trailing
+ * whitespace on each line is trimmed so the indented block reads cleanly.
  */
 export function formatRequiresAuthoring(
   ra: { reasons: string[]; notes?: string } | undefined,
 ): string {
   if (!ra || ra.reasons.length === 0) return '';
   const lines: string[] = [];
-  lines.push(`Requires authoring (not publishable until human-authored):`);
-  lines.push(`  reasons: ${ra.reasons.join(', ')}`);
+  lines.push('REQUIRES AUTHORING');
+  lines.push(`  Status:    not publishable until human-authored`);
+  lines.push(`  Reasons:   ${ra.reasons.join(', ')}`);
   if (ra.notes && ra.notes.trim()) {
-    lines.push(`  notes:`);
-    for (const noteLine of ra.notes.split('\n')) {
-      lines.push(`    ${noteLine}`);
+    lines.push('');
+    lines.push('  Notes:');
+    // Preserve blank lines from the YAML literal-block scalar so paragraph
+    // breaks and list-item separators survive the render. Only strip
+    // horizontal whitespace at line end, never the newlines themselves.
+    for (const noteLine of ra.notes.replace(/[ \t]+$/gm, '').split('\n')) {
+      lines.push(noteLine.length === 0 ? '' : `    ${noteLine}`);
     }
   }
   return lines.join('\n');

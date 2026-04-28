@@ -15,33 +15,41 @@ tags:
 requires_authoring:
   reasons: [missing_step_translation]
   notes: |
-    Step 1 (id 1471ddd6-7d27-4995-9f94-0cf2b42fcb91, order 1) has an empty
-    Spanish instruction. The recipe-metadata pipeline does not edit
-    recipe_step_translations text — needs human authoring in the admin UI.
-    Suggested ES: "Añade todos los ingredientes al vaso del Thermomix y
-    mezcla a velocidad 3 durante 10 segundos."
+    Primary issue (blocks publish):
 
-    Other concerns surfaced (not auto-fixed in this YAML):
-    - Step 1 has thermomix_temperature_unit='C' with a NULL
-      thermomix_temperature (orphan unit). Cosmetic; harmless at runtime
-      because the unit is only consulted when a temperature value is
-      present. Admin can clear it during the next edit pass.
-    - es-ES translation rows exist (recipe_translations and step 2/3
-      step_translations) with minor synonym variations vs the es base
-      (e.g. "marinados" vs "marinadas", "frasco" vs "tarro"). They are
-      NOT exact mirrors of es, so the deterministic-mirror rule does not
-      auto-strip them — but they look like auto-translation artifacts
-      rather than a deliberate Spain-Spanish override. With the Mexico-
-      first launch (es is the base for Spanish-language users), admin
-      should decide whether to keep or delete.
-    - Speed 3 for 10 seconds may not fully emulsify the mayo + vinegar +
-      honey blend. Some Thermomix dressing recipes use speed 5 for
-      emulsifying. The structured fields match the prose, so this YAML
-      does not change them; flagging for admin verification of actual
-      texture in production.
-    - Diet tags omitted intentionally. vegetarian status depends on
-      whether the "avocado mayo" ingredient (slug avocado_mayo) contains
-      egg, which the recipe data does not record. honey makes vegan a
-      no. gluten_free is likely true (no wheat ingredients) but worth
-      confirming for cross-contamination on the Dijon mustard brand.
-      Admin should add gluten_free / vegetarian once verified.
+      Step 1 (id 1471ddd6-…, order 1) has an empty Spanish instruction.
+      The recipe-metadata pipeline does not edit recipe_step_translations
+      text — needs human authoring in the admin UI.
+
+      Suggested ES: "Añade todos los ingredientes al vaso del Thermomix
+      y mezcla a velocidad 3 durante 10 segundos."
+
+    Other concerns (not auto-fixed in this YAML):
+
+      1. Orphan thermomix_temperature_unit on step 1.
+         The unit is set to 'C' but the temperature value is NULL.
+         Cosmetic; harmless at runtime because the unit is only consulted
+         when a temperature value is present. Admin can clear it during
+         the next edit pass.
+
+      2. es-ES translation rows exist on recipe and step 2/3.
+         They have minor synonym variations vs the es base — e.g.
+         "marinados" vs "marinadas", "frasco" vs "tarro". They are NOT
+         exact mirrors of es, so the deterministic-mirror rule does not
+         auto-strip them, but they look like auto-translation artifacts
+         rather than a deliberate Spain-Spanish override. Mexico-first
+         launch: admin should decide whether to keep or delete.
+
+      3. Speed 3 for 10s may not fully emulsify.
+         Some Thermomix dressing recipes use speed 5 for emulsifying.
+         The structured fields match the step's prose, so this YAML does
+         not override them. Flagging for admin verification of actual
+         texture in production.
+
+      4. Diet tags omitted intentionally.
+         vegetarian status depends on whether the "avocado mayo"
+         ingredient (slug avocado_mayo) contains egg, which the recipe
+         data does not record. honey makes vegan a no. gluten_free is
+         likely true (no wheat ingredients) but worth confirming for
+         cross-contamination on the Dijon mustard brand. Admin should
+         add gluten_free / vegetarian once verified.
