@@ -58,17 +58,8 @@ kitchen_tools:
   set:
     - name_en: 'Thermomix'
 
-# es-ES recipe_translations row is an exact mirror of es (verbatim
-# tips_and_tricks). Strip it; auto-translation artifact, not a deliberate
-# Spain-Spanish override.
-cleanup:
-  delete_locales: ['es-ES']
-
 # requires_authoring intentionally omitted — every concern from the initial
 # review pass is now resolved in this YAML or by the pipeline itself. Notes:
-#   - cleanup.delete_locales above will strip es-ES rows from
-#     recipe_translations, recipe_step_translations, and
-#     recipe_ingredient_translations (the RPC handles all three layers).
 #   - timings updated to reflect actual step durations.
 #   - vegan added now that the cheese is confirmed optional.
 #   - make_ahead removed (leftover_friendly captures the reheat behavior).
