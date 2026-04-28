@@ -11,6 +11,14 @@ planner:
   leftovers_friendly: true
   batch_friendly: true
 
+# Sum of structured Thermomix step durations is ~28 min. Adding ~10 min of
+# real prep (washing zucchini, peeling garlic, handling spinach) + ~7 min of
+# pour/scrape/serve buffer puts a realistic total at ~45 min. The DB's
+# previous 20/90 split was unsupported by the step times.
+timings:
+  prep_time: 10
+  total_time: 45
+
 description:
   en: 'A creamy zucchini and spinach soup made entirely in the Thermomix. Light, vegetable-forward, and easy to prep.'
   es: 'Una sopa cremosa de calabacita y espinaca preparada totalmente en la Thermomix. Ligera, llena de vegetales y fácil de preparar.'
@@ -20,9 +28,12 @@ description:
 tags:
   cuisine: [mexican]
   meal_type: [lunch, dinner]
-  diet: [gluten_free, healthy, vegetarian]
+  diet: [gluten_free, healthy, vegetarian, vegan]
   primary_ingredient: [vegetables]
-  practical: [make_ahead, leftover_friendly, thermomix_basics, one_pot]
+  # `make_ahead` dropped — soup doesn't require advance prep, just reheats
+  # well. `leftover_friendly` already covers that. `quick` added now that
+  # timings reflect ~45 min total.
+  practical: [quick, leftover_friendly, thermomix_basics, one_pot]
 
 # Recipe currently has zero rows in recipe_kitchen_tools despite
 # equipment_tags=['thermomix']. Adding Thermomix as the kitchen tool.
@@ -36,30 +47,11 @@ kitchen_tools:
 cleanup:
   delete_locales: ['es-ES']
 
-requires_authoring:
-  reasons: [step_translations_es_es_duplicates, time_fields_inconsistent]
-  notes: |
-    Concerns this YAML does not auto-fix:
-
-      1. es-ES step_translations duplicate es at all 7 steps.
-         The cleanup.delete_locales above strips the recipe_translations
-         es-ES row, but step_translations es-ES rows must be deleted via
-         the admin UI — the pipeline does not currently support per-step
-         locale cleanup. Until that is done, an es-ES user (rare given
-         Mexico-first launch) will see the recipe shell fall back to es
-         at the recipe level but read es-ES step instructions verbatim
-         (which match es anyway). Cosmetic; safe.
-
-      2. prep_time=20 and total_time=90 disagree with the structured
-         Thermomix step times (~28 min of cook time across 7 steps).
-         A realistic total is closer to prep 5-10 + cook 28 ≈ 35-40 min.
-         The pipeline is not changing them because the discrepancy is
-         judgment-y — total_time may reflect intentional buffer time for
-         setup, scraping, and cleanup. Admin should reconcile and the
-         "quick" practical tag can then be added in a follow-up YAML.
-
-      3. Diet tag set excludes vegan even though the ingredient list is
-         vegan. The recipe's tips_and_tricks suggests feta cheese as an
-         optional garnish, which would mislead a vegan user. If admin
-         confirms the recipe-as-served is vegan and the cheese is purely
-         an optional accompaniment, vegan can be added later.
+# requires_authoring intentionally omitted — every concern from the initial
+# review pass is now resolved in this YAML or by the pipeline itself. Notes:
+#   - cleanup.delete_locales above will strip es-ES rows from
+#     recipe_translations, recipe_step_translations, and
+#     recipe_ingredient_translations (the RPC handles all three layers).
+#   - timings updated to reflect actual step durations.
+#   - vegan added now that the cheese is confirmed optional.
+#   - make_ahead removed (leftover_friendly captures the reheat behavior).
