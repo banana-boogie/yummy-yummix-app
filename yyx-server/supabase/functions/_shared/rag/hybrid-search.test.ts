@@ -8,6 +8,7 @@ import {
   assertNotEquals,
 } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import { clearEmbeddingCache, searchRecipesHybrid } from "./hybrid-search.ts";
+import { _resetTagSlugCacheForTests } from "../tag-slug.ts";
 
 const BASE_USER_CONTEXT = {
   locale: "en",
@@ -445,6 +446,7 @@ Deno.test("searchRecipesHybrid keeps recipes up to 50% over max time with lower 
 
 Deno.test("searchRecipesHybrid filters cuisine by canonical slug from Spanish label", async () => {
   clearEmbeddingCache();
+  _resetTagSlugCacheForTests();
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () =>
     new Response(
@@ -470,59 +472,85 @@ Deno.test("searchRecipesHybrid filters cuisine by canonical slug from Spanish la
       ],
       error: null,
     }),
-    from: () => ({
-      select: () => ({
-        in: () => ({
-          eq: async () => ({
-            data: [
-              {
-                id: mexicanId,
-                recipe_translations: [
-                  { locale: "en", name: "Tacos" },
-                  { locale: "es", name: "Tacos" },
-                ],
-                image_url: null,
-                total_time: 30,
-                difficulty: "easy",
-                portions: 2,
-                recipe_to_tag: [{
-                  recipe_tags: {
-                    slug: "mexican",
-                    categories: ["cuisine"],
-                    recipe_tag_translations: [
-                      { locale: "en", name: "Mexican" },
-                      { locale: "es", name: "Mexicana" },
-                    ],
-                  },
-                }],
-              },
-              {
-                id: italianId,
-                recipe_translations: [
-                  { locale: "en", name: "Pasta" },
-                  { locale: "es", name: "Pasta" },
-                ],
-                image_url: null,
-                total_time: 30,
-                difficulty: "easy",
-                portions: 2,
-                recipe_to_tag: [{
-                  recipe_tags: {
-                    slug: "italian",
-                    categories: ["cuisine"],
-                    recipe_tag_translations: [
-                      { locale: "en", name: "Italian" },
-                      { locale: "es", name: "Italiana" },
-                    ],
-                  },
-                }],
-              },
-            ],
-            error: null,
+    from: (table: string) => {
+      if (table === "recipe_tags") {
+        return {
+          select: () =>
+            Promise.resolve({
+              data: [
+                {
+                  slug: "mexican",
+                  recipe_tag_translations: [
+                    { name: "Mexican" },
+                    { name: "Mexicana" },
+                  ],
+                },
+                {
+                  slug: "italian",
+                  recipe_tag_translations: [
+                    { name: "Italian" },
+                    { name: "Italiana" },
+                  ],
+                },
+              ],
+              error: null,
+            }),
+        };
+      }
+      return ({
+        select: () => ({
+          in: () => ({
+            eq: async () => ({
+              data: [
+                {
+                  id: mexicanId,
+                  recipe_translations: [
+                    { locale: "en", name: "Tacos" },
+                    { locale: "es", name: "Tacos" },
+                  ],
+                  image_url: null,
+                  total_time: 30,
+                  difficulty: "easy",
+                  portions: 2,
+                  recipe_to_tag: [{
+                    recipe_tags: {
+                      slug: "mexican",
+                      categories: ["cuisine"],
+                      recipe_tag_translations: [
+                        { locale: "en", name: "Mexican" },
+                        { locale: "es", name: "Mexicana" },
+                      ],
+                    },
+                  }],
+                },
+                {
+                  id: italianId,
+                  recipe_translations: [
+                    { locale: "en", name: "Pasta" },
+                    { locale: "es", name: "Pasta" },
+                  ],
+                  image_url: null,
+                  total_time: 30,
+                  difficulty: "easy",
+                  portions: 2,
+                  recipe_to_tag: [{
+                    recipe_tags: {
+                      slug: "italian",
+                      categories: ["cuisine"],
+                      recipe_tag_translations: [
+                        { locale: "en", name: "Italian" },
+                        { locale: "es", name: "Italiana" },
+                      ],
+                    },
+                  }],
+                },
+              ],
+              error: null,
+            }),
           }),
         }),
-      }),
-    }),
+      });
+    },
   };
 
   try {

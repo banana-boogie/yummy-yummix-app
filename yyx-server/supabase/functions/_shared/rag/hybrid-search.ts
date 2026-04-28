@@ -373,7 +373,7 @@ export async function searchRecipesHybrid(
   let recipes = recipesData as unknown as RecipeRow[];
 
   if (filters.cuisine) {
-    const cuisineSlug = normalizeTagSlug(filters.cuisine);
+    const cuisineSlug = await normalizeTagSlug(filters.cuisine, supabase);
     recipes = recipes.filter((recipe) =>
       (recipe.recipe_to_tag || []).some((join) => {
         const tag = join.recipe_tags;

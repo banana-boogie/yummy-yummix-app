@@ -5,6 +5,7 @@ import {
 } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import { clearAllergenCache } from "../allergen-filter.ts";
 import type { RecipeCard } from "../irmixy-schemas.ts";
+import { _resetTagSlugCacheForTests } from "../tag-slug.ts";
 import {
   filterByAllKeywords,
   formatRestrictionLabel,
@@ -33,6 +34,7 @@ function createMockSupabase(config: {
   allergenGroupsError?: unknown;
   matchingTagsData?: unknown[];
   recipeTagJoinsData?: unknown[];
+  recipeTagsAliasData?: unknown[];
 }) {
   const calls = {
     recipeNameOr: [] as string[],
@@ -115,6 +117,16 @@ function createMockSupabase(config: {
                 error: null,
               }) as MockResult,
           }),
+        };
+      }
+
+      if (table === "recipe_tags") {
+        return {
+          select: () =>
+            Promise.resolve({
+              data: config.recipeTagsAliasData ?? [],
+              error: null,
+            } as MockResult),
         };
       }
 
@@ -720,6 +732,7 @@ Deno.test("searchRecipes filters out already-shown recipes", async () => {
 // etc.). Cuisine filtering must compare against the lowercase value or every
 // AI cuisine search silently returns zero matches. See PR #53 / #54.
 Deno.test("searchRecipes filterByCuisine matches the lowercase 'cuisine' category", async () => {
+  _resetTagSlugCacheForTests();
   const supabase = createMockSupabase({
     searchRecipesData: [
       {
@@ -784,6 +797,7 @@ Deno.test("searchRecipes filterByCuisine matches the lowercase 'cuisine' categor
 });
 
 Deno.test("searchRecipes filterByCuisine ignores tags whose category is not 'cuisine'", async () => {
+  _resetTagSlugCacheForTests();
   const supabase = createMockSupabase({
     searchRecipesData: [
       {

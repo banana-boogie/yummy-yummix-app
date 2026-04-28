@@ -346,7 +346,8 @@ export async function searchRecipes(
   // Filter by cuisine if specified (in-memory using tags)
   let filtered: RecipeSearchResult[] = results;
   if (params.cuisine) {
-    filtered = filterByCuisine(
+    filtered = await filterByCuisine(
+      supabase,
       results,
       params.cuisine,
       userContext.localeChain,
@@ -612,12 +613,13 @@ export function filterByAllKeywords(
 /**
  * Filter recipes by cuisine using canonical cuisine tag slugs.
  */
-function filterByCuisine(
+async function filterByCuisine(
+  supabase: SupabaseClient,
   data: RecipeSearchResult[],
   cuisine: string,
   _localeChain: string[],
-): RecipeSearchResult[] {
-  const cuisineSlug = normalizeTagSlug(cuisine);
+): Promise<RecipeSearchResult[]> {
+  const cuisineSlug = await normalizeTagSlug(cuisine, supabase);
 
   return data.filter((recipe) => {
     if (!recipe.recipe_to_tag || recipe.recipe_to_tag.length === 0) {
