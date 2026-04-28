@@ -1,11 +1,22 @@
 recipe_match:
   id: '3dd00e3f-7e49-45bc-8730-988599e8ef5e'
   name_en: 'Honey Dijon Dressing'
-  expected_recipe_updated_at: '2026-04-28T18:38:26.503278+00:00'
+  expected_recipe_updated_at: '2026-04-28T18:48:15.699567+00:00'
 
 review:
   reviewed_by_label: 'claude-opus-4-7'
   reviewed_at: '2026-04-28T14:29:35.000Z'
+
+# Re-decided from scratch per the rubric (RECIPE-REVIEW.md). Honey Dijon
+# Dressing is a dressing/sauce meant to season other foods — `condiment` is
+# the right role, not `side` or `snack`. No protein/carb/veg components
+# (it's a fat + acid + sweet condiment), and clearly not a complete meal.
+# Re-asserting the existing values is intentional: makes the role decision
+# visible in git history.
+planner:
+  role: condiment
+  meal_components: []
+  is_complete_meal: false
 
 tags:
   cuisine: [american]

@@ -8,6 +8,16 @@ review:
   reviewed_at: '2026-04-28T18:55:36.000Z'
 
 planner:
+  # Re-decided from scratch per the rubric. Zucchini Soup is mostly water
+  # + zucchini + spinach + aromatics — it's a vegetable-only side soup,
+  # not a complete meal. The optional feta/crouton garnish in tips_and_tricks
+  # could push it toward a light lunch, but the recipe-as-stored is a side.
+  # `[veg]` is the only component contributed; no protein, no carb. Keeping
+  # the existing role/components but re-asserting explicitly so the
+  # decision is visible.
+  role: side
+  meal_components: [veg]
+  is_complete_meal: false
   leftovers_friendly: true
   batch_friendly: true
 

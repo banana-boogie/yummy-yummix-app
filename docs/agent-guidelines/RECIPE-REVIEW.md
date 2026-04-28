@@ -40,6 +40,12 @@ The reviewer's job: produce a YAML config at `yyx-server/data-pipeline/data/reci
 
 ### Judgment-call checks (require Claude's reasoning)
 
+- **Planner role / meal components / is_complete_meal — re-decide from scratch.** **Do NOT trust the existing DB values.** Many recipes were imported with incorrect planner roles (e.g. complete-meal salads with salmon mis-coded as `side`, dips coded as `snack` when they're really `condiment`). For every review, decide independently:
+  - **`role`** — what is this dish? `main` = a meal centerpiece (ingredient volume + protein/carb suggest it stands alone). `side` = accompaniment to a main. `snack` = ready-to-eat small portion. `dessert` = sweet end-of-meal. `beverage`. `condiment` = dip/sauce/dressing meant to season other food. `pantry` = ingredient or building block, not a finished dish.
+  - **`is_complete_meal`** — does this single recipe deliver protein + carb + veg in one dish? Caesar Salad with Kale, Arugula, and Salmon is `main` + complete; plain Caesar Salad is `side` (or `main` only with `meal_components: [veg]` if the user adds protein themselves).
+  - **`meal_components`** — which of `[protein, carb, veg]` does the dish contribute? A salmon-and-grain bowl is `[protein, carb, veg]`. A side salad is `[veg]`. A dressing is `[]` (it's a condiment, not a component).
+  - **`alternate_planner_roles`** — when the same recipe could legitimately serve as more than one role (e.g. a hearty soup that works as `main` for a light lunch or `side` for dinner), list the alternates so the planner can pick contextually.
+  - The pipeline's per-field UPDATE diff means re-asserting the same value produces zero writes — there is no cost to setting these explicitly in the YAML. **Always include the `planner` section in the YAML with at least `role`, `meal_components`, and `is_complete_meal`**, even when the decision matches the current DB value. That makes the review visible and protects against legacy drift.
 - **Authentic seasoning balance.** A Mexican mole missing chocolate or chili is suspect. A Thai green curry without fish sauce or kaffir lime is suspect.
 - **Portion size matches ingredient volume.** 4 portions from 200 g of pasta is wrong. 8 portions from 2 kg of beef is wrong.
 - **Plausible Thermomix speeds.** Speed 1.5 for sautéing — fine. Speed 4.5 for sautéing — wrong, that's a blender speed. Speed 11 — invalid (max is 10 in numeric, plus `'spoon'`).

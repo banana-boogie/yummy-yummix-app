@@ -126,6 +126,8 @@ For check #14 (`same_en_es_name`): if the ES translation is unambiguous (e.g. pr
 
 For each item in the **Judgment-call checks** section of `RECIPE-REVIEW.md`, reason about the recipe and decide what (if anything) the YAML should change. When in doubt, flag the concern in `requires_authoring.notes` instead of silently changing.
 
+**`planner_role` is special — re-decide it from scratch every time.** Do not look at the current DB value first; look at the recipe (ingredients, portions, meal_components, dish identity) and decide what role/meal_components/is_complete_meal *should* be. Only then compare against the DB. Many recipes were imported with mis-coded roles (complete-meal salads as `side`, dips as `snack`), so the "preserve if present" default is unsafe here. Always include the `planner` section in the YAML with at least `role`, `meal_components`, and `is_complete_meal`, even when your decision matches the current DB value — re-asserting the same value is a zero-write idempotent op and makes the review's role decision visible in git history.
+
 ## Step 5 — Write the YAML
 
 Write the YAML to `yyx-server/data-pipeline/data/recipe-metadata/<slug>.yaml` where `<slug>` is the EN name slugified (lowercase, hyphen-separated, e.g. `Mongolian Beef` → `mongolian-beef.yaml`).
