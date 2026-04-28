@@ -3,7 +3,7 @@
 Status: **COMPLETE** — all drift fixed, tests passing, dry-runs verified.
 
 Baseline: `deno task test:pipeline` → **120 passed, 0 failed** (before any changes).
-Final: `deno task test:pipeline` → **129 passed, 0 failed** (9 new tests added across audit + follow-up work).
+Final: `deno task test:pipeline` → **135 passed, 0 failed** (15 new tests across audit + follow-up + Codex feedback).
 
 ---
 
@@ -167,5 +167,17 @@ None. All original open questions resolved.
 5. `feat(pipeline): add English recipe support` — `hasRecipeContent()` recognizes English `### Ingredients` headers; system prompt accepts English-first H1 and English aside keys.
 6. `refactor(pipeline): decontaminate recipe parser from Notion specifics` — rename `parseRecipeMarkdown` → `parseRecipe`; reframe prompt around source-agnostic conventions so future sources (URL scrapes, AI-generated, hand-written) can feed the same `ParsedRecipeData` boundary.
 7. `refactor(pipeline): hoist meal-planning enums + tighten validators` — single source for `PLANNER_ROLES`, `EQUIPMENT_TAGS`, `MEAL_COMPONENTS`, `COOKING_LEVELS`, `THERMOMIX_MODES`; `hasRecipeContent` switched to a heading-level-tolerant regex; thermomix_mode prompt expanded with more "open lid" phrasings; new fixture-based parser test locks in round-trip of all meal-planning fields.
+8. `fix(pipeline): align meal-planning enums with DB CHECK constraints + add db.ts payload tests` — Codex found that `MEAL_COMPONENTS` included `'snack'` (DB rejects), `COOKING_LEVELS` used `'advanced'` (DB uses `'experienced'`), and `EQUIPMENT_TAGS` was missing `'none'` (frontend type includes it). All would have caused the bulk import to fail at insert time. Added 6 payload-capturing tests for `createRecipe`, `insertRecipeSteps`, `upsertIngredientNutrition` to catch this drift class going forward.
+
+## Cross-Contract Reference
+
+The meal-planning enum constants in `lib/recipe-parser.ts` are mirrored from these canonical sources. Update there before changing them here:
+
+| Enum | Canonical contract |
+|---|---|
+| `PLANNER_ROLES` | `supabase/migrations/20260415120000_recipe_role_model_extension.sql:112` |
+| `MEAL_COMPONENTS` | `supabase/migrations/20260415120000_recipe_role_model_extension.sql:94` |
+| `COOKING_LEVELS` | `supabase/migrations/20260410000001_add_meal_plans.sql:495` |
+| `EQUIPMENT_TAGS` | `yyx-app/types/recipe.types.ts:72` (no DB CHECK; frontend type is canonical) |
 
 *Authored by Claude Code, 2026-04-28.*

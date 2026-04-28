@@ -101,10 +101,14 @@ const measurementUnitEnum = [
 
 // ─── Meal-planning enums (single source for JSON schema + validator) ───
 //
-// Each enum is the authoritative list of allowed values for a meal-planning
-// field. The JSON schema spreads these into its `enum` arrays and the
-// runtime validator uses isInArray() against the same constants, so adding
-// a value requires editing exactly one place.
+// These MUST match the canonical contracts — DB CHECK constraints in
+// supabase/migrations/ and the typed unions in yyx-app/types/recipe.types.ts
+// — or rows will fail to insert. Cross-reference:
+//   - planner_role:    20260415120000_recipe_role_model_extension.sql:112
+//   - meal_components: 20260415120000_recipe_role_model_extension.sql:94
+//   - cooking_level:   20260410000001_add_meal_plans.sql:495
+//   - equipment_tags:  yyx-app/types/recipe.types.ts:72 (no DB CHECK; frontend type is canonical)
+// Adding/changing a value here requires updating those contracts too.
 
 const PLANNER_ROLES = [
   'main',
@@ -117,13 +121,13 @@ const PLANNER_ROLES = [
 ] as const;
 type PlannerRole = (typeof PLANNER_ROLES)[number];
 
-const EQUIPMENT_TAGS = ['thermomix', 'air_fryer', 'oven', 'stovetop'] as const;
+const EQUIPMENT_TAGS = ['thermomix', 'air_fryer', 'oven', 'stovetop', 'none'] as const;
 type EquipmentTag = (typeof EQUIPMENT_TAGS)[number];
 
-const MEAL_COMPONENTS = ['protein', 'carb', 'veg', 'snack'] as const;
+const MEAL_COMPONENTS = ['protein', 'carb', 'veg'] as const;
 type MealComponent = (typeof MEAL_COMPONENTS)[number];
 
-const COOKING_LEVELS = ['beginner', 'intermediate', 'advanced'] as const;
+const COOKING_LEVELS = ['beginner', 'intermediate', 'experienced'] as const;
 type CookingLevel = (typeof COOKING_LEVELS)[number];
 
 const THERMOMIX_MODES = ['open_cooking', 'steaming'] as const;
@@ -540,10 +544,10 @@ Example: "licúa 20 seg/vel 4-8, aumentando la velocidad progresivamente"
 Extract the following if present in aside blocks. Use null / [] / false as defaults when absent.
 
 - plannerRole: "Rol: main" or "Role: main" → "main". Values: main, side, dessert, beverage, snack, condiment, pantry. Null if absent.
-- equipmentTags: "Equipo: thermomix, air_fryer" or "Equipment: thermomix, air_fryer" → ["thermomix", "air_fryer"]. Values: thermomix, air_fryer, oven, stovetop. [] if absent.
-- mealComponents: "Componentes: protein, carb" or "Components: protein, carb" → ["protein", "carb"]. Values: protein, carb, veg, snack. [] if absent.
+- equipmentTags: "Equipo: thermomix, air_fryer" or "Equipment: thermomix, air_fryer" → ["thermomix", "air_fryer"]. Values: thermomix, air_fryer, oven, stovetop, none. [] if absent. (Use "none" only if the recipe explicitly states no special equipment is required; otherwise omit.)
+- mealComponents: "Componentes: protein, carb" or "Components: protein, carb" → ["protein", "carb"]. Values: protein, carb, veg (composition axis only — do NOT use "snack" here; snacks belong in plannerRole). [] if absent.
 - isCompleteMeal: "Comida completa: Sí/No" or "Complete meal: Yes/No" → true/false. Default false if absent.
-- cookingLevel: "Nivel de cocina: beginner" or "Cooking level: beginner" → "beginner". Values: beginner, intermediate, advanced. Null if absent.
+- cookingLevel: "Nivel de cocina: beginner" or "Cooking level: beginner" → "beginner". Values: beginner, intermediate, experienced. Null if absent. (Use "experienced" — NOT "advanced" — for the highest skill tier.)
 - leftoversFriendly: "Apto para sobras: Sí/No" or "Good for leftovers: Yes/No" → true/false. Null if absent.
 - maxHouseholdSizeSupported: "Porciones máximas: 6" or "Max servings: 6" → 6 (integer). Null if absent.
 - batchFriendly: "Batch cooking: Sí/No" or "Batch cooking: Yes/No" → true/false. Null if absent.
