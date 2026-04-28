@@ -11,6 +11,7 @@ import { RecipeCard, UserContext } from "../irmixy-schemas.ts";
 import { embed } from "../ai-gateway/index.ts";
 import type { CostContext } from "../ai-gateway/types.ts";
 import { pickTranslation } from "../locale-utils.ts";
+import { normalizeTagSlug } from "../tag-slug.ts";
 import { wordStartMatch } from "../text-utils.ts";
 
 // ============================================================
@@ -57,6 +58,7 @@ interface TranslationRow {
 
 interface RecipeTagJoin {
   recipe_tags: {
+    slug: string | null;
     recipe_tag_translations: TranslationRow[];
     categories: string[];
   } | null;
@@ -250,14 +252,24 @@ function computeMetadataScore(
  * Compute personalization score based on user cuisine preferences.
  */
 function computePersonalizationScore(
-  tagNames: string[],
+  tagSlugs: string[],
   userContext: UserContext,
 ): number {
-  if (userContext.cuisinePreferences.length === 0) return 0.5;
+  if (
+    userContext.cuisinePreferences.length === 0 &&
+    userContext.dietTypes.length === 0
+  ) {
+    return 0.5;
+  }
 
-  const cuisineTags = tagNames.map((t) => t.toLowerCase());
   for (const pref of userContext.cuisinePreferences) {
-    if (cuisineTags.some((t) => t.includes(pref.toLowerCase()))) {
+    if (tagSlugs.includes(pref)) {
+      return 1.0;
+    }
+  }
+
+  for (const pref of userContext.dietTypes) {
+    if (tagSlugs.includes(pref)) {
       return 1.0;
     }
   }
@@ -341,7 +353,7 @@ export async function searchRecipesHybrid(
       total_time,
       difficulty,
       portions,
-      recipe_to_tag ( recipe_tags ( recipe_tag_translations ( locale, name ), categories ) )
+      recipe_to_tag ( recipe_tags ( slug, recipe_tag_translations ( locale, name ), categories ) )
     `)
     .in("id", recipeIds)
     .eq("is_published", true);
@@ -358,7 +370,19 @@ export async function searchRecipesHybrid(
     };
   }
 
-  const recipes = recipesData as unknown as RecipeRow[];
+  let recipes = recipesData as unknown as RecipeRow[];
+
+  if (filters.cuisine) {
+    const cuisineSlug = await normalizeTagSlug(filters.cuisine, supabase);
+    recipes = recipes.filter((recipe) =>
+      (recipe.recipe_to_tag || []).some((join) => {
+        const tag = join.recipe_tags;
+        return !!tag &&
+          (tag.categories || []).includes("cuisine") &&
+          tag.slug === cuisineSlug;
+      })
+    );
+  }
 
   // Build semantic score map
   const semanticScoreMap = new Map(
@@ -383,12 +407,15 @@ export async function searchRecipesHybrid(
         return tagMatch?.name || "";
       })
       .filter(Boolean);
+    const tagSlugs = (recipe.recipe_to_tag || [])
+      .map((join) => join.recipe_tags?.slug)
+      .filter((slug): slug is string => !!slug);
 
     const semanticScore = semanticScoreMap.get(recipe.id) || 0;
     const lexicalScore = query ? computeLexicalScore(name, tagNames, query) : 0;
     const metadataScore = computeMetadataScore(recipe, filters);
     const personalizationScore = computePersonalizationScore(
-      tagNames,
+      tagSlugs,
       userContext,
     );
 

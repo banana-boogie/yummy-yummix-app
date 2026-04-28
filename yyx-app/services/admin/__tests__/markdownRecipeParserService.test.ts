@@ -389,10 +389,7 @@ describe('MarkdownRecipeParserService', () => {
     });
 
     it('maps inferred mealTypes to existing meal_type category tags', async () => {
-      // Tags carry the canonical `meal_type` enum value after the
-      // tag_system_rebuild migration (20260427022448). Earlier seeds
-      // ("Meal Type", "mealtype") relied on a regex that never actually
-      // matched the snake_case enum, so updating to the literal value here.
+      // Extend mock tags with meal_type-categorized tags
       mockGetAllTags.mockResolvedValue([
         ...mockTags,
         {

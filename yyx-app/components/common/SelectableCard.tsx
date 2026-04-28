@@ -8,7 +8,7 @@ interface SelectableCardProps {
   selected: boolean;
   onPress: () => void;
   label: string;
-  icon?: ImageSource;
+  icon?: ImageSource | number;
   className?: string; // Add className support
   style?: ViewStyle;
 }

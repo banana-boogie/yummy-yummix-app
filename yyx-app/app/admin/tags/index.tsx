@@ -5,13 +5,13 @@ import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
 import { TextInput } from '@/components/form/TextInput';
 import { AlertModal } from '@/components/common/AlertModal';
-import { adminRecipeTagService } from '@/services/admin/adminRecipeTagService';
+import { CANONICAL_TAG_CATEGORIES, adminRecipeTagService } from '@/services/admin/adminRecipeTagService';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
 import { TagEditModal } from '@/components/admin/tags/TagEditModal';
 import i18n from '@/i18n';
 import { AdminRecipeTag, getTranslatedField } from '@/types/recipe.admin.types';
-import { formatCategoryNameToTitleCase } from '@/utils/formatters';
+import { formatCategoryForDisplay } from '@/utils/formatters';
 import { useDevice } from '@/hooks/useDevice';
 import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
 import logger from '@/services/logger';
@@ -26,8 +26,6 @@ export default function AdminTags() {
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [selectedTag, setSelectedTag] = useState<AdminRecipeTag | null>();
   const [isNewTag, setIsNewTag] = useState(false);
-  const [newCategoryModalVisible, setNewCategoryModalVisible] = useState(false);
-  const [newCategory, setNewCategory] = useState('');
   const [displayLocale, setDisplayLocale] = useState(i18n.locale);
 
   useEffect(() => {
@@ -43,7 +41,11 @@ export default function AdminTags() {
         tags.filter(tag => {
           const name = getTranslatedField(tag.translations, displayLocale, 'name');
           return name.toLowerCase().includes(query) ||
-            (tag.categories && tag.categories.some(category => category.toLowerCase().includes(query)));
+            (tag.slug?.toLowerCase().includes(query) ?? false) ||
+            (tag.categories && tag.categories.some(category =>
+              formatCategoryForDisplay(category).toLowerCase().includes(query) ||
+              category.toLowerCase().includes(query)
+            ));
         })
       );
     }
@@ -53,10 +55,6 @@ export default function AdminTags() {
     setIsLoading(true);
     try {
       const tagData = await adminRecipeTagService.getAllTags();
-      tagData.forEach(tag => {
-        tag.categories = tag.categories.map(formatCategoryNameToTitleCase);
-      });
-
       setTags(tagData);
       setFilteredTags(tagData);
     } catch (error) {
@@ -113,24 +111,6 @@ export default function AdminTags() {
     }
   };
 
-  const handleAddNewCategory = () => {
-    setNewCategory('');
-    setNewCategoryModalVisible(true);
-  };
-
-  const handleSaveCategory = async () => {
-    if (!newCategory.trim()) return;
-
-    try {
-      await adminRecipeTagService.createCategory(newCategory.trim());
-      setNewCategoryModalVisible(false);
-      setNewCategory('');
-      fetchTags();
-    } catch (error) {
-      logger.error('Failed to create category:', error);
-    }
-  };
-
   // Mobile tag card - vertical layout
   const renderMobileTagCard = ({ item }: { item: AdminRecipeTag }) => (
     <View
@@ -149,6 +129,7 @@ export default function AdminTags() {
       {/* Name */}
       <View className="mb-sm">
         <Text preset="body" className="font-semibold">{getTranslatedField(item.translations, displayLocale, 'name')}</Text>
+        <Text preset="caption" color={COLORS.text.secondary}>{item.slug}</Text>
       </View>
 
       {/* Categories */}
@@ -159,7 +140,7 @@ export default function AdminTags() {
               key={`${item.id}-${category}-${index}`}
               className="py-xs px-sm rounded-full bg-primary-light"
             >
-              <Text preset="caption" color={COLORS.text.secondary}>{category}</Text>
+              <Text preset="caption" color={COLORS.text.secondary}>{formatCategoryForDisplay(category)}</Text>
             </View>
           ))}
         </View>
@@ -202,8 +183,11 @@ export default function AdminTags() {
         alignItems: 'center'
       }}
     >
-      <View className="w-[300px] pr-md">
+      <View className="w-[260px] pr-md">
         <Text preset="body">{getTranslatedField(item.translations, displayLocale, 'name')}</Text>
+      </View>
+      <View className="w-[220px] pr-md">
+        <Text preset="caption" color={COLORS.text.secondary}>{item.slug}</Text>
       </View>
       <View className="flex-1 flex-row flex-wrap gap-xs">
         {item.categories && item.categories.map((category, index) => (
@@ -211,7 +195,7 @@ export default function AdminTags() {
             key={`${item.id}-${category}-${index}`}
             className="py-xs px-sm rounded-full bg-primary-light"
           >
-            <Text preset="caption" color={COLORS.text.secondary}>{category}</Text>
+            <Text preset="caption" color={COLORS.text.secondary}>{formatCategoryForDisplay(category)}</Text>
           </View>
         ))}
       </View>
@@ -252,13 +236,6 @@ export default function AdminTags() {
           <View className={`flex-row ${isPhone ? 'justify-between' : ''} gap-sm`}>
             <Button
               size="small"
-              variant="outline"
-              label={isPhone ? 'Category' : i18n.t('admin.tags.addNewCategory')}
-              onPress={handleAddNewCategory}
-              icon={<Ionicons name="add-circle-outline" size={14} color={COLORS.text.default} />}
-            />
-            <Button
-              size="small"
               label={isPhone ? 'Tag' : i18n.t('admin.tags.addNew')}
               onPress={handleAddNewTag}
               icon={<Ionicons name="add" size={18} color={COLORS.neutral.white} />}
@@ -271,6 +248,9 @@ export default function AdminTags() {
           <View className="flex-row items-center p-md bg-primary-light rounded-lg mb-sm">
             <View className="w-[300px] pr-md">
               <Text fontWeight="600">{i18n.t('admin.tags.name')}</Text>
+            </View>
+            <View className="w-[220px] pr-md">
+              <Text fontWeight="600">{i18n.t('admin.tags.slug')}</Text>
             </View>
             <View className="flex-1">
               <Text fontWeight="600">{i18n.t('admin.tags.categories')}</Text>
@@ -307,6 +287,7 @@ export default function AdminTags() {
         visible={editModalVisible}
         tag={selectedTag}
         isNew={isNewTag}
+        categories={[...CANONICAL_TAG_CATEGORIES]}
         onClose={() => setEditModalVisible(false)}
         onSave={handleSaveTag}
       />
@@ -323,24 +304,6 @@ export default function AdminTags() {
         isDestructive={true}
       />
 
-      {/* New Category Modal */}
-      <AlertModal
-        visible={newCategoryModalVisible}
-        title={i18n.t('admin.tags.newCategoryTitle')}
-        message={
-          <View className="my-md w-full">
-            <TextInput
-              value={newCategory}
-              onChangeText={setNewCategory}
-              autoFocus
-            />
-          </View>
-        }
-        confirmText={i18n.t('common.save')}
-        cancelText={i18n.t('common.cancel')}
-        onConfirm={handleSaveCategory}
-        onCancel={() => setNewCategoryModalVisible(false)}
-      />
     </AdminLayout>
   );
 }

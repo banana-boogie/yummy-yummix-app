@@ -1,5 +1,5 @@
 import { Recipe, RecipeIngredient, MeasurementUnit, RecipeTag, RecipeStep, RecipeKitchenTool } from '@/types/recipe.types';
-import { ThermomixSettings, ThermomixSpeed, ThermomixTemperature } from '@/types/thermomix.types';
+import { ThermomixCookingMode, ThermomixSettings, ThermomixSpeed, ThermomixTemperature } from '@/types/thermomix.types';
 import {
   RawRecipeIngredient, RawMeasurementUnit, RawRecipeTag, RawRecipeStep, RawRecipe, RawRecipeKitchenTool,
 } from '@/types/recipe.api.types';
@@ -81,6 +81,7 @@ export function createRecipeTransformer(measurementSystem: 'metric' | 'imperial'
           const translation = pickTranslation(t.recipe_tags.translations);
           return {
             id: t.recipe_tags.id,
+            slug: t.recipe_tags.slug,
             name: translation?.name ?? '',
             categories: t.recipe_tags.categories
           };
@@ -135,7 +136,7 @@ export function createRecipeTransformer(measurementSystem: 'metric' | 'imperial'
             temperature: temperature,
             temperatureUnit: measurementSystem === 'imperial' ? 'F' : 'C',
             isBladeReversed: recipeStep.thermomix_is_blade_reversed || null,
-            mode: recipeStep.thermomix_mode || null,
+            mode: (recipeStep.thermomix_mode || null) as ThermomixCookingMode,
           };
         }
 

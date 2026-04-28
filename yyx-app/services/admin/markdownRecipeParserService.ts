@@ -43,7 +43,10 @@ const matchTag = (tagName: string, allTags: AdminRecipeTag[]): AdminRecipeTag | 
   const match = allTags.find(tag => {
     const tagNameEn = getTranslatedField(tag.translations, 'en', 'name');
     const tagNameEs = getTranslatedField(tag.translations, 'es', 'name');
-    return tagNameEn.toLowerCase() === normalizedTagName.toLowerCase() ||
+    const tagSlug = tag.slug ?? '';
+    const normalizedSlug = normalizedTagName.toLowerCase().replace(/[\s-]+/g, '_');
+    return tagSlug === normalizedSlug ||
+      tagNameEn.toLowerCase() === normalizedTagName.toLowerCase() ||
       tagNameEs.toLowerCase() === normalizedTagName.toLowerCase();
   });
 
@@ -234,25 +237,21 @@ export const parseRecipeMarkdown = async (markdown: string): Promise<ParseRecipe
     const { tags, missingTags } = processTags(data.tags, allTags);
 
     // Resolve inferred meal-type values against existing meal_type tags.
-    // The `tag_system_rebuild` migration (20260427022448) made "meal_type"
-    // the canonical recipe_tag_category enum value; the previous regex
-    // `/meal\s*type/i` did not match the underscore, so it was silently
-    // broken against both the old and new enum casings.
-    // Case-insensitive match against tag names; silently skip values with
-    // no matching tag (do NOT invent tags — same rule as the main tag
-    // pipeline).
-    const MEAL_TYPE_CATEGORY = "meal_type";
+    // Slug/name match; silently skip values with no matching tag
+    // (do NOT invent tags — same rule as the main tag pipeline).
     const mealTypeValues: string[] = Array.isArray(data.mealTypes) ? data.mealTypes : [];
     if (mealTypeValues.length > 0) {
       const mealTypeTags = (allTags as AdminRecipeTag[]).filter(t =>
-        (t.categories || []).includes(MEAL_TYPE_CATEGORY)
+        (t.categories || []).includes('meal_type')
       );
       const existingIds = new Set(tags.map(t => t.id));
       for (const value of mealTypeValues) {
+        const valueSlug = value.toLowerCase().replace(/[\s-]+/g, '_');
         const match = mealTypeTags.find(t => {
           const nameEn = getTranslatedField(t.translations, 'en', 'name');
           const nameEs = getTranslatedField(t.translations, 'es', 'name');
           return (
+            t.slug === valueSlug ||
             nameEn.toLowerCase() === value.toLowerCase() ||
             nameEs.toLowerCase() === value.toLowerCase()
           );
@@ -283,4 +282,4 @@ export const parseRecipeMarkdown = async (markdown: string): Promise<ParseRecipe
   } catch (error) {
     throw new Error(`Failed to parse recipe: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
-}; 
+};

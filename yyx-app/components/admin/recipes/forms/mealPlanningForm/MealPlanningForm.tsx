@@ -37,14 +37,6 @@ import { ToggleCard } from "./ToggleCard";
 import { VerificationCard } from "./VerificationCard";
 import { PairingsSection } from "./PairingsSection";
 
-// Canonical recipe_tag_category enum value. The `tag_system_rebuild`
-// migration (20260427022448) lowercased the enum from SCREAMING_CASE
-// (`MEAL_TYPE`) to snake_case (`meal_type`). The previous regex
-// `/meal\s*type/i` never matched underscores so it was silently broken
-// against both casings — comparing against the canonical literal is
-// strict and correct.
-const MEAL_TYPE_CATEGORY = "meal_type";
-
 interface MealPlanningFormProps {
   recipe: Partial<AdminRecipe>;
   onUpdateRecipe: (updates: Partial<AdminRecipe>) => void;
@@ -135,7 +127,7 @@ export function MealPlanningForm({
   const mealTypeTags = useMemo(
     () =>
       allTags.filter((t) =>
-        (t.categories || []).includes(MEAL_TYPE_CATEGORY),
+        (t.categories || []).includes("meal_type"),
       ),
     [allTags],
   );

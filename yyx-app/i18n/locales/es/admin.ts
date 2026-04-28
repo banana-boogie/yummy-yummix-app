@@ -555,7 +555,7 @@ export const admin = {
           tooltip:
             "¿Cuándo se puede comer esto? La mayoría de los platos fuertes funcionan tanto para la comida como para la cena.",
           empty:
-            "No se encontraron etiquetas de tiempo de comida. Crea etiquetas bajo la categoría 'Meal Type' para habilitar esto.",
+            "No se encontraron etiquetas de tiempo de comida. Crea etiquetas bajo la categoría 'Tipo de Comida' para habilitar esto.",
           emptyTitle: "Aún no hay etiquetas de tipo de comida",
           createCta: "Abrir administración de etiquetas",
           loadError: "No se pudieron cargar las etiquetas. Reintentar.",
@@ -769,8 +769,10 @@ export const admin = {
   },
   tags: {
     name: "Nombre",
+    slug: "Slug",
     searchPlaceholder: "Buscar etiquetas...",
     addNew: "Agregar Etiqueta",
+    createTag: "Crear Etiqueta",
     createTitle: "Crear Nueva Etiqueta",
     editTitle: "Editar Etiqueta",
     englishName: "Nombre en Inglés",
@@ -792,6 +794,19 @@ export const admin = {
     newCategoryTitle: "Agregar Nueva Categoría",
     categoryNamePlaceholder: "Ingrese nombre de categoría",
     categoryCreated: "Categoría creada exitosamente",
+    categoryLabels: {
+      cuisine: "Cocina",
+      meal_type: "Tipo de Comida",
+      diet: "Dieta",
+      dish_type: "Tipo de Plato",
+      primary_ingredient: "Ingrediente Principal",
+      occasion: "Ocasión",
+      practical: "Práctico",
+    },
+    errors: {
+      loadCategoriesFailed: "No se pudieron cargar las categorías de etiquetas",
+      slugInvalid: "Usa lower_snake_case",
+    },
   },
   kitchenTools: {
     title: "Administrar Utensilios de Cocina",

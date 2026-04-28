@@ -25,6 +25,7 @@ import { normalizeIngredient } from "../ingredient-normalization.ts";
 import { searchRecipesHybrid } from "../rag/hybrid-search.ts";
 import { validateSearchRecipesParams } from "./tool-validators.ts";
 import { getBaseLanguage, pickTranslation } from "../locale-utils.ts";
+import { normalizeTagSlug } from "../tag-slug.ts";
 import { wordStartMatch } from "../text-utils.ts";
 
 // ============================================================
@@ -50,6 +51,7 @@ interface TranslationRow {
 
 interface RecipeTagJoin {
   recipe_tags: {
+    slug: string | null;
     recipe_tag_translations: TranslationRow[];
     categories: string[];
   } | null;
@@ -256,7 +258,7 @@ export async function searchRecipes(
       total_time,
       difficulty,
       portions,
-      recipe_to_tag ( recipe_tags ( recipe_tag_translations ( locale, name ), categories ) )
+      recipe_to_tag ( recipe_tags ( slug, recipe_tag_translations ( locale, name ), categories ) )
     `)
     .eq("is_published", true)
     .order("created_at", { ascending: false });
@@ -344,7 +346,8 @@ export async function searchRecipes(
   // Filter by cuisine if specified (in-memory using tags)
   let filtered: RecipeSearchResult[] = results;
   if (params.cuisine) {
-    filtered = filterByCuisine(
+    filtered = await filterByCuisine(
+      supabase,
       results,
       params.cuisine,
       userContext.localeChain,
@@ -562,7 +565,7 @@ async function searchByTags(
       total_time,
       difficulty,
       portions,
-      recipe_to_tag ( recipe_tags ( recipe_tag_translations ( locale, name ), categories ) )
+      recipe_to_tag ( recipe_tags ( slug, recipe_tag_translations ( locale, name ), categories ) )
     `)
     .in("id", recipeIds)
     .eq("is_published", true);
@@ -608,19 +611,15 @@ export function filterByAllKeywords(
 }
 
 /**
- * Filter recipes by cuisine using tags (`cuisine` category).
- *
- * The `tag_system_rebuild` migration (20260427022448) lowercased the
- * recipe_tag_category enum: CULTURAL_CUISINE → cuisine. Anything still
- * comparing against the old SCREAMING_CASE value silently returns zero
- * matches in production.
+ * Filter recipes by cuisine using canonical cuisine tag slugs.
  */
-function filterByCuisine(
+async function filterByCuisine(
+  supabase: SupabaseClient,
   data: RecipeSearchResult[],
   cuisine: string,
-  localeChain: string[],
-): RecipeSearchResult[] {
-  const cuisineLower = cuisine.toLowerCase();
+  _localeChain: string[],
+): Promise<RecipeSearchResult[]> {
+  const cuisineSlug = await normalizeTagSlug(cuisine, supabase);
 
   return data.filter((recipe) => {
     if (!recipe.recipe_to_tag || recipe.recipe_to_tag.length === 0) {
@@ -635,12 +634,7 @@ function filterByCuisine(
         return false;
       }
 
-      // Check if the cuisine matches using any available translation
-      const tagName = resolveTagName(
-        tag.recipe_tag_translations || [],
-        localeChain,
-      );
-      return tagName.toLowerCase().includes(cuisineLower);
+      return tag.slug === cuisineSlug;
     });
   });
 }
