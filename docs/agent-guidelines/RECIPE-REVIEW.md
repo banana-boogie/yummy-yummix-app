@@ -51,6 +51,7 @@ The reviewer's job: produce a YAML config at `yyx-server/data-pipeline/data/reci
 - **Plausible Thermomix speeds.** Speed 1.5 for sautéing — fine. Speed 4.5 for sautéing — wrong, that's a blender speed. Speed 11 — invalid (max is 10 in numeric, plus `'spoon'`).
 - **Equipment choices appropriate.** Varoma cycle for raw shrimp is suspicious if longer than 10 minutes. Oven called for a no-bake dessert is wrong. Thermomix called when the recipe is purely assembly is overkill.
 - **Ingredient list completeness vs step narrative.** Step says "add the cilantro garnish" but cilantro isn't in `recipe_ingredients`. Step says "deglaze with white wine" but wine isn't listed.
+- **Diet-tag attestation must match user-visible content.** Exclusion-style diet tags (`vegan`, `vegetarian`, `gluten_free`, `pescatarian`) are promises to the user, not loose categorization. Whenever you add or keep one of these tags, audit the recipe's description, `tips_and_tricks`, ingredient list, and step instructions for items that violate the promise. Examples that ship as bugs if missed: `vegan` recipe whose tips suggest feta as a default garnish; `gluten_free` recipe whose description says "serve with bread"; `vegetarian` recipe whose ingredients list anchovies in the dressing. If you find a contradiction: rewrite the offending content (preferred — surface a plant-based alt alongside the existing suggestion) or drop the tag. Never ship the contradiction.
 
 ---
 
