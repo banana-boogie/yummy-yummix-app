@@ -68,8 +68,9 @@ roles:
       - docs/agent-guidelines/FRONTEND-GUIDELINES.md
     rules:
       - "Read DESIGN-GUIDELINES.md for brand identity, target audience, and design system"
-      - "Two personas: Sofía (35-45, tech-comfortable) and Lupita (55+, technologically challenged — the majority). Lupita is the design constraint."
-      - "Lupita-first design: large text, obvious navigation, guided flows, no 'figure it out yourself.' If she's confused, she leaves."
+      - "Avatar strategy: Sell to Sofía (35–50, the buyer — paying user, weekly-planning pain, tech-comfortable). Design for Lupita (55+, the constraint — tech-anxious, accessibility tester, not the buyer)."
+      - "Apply the two-gates rule to every spec: (1) Sofía gate — does this make the buyer pay more, retain longer, or refer more? (2) Lupita gate — can the constraint user complete it without help (44px+ targets, no self-discovery, readable text)? Both gates must pass."
+      - "Lupita-first execution constraints: large text, obvious navigation, guided flows, no 'figure it out yourself.' She abandons what she can't immediately complete."
       - "Spanish-first — layouts must accommodate longer strings naturally."
       - "Confidence, not confusion — every screen should build confidence and feel approachable."
       - "Design for Thermomix owners — warm, approachable, kitchen-friendly, not corporate"

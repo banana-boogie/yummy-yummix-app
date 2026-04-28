@@ -6,29 +6,19 @@ Domain playbook for UI/UX design in YummyYummix — grounded in the brand, the a
 
 ## Who We're Designing For
 
-### Two Personas
+### Avatar Strategy: Sell to Sofía, Design for Lupita
 
-**Sofía — The Busy Professional (35-45)**
-- Tech-comfortable, grew up with apps
-- Fairly new to Thermomix — uses it for efficiency
-- Both parents work; she manages the kitchen for the family
-- Wants quick answers: "What can I make with what I have?"
-- Core need: **"Make dinner happen without the stress"**
-- Design for her: efficiency-focused, quick access, can handle more features but still values simplicity
+**Sofía (35–50) — the buyer.** Mexican Thermomix owner who runs the household's weekly food decisions. Acute weekly-planning pain; pays 149 MXN/mo; tech-comfortable; matches the founder's own use case. Defined by job-to-be-done, not demographic. She's why the product gets paid for.
 
-**Lupita — The Experienced Home Cook (55+) — THE MAJORITY**
-- Has more time to explore recipes she never had time for
-- Loves her Thermomix for what it makes easier — dough, cookies, desserts
-- Social — hosts friends, attends cooking workshops
-- **The bigger segment** of Thermomix users
-- **Technologically challenged** — needs help logging into email, that level
-- If something requires self-guided discovery, she abandons it
-- Core need: **"Help me explore and enjoy cooking without tech frustration"**
-- Design for her: large touch targets, clear labels, no hidden features, guided flows, simple navigation, large readable text, minimal cognitive load. **Voice chat (Irmixy) as the primary interface — talk, don't navigate.**
+**Lupita (55+) — the design constraint, not the buyer.** Tech-anxious experienced cook. Pain is execution and tech-anxiety, not weekly planning. Subscription willingness is weaker than Sofía's. Included in beta only as 3–5 usability/accessibility testers. She's how we keep the product humane. **Voice chat (Irmixy) is the primary accommodation — talk, don't navigate.**
 
-### Design Constraint: Lupita First
+### The Two Gates
 
-Lupita is the critical design constraint. She's the bigger segment, and if the app works for her, it works for everyone. Sofía will tolerate a slightly rough edge; Lupita will not.
+Every UI decision must pass both:
+- **Sofía gate** — will the buyer pay more, retain longer, or refer more after this change?
+- **Lupita gate** — can the constraint user complete it without help (44px+ targets, no self-discovery, large readable text)?
+
+If a change passes the Sofía gate but fails the Lupita gate, redesign until both pass. If it passes the Lupita gate but adds nothing for Sofía, ask whether it's worth shipping.
 
 ### Design Implications
 
@@ -36,10 +26,9 @@ Lupita is the critical design constraint. She's the bigger segment, and if the a
 - **Warmth over clinical** — The warm peach palette and rounded shapes create a kitchen-friendly feel
 - **Confidence over complexity** — Clear instructions, visible Thermomix parameters, reassuring feedback
 - **Personal over generic** — Handwritten font touches, personalized recommendations, dietary awareness
-- **Guided over self-discovery** — If a user has to figure something out alone, we've failed the majority segment
+- **Guided over self-discovery** — If a user has to figure something out alone, we've failed the Lupita gate
 - **Spanish-first** — Layouts must accommodate 20-30% longer strings naturally. Mexico is the primary market.
-- **Accessible to all ages** — Text sizes, contrast, and touch targets must work for the 55+ segment
-- **Lupita-first design** — Design for the technologically challenged majority; Sofía benefits naturally
+- **Accessible to all ages** — Text sizes, contrast, and touch targets must work for the 55+ constraint user
 
 ---
 
@@ -297,5 +286,5 @@ Layouts should feel intentional and alive, not like a stack of rectangles.
 4. **Hierarchy first** — Before choosing colors or fonts, establish what the user should see first, second, third.
 5. **Kitchen context** — Users may have flour on their hands, a timer beeping, kids asking questions. Design for distraction and imperfect attention.
 6. **Confidence, not confusion** — Every screen should build confidence. No jargon without explanation. Progressive disclosure. If the user is confused, we've failed.
-7. **Guided, not guessed** — The majority of our users (Lupita) won't explore on their own. Guide them explicitly through every flow. If it requires self-guided discovery, forget about it.
+7. **Guided, not guessed** — Lupita won't explore on her own. Guide users explicitly through every flow. If it requires self-guided discovery, it fails the Lupita gate.
 8. **Polished, not generic** — Every screen should feel crafted, not assembled from defaults. If a screen looks like it could belong to any app, it needs more brand personality.
