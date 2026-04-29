@@ -65,6 +65,67 @@ Deno.test('hasRecipeContent returns true even with blank lines before ingredient
   assertEquals(hasRecipeContent(content), true);
 });
 
+Deno.test('hasRecipeContent returns true for English ### Ingredients section', () => {
+  const content = `# Recipe Name
+
+### Ingredients
+
+- 2 cups flour
+- 1 cup milk
+
+### Steps
+`;
+  assertEquals(hasRecipeContent(content), true);
+});
+
+Deno.test('hasRecipeContent returns false for empty English Ingredients section', () => {
+  const content = `# Recipe Name
+
+### Ingredients
+
+-
+
+### Steps
+`;
+  assertEquals(hasRecipeContent(content), false);
+});
+
+Deno.test('hasRecipeContent matches ## Ingredients heading level', () => {
+  const content = `# Recipe Name
+
+## Ingredients
+
+- 1 cup flour
+
+## Steps
+`;
+  assertEquals(hasRecipeContent(content), true);
+});
+
+Deno.test('hasRecipeContent matches #### Ingredientes heading level', () => {
+  const content = `# Recipe Name
+
+#### Ingredientes
+
+- 250 g harina
+
+#### Procedimiento
+`;
+  assertEquals(hasRecipeContent(content), true);
+});
+
+Deno.test('hasRecipeContent matches case-insensitive heading', () => {
+  const content = `# Recipe Name
+
+### ingredients
+
+- 1 onion
+
+### steps
+`;
+  assertEquals(hasRecipeContent(content), true);
+});
+
 // ─── buildRecipeSteps ────────────────────────────────────
 
 function makeStep(overrides: Partial<ParsedRecipeData['steps'][number]>): ParsedRecipeData['steps'][number] {
@@ -77,6 +138,8 @@ function makeStep(overrides: Partial<ParsedRecipeData['steps'][number]>): Parsed
     thermomixTemperatureUnit: null,
     thermomixSpeed: null,
     thermomixIsBladeReversed: null,
+    thermomixMode: null,
+    timerSeconds: null,
     ingredients: [],
     tipEn: '',
     tipEs: '',
@@ -100,6 +163,14 @@ function makeParsed(steps: ParsedRecipeData['steps']): ParsedRecipeData {
     ingredients: [],
     steps,
     tags: [],
+    plannerRole: null,
+    equipmentTags: [],
+    mealComponents: [],
+    isCompleteMeal: false,
+    cookingLevel: null,
+    leftoversFriendly: null,
+    maxHouseholdSizeSupported: null,
+    batchFriendly: null,
   };
 }
 

@@ -1,8 +1,14 @@
 /**
  * Recipe Parser
  *
- * Parses bilingual recipe markdown using OpenAI gpt-4.1-mini with structured output.
- * Uses the same JSON schema as the admin-ai-recipe-import edge function.
+ * Parses bilingual recipe markdown into ParsedRecipeData using OpenAI gpt-4.1-mini
+ * with structured output. Source-agnostic: accepts markdown from Notion exports,
+ * AI-generated content, hand-written files, or web scrapes — extracts what's
+ * present and leaves optional fields null/empty when absent.
+ *
+ * ParsedRecipeData is the format-agnostic boundary between source and pipeline:
+ * everything downstream (entity resolution, DB writes, Spain adaptation) consumes
+ * this shape and doesn't care where it came from.
  */
 
 import { Logger } from './logger.ts';
@@ -92,6 +98,56 @@ const measurementUnitEnum = [
   'tsp',
   'unit',
 ];
+
+// ─── Meal-planning enums (single source for JSON schema + validator) ───
+//
+// These MUST match the canonical contracts — DB CHECK constraints in
+// supabase/migrations/ and the typed unions in yyx-app/types/recipe.types.ts
+// — or rows will fail to insert. Cross-reference:
+//   - planner_role:    20260415120000_recipe_role_model_extension.sql:112
+//   - meal_components: 20260415120000_recipe_role_model_extension.sql:94
+//   - cooking_level:   20260410000001_add_meal_plans.sql:495
+//   - equipment_tags:  yyx-app/types/recipe.types.ts:72 (no DB CHECK; frontend type is canonical)
+// Adding/changing a value here requires updating those contracts too.
+
+const PLANNER_ROLES = [
+  'main',
+  'side',
+  'dessert',
+  'beverage',
+  'snack',
+  'condiment',
+  'pantry',
+] as const;
+type PlannerRole = (typeof PLANNER_ROLES)[number];
+
+const EQUIPMENT_TAGS = ['thermomix', 'air_fryer', 'oven', 'stovetop', 'none'] as const;
+type EquipmentTag = (typeof EQUIPMENT_TAGS)[number];
+
+const MEAL_COMPONENTS = ['protein', 'carb', 'veg'] as const;
+type MealComponent = (typeof MEAL_COMPONENTS)[number];
+
+const COOKING_LEVELS = ['beginner', 'intermediate', 'experienced'] as const;
+type CookingLevel = (typeof COOKING_LEVELS)[number];
+
+// Step-level thermomix_mode values the pipeline writes. Aligned with migration
+// 20260318035215_add_thermomix_mode and yyx-app/types/thermomix.types.ts.
+//
+// We intentionally only list modes the parser can detect from natural step
+// text. The other migration-defined modes (slow_cook, rice_cooker, sous_vide,
+// fermentation, browning, dough, turbo) are TM6/TM7 cooking programs the user
+// selects on the machine — they don't reliably appear in step prose, so they're
+// admin-set via /review-recipe rather than parser-extracted.
+//
+// Varoma steaming is NOT a thermomix_mode — it's signaled via
+// thermomix_temperature='Varoma' (already supported in temperatureEnum) plus
+// the "Varoma Container" kitchen tool.
+const THERMOMIX_MODES = ['open_cooking'] as const;
+type ThermomixMode = (typeof THERMOMIX_MODES)[number];
+
+function isInArray<T extends string>(value: unknown, arr: readonly T[]): value is T {
+  return typeof value === 'string' && (arr as readonly string[]).includes(value);
+}
 
 /** JSON Schema for OpenAI structured output - mirrors edge function */
 const recipeJsonSchema = {
@@ -238,21 +294,25 @@ const recipeJsonSchema = {
             instructionEs: { type: 'string', description: 'Full instruction text in Spanish.' },
             thermomixTime: {
               type: ['number', 'null'],
-              description: 'Time in seconds, extracted from thermomix patterns.',
+              description:
+                'Time in seconds extracted from inline Thermomix patterns. ONLY set when equipmentTags includes "thermomix"; otherwise null (route the duration to timerSeconds instead).',
             },
             thermomixTemperature: {
               type: ['number', 'string', 'null'],
-              description: 'Temperature extracted from thermomix patterns. Null if not found.',
+              description:
+                'Temperature extracted from inline Thermomix patterns. ONLY set when equipmentTags includes "thermomix"; otherwise null (oven/air-fryer temperatures do NOT belong here).',
               enum: temperatureEnum,
             },
             thermomixTemperatureUnit: {
               type: ['string', 'null'],
-              description: 'Temperature unit in C or F, if it exists, null otherwise',
+              description:
+                'Temperature unit in C or F. ONLY set when equipmentTags includes "thermomix" and a Thermomix temperature was extracted; otherwise null.',
               enum: ['C', 'F', null],
             },
             thermomixSpeed: {
               type: ['object', 'null'],
-              description: 'Speed section extracted from thermomix patterns.',
+              description:
+                'Speed section extracted from inline Thermomix patterns. ONLY set when equipmentTags includes "thermomix"; otherwise null.',
               properties: {
                 type: {
                   type: 'string',
@@ -280,7 +340,8 @@ const recipeJsonSchema = {
             },
             thermomixIsBladeReversed: {
               type: ['boolean', 'null'],
-              description: 'Reverse blade extracted from thermomix patterns.',
+              description:
+                'Reverse blade flag extracted from inline Thermomix patterns ("giro a la izquierda"). ONLY set when equipmentTags includes "thermomix"; otherwise null.',
             },
             ingredients: {
               type: 'array',
@@ -338,6 +399,17 @@ const recipeJsonSchema = {
               type: 'string',
               description: 'Section title in Spanish, default: Principal',
             },
+            thermomixMode: {
+              type: ['string', 'null'],
+              description:
+                'Thermomix cooking mode. ONLY set when equipmentTags includes "thermomix"; otherwise null. The only parser-detected value is "open_cooking" — set when the step explicitly indicates an open lid (Spanish: "sin tapa", "tapa abierta", "destapa", "retira la tapa"; English: "uncovered", "lid off"). Use null when uncertain or not specified. NOTE: Varoma steaming is NOT a mode here — set thermomixTemperature to "Varoma" instead, which is the canonical signal for that technique.',
+              enum: [...THERMOMIX_MODES, null],
+            },
+            timerSeconds: {
+              type: ['number', 'null'],
+              description:
+                'Duration in seconds of a timed action in this step (baking, resting, preheating, air-fryer cook time, etc.). Extract from phrases like "hornear 30 min" → 1800, "reposar 10 minutos" → 600, "Cook for 8 minutes" → 480. Set on every kind of recipe — Thermomix, oven, air-fryer, stovetop. If this step has thermomixTime set (Thermomix recipe with inline params), set timerSeconds to null instead.',
+            },
           },
           required: [
             'order',
@@ -353,6 +425,8 @@ const recipeJsonSchema = {
             'tipEs',
             'recipeSectionEn',
             'recipeSectionEs',
+            'thermomixMode',
+            'timerSeconds',
           ],
           additionalProperties: false,
         },
@@ -361,6 +435,50 @@ const recipeJsonSchema = {
         type: 'array',
         description: 'List of all tags from both English and Spanish sections.',
         items: { type: 'string', description: 'Tag name without # prefix.' },
+      },
+      plannerRole: {
+        type: ['string', 'null'],
+        description:
+          'Meal planner role. Extract from the recipe\'s aside-block planner-role field — Spanish key "Rol:" or English key "Role:". Null if not present.',
+        enum: [...PLANNER_ROLES, null],
+      },
+      equipmentTags: {
+        type: 'array',
+        description:
+          'Equipment required beyond standard cookware. Extract from the recipe\'s aside-block equipment field (comma-separated) — Spanish key "Equipo:" or English key "Equipment:". Empty array if not present.',
+        items: { type: 'string', enum: [...EQUIPMENT_TAGS] },
+      },
+      mealComponents: {
+        type: 'array',
+        description:
+          'Meal components this recipe provides. Extract from the recipe\'s aside-block components field (comma-separated) — Spanish key "Componentes:" or English key "Components:". Empty array if not present.',
+        items: { type: 'string', enum: [...MEAL_COMPONENTS] },
+      },
+      isCompleteMeal: {
+        type: 'boolean',
+        description:
+          'Whether this recipe is a complete meal on its own. Extract from the recipe\'s aside-block complete-meal field — Spanish key "Comida completa: Sí/No" or English key "Complete meal: Yes/No". Default false if not present.',
+      },
+      cookingLevel: {
+        type: ['string', 'null'],
+        description:
+          'Cooking skill level required. Extract from the recipe\'s aside-block cooking-level field — Spanish key "Nivel de cocina:" or English key "Cooking level:". Null if not present.',
+        enum: [...COOKING_LEVELS, null],
+      },
+      leftoversFriendly: {
+        type: ['boolean', 'null'],
+        description:
+          'Whether this recipe keeps well as leftovers. Extract from the recipe\'s aside-block leftovers field — Spanish key "Apto para sobras: Sí/No" or English key "Good for leftovers: Yes/No". Null if not present.',
+      },
+      maxHouseholdSizeSupported: {
+        type: ['number', 'null'],
+        description:
+          'Maximum household size this recipe can serve. Extract from the recipe\'s aside-block max-portions field as an integer — Spanish key "Porciones máximas:" or English key "Max servings:". Null if not present.',
+      },
+      batchFriendly: {
+        type: ['boolean', 'null'],
+        description:
+          'Whether this recipe is suitable for batch cooking (make ahead in large quantities). Extract from the recipe\'s aside-block batch-cooking field — Spanish key "Batch cooking: Sí/No" or English key "Batch cooking: Yes/No". Null if not present.',
       },
     },
     required: [
@@ -376,6 +494,14 @@ const recipeJsonSchema = {
       'ingredients',
       'steps',
       'tags',
+      'plannerRole',
+      'equipmentTags',
+      'mealComponents',
+      'isCompleteMeal',
+      'cookingLevel',
+      'leftoversFriendly',
+      'maxHouseholdSizeSupported',
+      'batchFriendly',
     ],
     additionalProperties: false,
   },
@@ -383,34 +509,37 @@ const recipeJsonSchema = {
 };
 
 const systemPrompt = `
-You are a recipe parser specializing in converting Notion-exported recipe Markdown files into structured JSON data.
+You are a recipe parser that converts recipe content into structured JSON data. The input is typically Markdown but may also be plain text, lightly-structured prose, or HTML — pulled from a variety of sources (Notion exports, AI generation, hand-written notes, web scrapes). Be permissive about structure and format — extract what's present, leave optional fields null/empty/false when absent. Never invent content.
 
-## Recipe Format
+## Recipe Identity
 
-The file starts with Notion metadata lines — IGNORE these for recipe content:
+The H1 heading (# Recipe Name) is the recipe name. It may be in Spanish OR English. Set nameEs to the Spanish name and nameEn to the English name; translate whichever is missing.
+
+## Optional Conventions (use if present, ignore if absent)
+
+Files may include a metadata header before the content with lines like:
   Recipe URL: ...
   Tags: X, Y, Z   ← USE this line for the tags field
   Status: ...      ← IGNORE
   Chat '25: ...    ← IGNORE
 
-The H1 heading (# Recipe Name) is ALWAYS the Spanish recipe name. Use it as nameEs and translate it to English for nameEn.
+Recipes may use Spanish section headings (### Ingredientes / ### Procedimiento / ### Tips / ### Kitchen tools) or English (### Ingredients / ### Steps / ### Tips). Both are valid. If a two-language layout is present (e.g., "## Receta en Español" + "## English Recipe"), use both; if one side is empty, translate from the other.
 
-Content is typically in a "## Receta en Español" section with:
-  ### Ingredientes, ### Procedimiento, ### Tips, ### Kitchen tools
-
-There may also be a "## English Recipe" section — if populated, use it; if empty, translate from Spanish.
-
-<aside> blocks are Notion formatting — extract timing/difficulty/portions if present inside them, otherwise ignore.
+Aside blocks (e.g., Notion <aside>…</aside> or Markdown blockquote callouts) commonly hold timing, difficulty, portions, and meal-planning metadata — extract from inside them when present.
 
 ## Tags
 
-Extract tags ONLY from the metadata line at the top: " Tags: X, Y, Z" or "Tags: X, Y, Z".
-Split on commas or hyphens. Do NOT include tags from "- **Tags**" lines (those are empty placeholders).
-If no "Tags:" metadata line exists, or it is empty, return an EMPTY array. Do NOT invent or infer tags.
+Extract tags ONLY from the metadata line at the top: "Tags: X, Y, Z" (with or without leading whitespace).
+Split on commas or hyphens. Do NOT include tags from "- **Tags**" placeholder lines.
+If no "Tags:" metadata line exists, or it is empty, return an EMPTY array. Do NOT invent or infer tags from content.
 
-## Thermomix Patterns (Spanish)
+## Step-Level Thermomix Parameters (Thermomix recipes only)
 
-Thermomix parameters appear inline in step text. Extract them:
+The thermomix_* step fields (thermomixTime, thermomixTemperature, thermomixTemperatureUnit, thermomixSpeed, thermomixIsBladeReversed, thermomixMode) are EXCLUSIVELY for steps executed inside a Thermomix machine.
+
+**Gate**: only populate any thermomix_* field when equipmentTags (extracted from the aside block) includes "thermomix". If equipmentTags does NOT include "thermomix", set EVERY thermomix_* field to null on EVERY step — even if the step text says "X min" or "X°C". A "Cook 8 minutes" step in an air-fryer or oven recipe is a kitchen timer, not a Thermomix run; route the duration to timerSeconds (see Step Timer below).
+
+When equipmentTags includes "thermomix", extract from inline step text:
 - Time:        "X seg" → X seconds | "X min" → X×60 seconds
 - Speed:       "vel X" where X is a number | "vel cuchara" → speed "spoon"
 - Speed range: "vel 4-8" → range from 4 to 8
@@ -426,10 +555,40 @@ Example: "licúa 20 seg/vel 4-8, aumentando la velocidad progresivamente"
 
 ## Missing Data
 
-- totalTime / prepTime: extract from aside blocks ("Tiempo total: 15 mins", etc.). Values are ALWAYS in minutes (e.g., "15 mins" → 15, "1 hora" → 60). If missing, use 0.
-- portions: extract from aside blocks ("Porciones: 4"). Must be a whole number of servings. If a weight is given instead (e.g., "200g", "1 kg"), use 4 as default. If missing, use 4.
-- difficulty: extract from aside blocks ("Nivel de dificultad: fácil" → "easy", "medio/media" → "medium", "difícil" → "hard"). If missing, use "medium".
+- totalTime / prepTime: extract from aside blocks. Spanish: "Tiempo total: 15 mins", "Tiempo de preparación: 5 mins". English: "Total time: 15 mins", "Prep time: 5 mins". Values are ALWAYS in minutes (e.g., "15 mins" → 15, "1 hora" → 60, "1 hour" → 60). If missing, use 0.
+- portions: extract from aside blocks. Spanish: "Porciones: 4". English: "Portions: 4" or "Servings: 4". Must be a whole number of servings. If a weight is given instead (e.g., "200g", "1 kg"), use 4 as default. If missing, use 4.
+- difficulty: extract from aside blocks. Spanish: "Nivel de dificultad: fácil" → "easy", "medio/media" → "medium", "difícil" → "hard". English: "Difficulty: easy/medium/hard". If missing, use "medium".
 - If English content is empty or missing, translate the Spanish content to English.
+
+## Meal Planning Metadata (from aside blocks, all optional)
+
+Extract the following if present in aside blocks. Use null / [] / false as defaults when absent.
+
+- plannerRole: "Rol: main" or "Role: main" → "main". Values: main, side, dessert, beverage, snack, condiment, pantry. Null if absent.
+- equipmentTags: "Equipo: thermomix, air_fryer" or "Equipment: thermomix, air_fryer" → ["thermomix", "air_fryer"]. Values: thermomix, air_fryer, oven, stovetop, none. [] if absent. (Use "none" only if the recipe explicitly states no special equipment is required; otherwise omit.)
+- mealComponents: "Componentes: protein, carb" or "Components: protein, carb" → ["protein", "carb"]. Values: protein, carb, veg (composition axis only — do NOT use "snack" here; snacks belong in plannerRole). [] if absent.
+- isCompleteMeal: "Comida completa: Sí/No" or "Complete meal: Yes/No" → true/false. Default false if absent.
+- cookingLevel: "Nivel de cocina: beginner" or "Cooking level: beginner" → "beginner". Values: beginner, intermediate, experienced. Null if absent. (Use "experienced" — NOT "advanced" — for the highest skill tier.)
+- leftoversFriendly: "Apto para sobras: Sí/No" or "Good for leftovers: Yes/No" → true/false. Null if absent.
+- maxHouseholdSizeSupported: "Porciones máximas: 6" or "Max servings: 6" → 6 (integer). Null if absent.
+- batchFriendly: "Batch cooking: Sí/No" or "Batch cooking: Yes/No" → true/false. Null if absent.
+
+## Thermomix Mode (Thermomix recipes only)
+
+When equipmentTags includes "thermomix", set thermomixMode per step:
+- "open_cooking" when the step explicitly indicates an open lid. Spanish: "sin tapa", "tapa abierta", "destapa", "destapado/a", "retira la tapa", "sin la tapa", "quita la tapa". English: "uncovered", "lid off", "remove the lid".
+- null when uncertain or not specified — do NOT infer from absence of a "tapa" mention.
+
+Varoma steaming is NOT a thermomixMode value. When a step uses the Varoma accessory (steam tray), signal it through thermomixTemperature: "Varoma" instead — the temperature enum supports that value and the Varoma Container is also captured separately as a kitchen tool. Leave thermomixMode null for Varoma steps.
+
+When equipmentTags does NOT include "thermomix", thermomixMode is always null.
+
+## Step Timer (all recipes)
+
+For every step, regardless of equipmentTags:
+- timerSeconds: duration in seconds for any timed action in the step. "hornear 30 min" → 1800. "reposar 10 minutos" → 600. "Cook for 8 minutes" → 480. "Preheat for 5 minutes" → 300. If multiple durations appear in one step, use the primary cook/wait duration (not the doneness-temperature target).
+- If thermomixTime is set on this step (Thermomix recipe with inline params), set timerSeconds to null instead — Thermomix steps express their own duration via thermomixTime.
+- If no duration is mentioned, set timerSeconds to null.
 
 ## Ingredient Names
 
@@ -447,10 +606,16 @@ Plural names must be actual plurals: "bread crumb" → "bread crumbs", "tomato" 
 Use Title Case for English names: "Airtight Container", "Rolling Pin", "Baking Tray".
 Capitalize first letter for Spanish names: "Recipiente hermético", "Rodillo".
 
+Kitchen tools are items the cook uses to prepare food: pots, pans, utensils, appliances, mixing bowls, baskets, mallets, and also single-use kitchen supplies that don't become part of the dish ("parchment paper", "papel encerado", "papel aluminio", "plastic wrap", "kitchen towels").
+
+Aerosol/spray products ("cooking spray", "aceite en spray", "Pam", "olive oil spray") are INGREDIENTS, not tools. They get applied to the food itself (greasing, coating, finishing) and behave like oil — measure them in the ingredients list, not the tools list.
+
+When in doubt: if the item is APPLIED to or BECOMES PART OF the food, it's an ingredient. If it just HOLDS, SHAPES, or SEPARATES the food, it's a tool.
+
 ## Critical Rules
 
 DO NOT make up recipe content (ingredients, steps, tools, tips).
-DO NOT include anything not found in the markdown.
+DO NOT include anything not found in the source content.
 DO translate names and content to English when only Spanish is provided.
 `;
 
@@ -501,6 +666,8 @@ export interface ParsedRecipeData {
       end: number | string | null;
     } | null;
     thermomixIsBladeReversed: boolean | null;
+    thermomixMode: ThermomixMode | null;
+    timerSeconds: number | null;
     ingredients: Array<{
       ingredient: {
         nameEn: string;
@@ -518,6 +685,14 @@ export interface ParsedRecipeData {
     recipeSectionEs: string;
   }>;
   tags: string[];
+  plannerRole: PlannerRole | null;
+  equipmentTags: EquipmentTag[];
+  mealComponents: MealComponent[];
+  isCompleteMeal: boolean;
+  cookingLevel: CookingLevel | null;
+  leftoversFriendly: boolean | null;
+  maxHouseholdSizeSupported: number | null;
+  batchFriendly: boolean | null;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -690,6 +865,18 @@ function validateSteps(steps: unknown[]): void {
 
     validateStepSpeed(step);
     validateStepIngredients(step);
+
+    const thermomixMode = getField(step, 'thermomixMode');
+    if (thermomixMode !== null && !isInArray(thermomixMode, THERMOMIX_MODES)) {
+      throw new Error(
+        `Invalid recipe parser output: "thermomixMode" must be one of ${THERMOMIX_MODES.join(', ')}, or null`,
+      );
+    }
+
+    const timerSeconds = getField(step, 'timerSeconds');
+    if (!isNumberOrNull(timerSeconds)) {
+      throw new Error('Invalid recipe parser output: "timerSeconds" must be a number or null');
+    }
   }
 }
 
@@ -727,6 +914,62 @@ function validateParsedRecipeData(data: unknown): ParsedRecipeData {
   validateIngredients(ingredients);
   validateSteps(steps);
   validateTags(tags);
+
+  // plannerRole: string or null, restricted enum
+  const plannerRole = getField(data, 'plannerRole');
+  if (plannerRole !== null && !isInArray(plannerRole, PLANNER_ROLES)) {
+    throw new Error(
+      `Invalid recipe parser output: "plannerRole" must be one of ${PLANNER_ROLES.join(', ')}, or null`,
+    );
+  }
+
+  // equipmentTags: array of valid strings
+  const equipmentTags = assertArrayField(data, 'equipmentTags');
+  for (const tag of equipmentTags) {
+    if (!isInArray(tag, EQUIPMENT_TAGS)) {
+      throw new Error(`Invalid recipe parser output: "equipmentTags" contains invalid value "${tag}"`);
+    }
+  }
+
+  // mealComponents: array of valid strings
+  const mealComponents = assertArrayField(data, 'mealComponents');
+  for (const mc of mealComponents) {
+    if (!isInArray(mc, MEAL_COMPONENTS)) {
+      throw new Error(`Invalid recipe parser output: "mealComponents" contains invalid value "${mc}"`);
+    }
+  }
+
+  // isCompleteMeal: boolean
+  if (typeof getField(data, 'isCompleteMeal') !== 'boolean') {
+    throw new Error('Invalid recipe parser output: "isCompleteMeal" must be a boolean');
+  }
+
+  // cookingLevel: string or null
+  const cookingLevel = getField(data, 'cookingLevel');
+  if (cookingLevel !== null && !isInArray(cookingLevel, COOKING_LEVELS)) {
+    throw new Error(
+      `Invalid recipe parser output: "cookingLevel" must be one of ${COOKING_LEVELS.join(', ')}, or null`,
+    );
+  }
+
+  // leftoversFriendly: boolean or null
+  const leftoversFriendly = getField(data, 'leftoversFriendly');
+  if (leftoversFriendly !== null && typeof leftoversFriendly !== 'boolean') {
+    throw new Error('Invalid recipe parser output: "leftoversFriendly" must be a boolean or null');
+  }
+
+  // maxHouseholdSizeSupported: number or null
+  if (!isNumberOrNull(getField(data, 'maxHouseholdSizeSupported'))) {
+    throw new Error(
+      'Invalid recipe parser output: "maxHouseholdSizeSupported" must be a number or null',
+    );
+  }
+
+  // batchFriendly: boolean or null
+  const batchFriendly = getField(data, 'batchFriendly');
+  if (batchFriendly !== null && typeof batchFriendly !== 'boolean') {
+    throw new Error('Invalid recipe parser output: "batchFriendly" must be a boolean or null');
+  }
 
   return data as unknown as ParsedRecipeData;
 }
@@ -770,8 +1013,8 @@ function extractContentText(responseData: unknown): string | null {
   return null;
 }
 
-/** Parse a recipe markdown file using OpenAI structured output */
-export async function parseRecipeMarkdown(
+/** Parse recipe markdown text into ParsedRecipeData using OpenAI structured output. */
+export async function parseRecipe(
   markdown: string,
   openaiApiKey: string,
   logger: Logger,
@@ -813,6 +1056,39 @@ export async function parseRecipeMarkdown(
   }
 
   const parsed = validateParsedRecipeData(parseJsonFromLLM(content));
-  logger.success(`Parsed recipe: "${parsed.nameEn}" / "${parsed.nameEs}"`);
-  return parsed;
+  const normalized = enforceThermomixGate(parsed);
+  logger.success(`Parsed recipe: "${normalized.nameEn}" / "${normalized.nameEs}"`);
+  return normalized;
+}
+
+/**
+ * Defense-in-depth for the prompt-level thermomix-extraction gate.
+ *
+ * The system prompt instructs the model to leave every thermomix_* step
+ * field null when equipmentTags excludes "thermomix". The prompt is
+ * best-effort, so a model slip can still emit polluted values. This pass
+ * normalizes parsed output: when the recipe has no "thermomix" equipment
+ * tag, every step's thermomix_* fields are forced to null. timerSeconds
+ * is preserved — it's the canonical signal for non-Thermomix durations.
+ *
+ * Exported so callers and tests can exercise it without going through
+ * the OpenAI fetch path.
+ */
+export function enforceThermomixGate(parsed: ParsedRecipeData): ParsedRecipeData {
+  if (parsed.equipmentTags.includes('thermomix')) {
+    return parsed;
+  }
+
+  return {
+    ...parsed,
+    steps: parsed.steps.map((step) => ({
+      ...step,
+      thermomixTime: null,
+      thermomixTemperature: null,
+      thermomixTemperatureUnit: null,
+      thermomixSpeed: null,
+      thermomixIsBladeReversed: null,
+      thermomixMode: null,
+    })),
+  };
 }

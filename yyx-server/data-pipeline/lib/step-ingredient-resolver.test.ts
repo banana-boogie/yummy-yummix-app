@@ -19,6 +19,14 @@ function createParsedRecipe(
     ingredients: [],
     steps,
     tags: [],
+    plannerRole: null,
+    equipmentTags: [],
+    mealComponents: [],
+    isCompleteMeal: false,
+    cookingLevel: null,
+    leftoversFriendly: null,
+    maxHouseholdSizeSupported: null,
+    batchFriendly: null,
   };
 }
 
@@ -78,6 +86,8 @@ function createStep(
     thermomixTemperatureUnit: null,
     thermomixSpeed: null,
     thermomixIsBladeReversed: null,
+    thermomixMode: null,
+    timerSeconds: null,
     ingredients,
     tipEn: '',
     tipEs: '',
