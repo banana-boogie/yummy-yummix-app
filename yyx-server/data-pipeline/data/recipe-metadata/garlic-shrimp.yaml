@@ -1,59 +1,69 @@
-# Garlic Shrimp — reference fixture.
-#
-# Body fields (planner, timings, tags, descriptions, etc.) are reviewer-authored
-# starting points. Before applying, re-run the Reviewer
-# (`/review-recipe Garlic Shrimp`) to refresh recipe_match.expected_recipe_updated_at
-# against the current DB row.
-
 recipe_match:
   id: '1df8c9b4-e8c8-480d-8d22-90735243e0ad'
   name_en: 'Garlic Shrimp'
-  expected_recipe_updated_at: '2026-04-24T18:38:09.780099Z'
+  expected_recipe_updated_at: '2026-04-29T06:27:24.099323+00:00'
 
 review:
   reviewed_by_label: 'claude-opus-4-7'
-  reviewed_at: '2026-04-24T14:05:00.000Z'
+  reviewed_at: '2026-04-29T06:30:00Z'
 
 planner:
   role: main
   alternate_planner_roles: []
-  meal_components: [protein]
+  meal_components: [ protein ]
   is_complete_meal: false
-  equipment_tags: [thermomix]
-  cooking_level: beginner
-  leftovers_friendly: false   # shrimp doesn't reheat well
-  batch_friendly: true
-  max_household_size_supported: 6
-  is_published: true
-
-timings:
-  prep_time: 10
-  total_time: 20
-  portions: 4
-
-tags:
-  cuisine: [spanish, mediterranean]
-  meal_type: [dinner]
-  diet: [pescatarian, low_carb]
-  occasion: [weeknight, date_night]
-  practical: [one_pot, quick_assembly]
-
-description:
-  en: 'Plump shrimp sizzled with garlic, paprika, and olive oil — Spanish gambas al ajillo done in the Thermomix. On the table in 20 minutes.'
-  es: 'Camarones jugosos con ajo, pimentón y aceite de oliva — gambas al ajillo a la Thermomix. En la mesa en 20 minutos.'
-
-tips_and_tricks:
-  en: 'Use peeled, deveined shrimp 21/25 count for the right texture. Do not over-cook past step 4 — they go rubbery fast. Serve immediately with crusty bread for the oil.'
-  es: 'Usa camarones limpios y sin cáscara talla 21/25. No los cocines más allá del paso 4 — se ponen chiclosos rápido. Sirve de inmediato con pan crujiente para untar el aceite.'
+  equipment_tags: [ thermomix ]
+  cooking_level: intermediate
+  leftovers_friendly: false
+  batch_friendly: false
+  max_household_size_supported: 4
 
 scaling_notes:
-  en: 'Doubles to 8 portions. Use two Thermomix batches to avoid overcrowding — shrimp will steam instead of sizzle if packed too tight.'
-  es: 'Se duplica a 8 porciones. Usa dos tandas en la Thermomix para no saturar — los camarones se cuecen en vapor si los aprietas mucho.'
+  en: 'Recipe is sized to a single Varoma load (15 large shrimp). For 8 portions, run two cycles back-to-back rather than overcrowding — packed shrimp steam unevenly and turn rubbery.'
+  es: 'La receta está pensada para una sola tanda en el Varoma (15 camarones grandes). Para 8 porciones, repite la cocción en dos tandas en vez de saturar el Varoma — los camarones apretados se cuecen disparejos y se ponen chiclosos.'
 
-kitchen_tools:
+tags:
+  cuisine: [ mexican ]
+  diet: [ pescatarian, low_carb ]
+  occasion: [ weeknight ]
+  practical: [ quick ]
+
+pairings:
   set:
-    - name_en: 'Thermomix'
+    - target_id: '9efe6751-3081-426d-836c-1a650cc5c24e'
+      target_name_en: 'Steamed Rice'
+      role: side
+      reason: 'Soaks up the garlic-butter sauce — the classic accompaniment.'
+
+# Steps 5 and 7 carry orphan thermomix_temperature_unit='C' with no
+# thermomix_temperature value (and no other Thermomix params on step 7).
+# Step 5 is a manual stacking step; step 7 is "serve". Clearing.
+step_overrides:
+  - match: { order: 5 }
+    thermomix_temperature_unit: null
+  - match: { order: 7 }
+    thermomix_temperature_unit: null
+
+# Salt's es recipe_section is "Plato principal"; rest of the recipe uses
+# "Principal" in es. Aligning.
+ingredient_updates:
+  - match:
+      ingredient_slug: salt
+      display_order: 6
+    section_es: 'Principal'
 
 requires_authoring:
   reasons: []
   notes: ''
+applied:
+  - applied_at: 2026-04-29T06:27:24.393Z
+    applied_by: ian@local
+    pre_recipe_updated_at: 2026-04-28T13:44:11.817875+00:00
+    post_recipe_updated_at: 2026-04-29T06:27:24.099323+00:00
+    sections_changed:
+      - planner
+      - translations
+      - ingredients
+      - step_overrides
+      - tags
+    environment: local

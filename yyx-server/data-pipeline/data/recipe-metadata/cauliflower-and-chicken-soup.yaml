@@ -1,7 +1,7 @@
 recipe_match:
   id: 'dccece11-336f-43d6-8b76-eac122f56170'
   name_en: 'Cauliflower and Chicken Soup'
-  expected_recipe_updated_at: '2026-04-28T22:00:04.207103+00:00'
+  expected_recipe_updated_at: '2026-04-29T04:37:25.367036+00:00'
 
 review:
   reviewed_by_label: 'claude-opus-4-7'
@@ -16,10 +16,10 @@ planner:
   # no carb in the recipe, so `is_complete_meal: false` — the user
   # rounds it out with tortillas or bread alongside.
   role: main
-  alternate_planner_roles: [side]
-  meal_components: [protein, veg]
+  alternate_planner_roles: [ side ]
+  meal_components: [ protein, veg ]
   is_complete_meal: false
-  equipment_tags: [thermomix]
+  equipment_tags: [ thermomix ]
   cooking_level: beginner
   leftovers_friendly: true
   batch_friendly: true
@@ -51,11 +51,11 @@ tips_and_tricks:
 # `dish_type` is omitted (already `[soup]` in the DB and per-category set
 # replacement preserves unlisted categories).
 tags:
-  meal_type: [lunch, dinner]
-  diet: [healthy, high_protein]
-  primary_ingredient: [chicken]
-  occasion: [weeknight, comfort_food]
-  practical: [thermomix_basics, leftover_friendly]
+  meal_type: [ lunch, dinner ]
+  diet: [ healthy, high_protein ]
+  primary_ingredient: [ chicken ]
+  occasion: [ weeknight, comfort_food ]
+  practical: [ thermomix_basics, leftover_friendly ]
 
 # Recipe has zero rows in recipe_kitchen_tools despite being a
 # Thermomix-with-Varoma recipe. Adding the two pieces of equipment the
@@ -66,6 +66,14 @@ kitchen_tools:
   set:
     - name_en: 'Thermomix®'
     - name_en: 'Thermomix® Varoma'
+applied:
+  - applied_at: 2026-04-29T04:37:25.633Z
+    applied_by: ian@local
+    pre_recipe_updated_at: 2026-04-28T22:00:04.207103+00:00
+    post_recipe_updated_at: 2026-04-29T04:37:25.367036+00:00
+    sections_changed:
+      - tags
+    environment: local
 
 # Note: `es-ES` translation rows (recipe + steps) currently duplicate `es`
 # byte-for-byte. Project policy retains them for a future Spain audience,

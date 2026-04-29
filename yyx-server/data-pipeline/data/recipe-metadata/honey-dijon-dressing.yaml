@@ -1,66 +1,38 @@
 recipe_match:
   id: '3dd00e3f-7e49-45bc-8730-988599e8ef5e'
   name_en: 'Honey Dijon Dressing'
-  expected_recipe_updated_at: '2026-04-28T18:48:15.699567+00:00'
+  expected_recipe_updated_at: '2026-04-29T06:30:48.046323+00:00'
 
 review:
   reviewed_by_label: 'claude-opus-4-7'
-  reviewed_at: '2026-04-28T14:29:35.000Z'
+  reviewed_at: '2026-04-29T07:00:00Z'
 
-# Re-decided from scratch per the rubric (RECIPE-REVIEW.md). Honey Dijon
-# Dressing is a dressing/sauce meant to season other foods — `condiment` is
-# the right role, not `side` or `snack`. No protein/carb/veg components
-# (it's a fat + acid + sweet condiment), and clearly not a complete meal.
-# Re-asserting the existing values is intentional: makes the role decision
-# visible in git history.
 planner:
   role: condiment
+  alternate_planner_roles: []
   meal_components: []
   is_complete_meal: false
+  equipment_tags: [ thermomix ]
+  cooking_level: beginner
+  leftovers_friendly: true
+  batch_friendly: true
 
-tags:
-  cuisine: [american]
-  meal_type: [lunch, dinner]
-  practical: [quick, make_ahead, batch_cook, five_ingredients]
+scaling_notes:
+  en: 'Recipe yields ~350 g (about 10 servings of 35 g). Halves and doubles cleanly. The dressing will separate during storage — give it a quick shake before each use.'
+  es: 'La receta rinde ~350 g (alrededor de 10 porciones de 35 g). Se duplica y se reduce a la mitad sin problema. El aderezo se separa al guardarse — agítalo antes de cada uso.'
 
-requires_authoring:
-  reasons: [missing_step_translation]
-  notes: |
-    Primary issue (blocks publish):
-
-      Step 1 (id 1471ddd6-…, order 1) has an empty Spanish instruction.
-      The recipe-metadata pipeline does not edit recipe_step_translations
-      text — needs human authoring in the admin UI.
-
-      Suggested ES: "Añade todos los ingredientes al vaso del Thermomix
-      y mezcla a velocidad 3 durante 10 segundos."
-
-    Other concerns (not auto-fixed in this YAML):
-
-      1. Orphan thermomix_temperature_unit on step 1.
-         The unit is set to 'C' but the temperature value is NULL.
-         Cosmetic; harmless at runtime because the unit is only consulted
-         when a temperature value is present. Admin can clear it during
-         the next edit pass.
-
-      2. es-ES translation rows exist on recipe and step 2/3.
-         They have minor synonym variations vs the es base — e.g.
-         "marinados" vs "marinadas", "frasco" vs "tarro". They are NOT
-         exact mirrors of es, so the deterministic-mirror rule does not
-         auto-strip them, but they look like auto-translation artifacts
-         rather than a deliberate Spain-Spanish override. Mexico-first
-         launch: admin should decide whether to keep or delete.
-
-      3. Speed 3 for 10s may not fully emulsify.
-         Some Thermomix dressing recipes use speed 5 for emulsifying.
-         The structured fields match the step's prose, so this YAML does
-         not override them. Flagging for admin verification of actual
-         texture in production.
-
-      4. Diet tags omitted intentionally.
-         vegetarian status depends on whether the "avocado mayo"
-         ingredient (slug avocado_mayo) contains egg, which the recipe
-         data does not record. honey makes vegan a no. gluten_free is
-         likely true (no wheat ingredients) but worth confirming for
-         cross-contamination on the Dijon mustard brand. Admin should
-         add gluten_free / vegetarian once verified.
+# Step 1 has thermomix_temperature_unit='C' with no temperature value (it's a
+# pure mix step, no heat). Clearing the orphan unit.
+step_overrides:
+  - match: { order: 1 }
+    thermomix_temperature_unit: null
+applied:
+  - applied_at: 2026-04-29T06:30:48.322Z
+    applied_by: ian@local
+    pre_recipe_updated_at: 2026-04-28T18:48:15.699567+00:00
+    post_recipe_updated_at: 2026-04-29T06:30:48.046323+00:00
+    sections_changed:
+      - planner
+      - translations
+      - step_overrides
+    environment: local
