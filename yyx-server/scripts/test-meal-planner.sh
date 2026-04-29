@@ -120,7 +120,7 @@ run_prefs() {
   call get_preferences '{}' >/dev/null
 
   call update_preferences '{
-    "mealTypes": ["breakfast"],
+    "mealTypes": ["dinner"],
     "dayIndexes": [0,1,2,3,4],
     "busyDays": [2],
     "defaultMaxWeeknightMinutes": 35,
@@ -135,7 +135,7 @@ run_generate() {
   call generate_plan "{
     \"weekStart\": \"$NEXT_MONDAY\",
     \"dayIndexes\": [0,1,2,3,4],
-    \"mealTypes\": [\"breakfast\"],
+    \"mealTypes\": [\"dinner\"],
     \"replaceExisting\": true
   }" >/dev/null
 }
@@ -145,7 +145,7 @@ run_loop() {
 
   echo "-- Step 1: ensure preferences exist --"
   call update_preferences '{
-    "mealTypes": ["breakfast"],
+    "mealTypes": ["dinner"],
     "dayIndexes": [0,1,2,3,4]
   }' >/dev/null
 
@@ -154,7 +154,7 @@ run_loop() {
   gen_body=$(call generate_plan "{
     \"weekStart\": \"$NEXT_MONDAY\",
     \"dayIndexes\": [0,1,2,3,4],
-    \"mealTypes\": [\"breakfast\"],
+    \"mealTypes\": [\"dinner\"],
     \"replaceExisting\": true
   }")
 
