@@ -1,0 +1,76 @@
+recipe_match:
+  id: 'dccece11-336f-43d6-8b76-eac122f56170'
+  name_en: 'Cauliflower and Chicken Soup'
+  expected_recipe_updated_at: '2026-04-28T22:00:04.207103+00:00'
+
+review:
+  reviewed_by_label: 'claude-opus-4-7'
+  reviewed_at: '2026-04-28T21:06:04.000Z'
+
+planner:
+  # Re-decided from scratch. 500 g chicken breast + 500 g cauliflower +
+  # 150 g carrot for 4 portions is substantial — the dish stands as a
+  # `main` for a light Mexican lunch. Could legitimately serve as
+  # `side` to a heavier dinner so listing as alternate. Components are
+  # protein (chicken) + veg (cauliflower / carrot / celery / aromatics);
+  # no carb in the recipe, so `is_complete_meal: false` — the user
+  # rounds it out with tortillas or bread alongside.
+  role: main
+  alternate_planner_roles: [side]
+  meal_components: [protein, veg]
+  is_complete_meal: false
+  equipment_tags: [thermomix]
+  cooking_level: beginner
+  leftovers_friendly: true
+  batch_friendly: true
+
+# DB had prep_time=0 / total_time=30. Real prep (rinsing parsley, peeling
+# shallots/garlic/ginger, cutting cauliflower into florets, slicing
+# carrots) is ~10 min before the Thermomix runs. Sum of structured step
+# times is 3 + 5 + 240 + 1200 sec = ~24 min, plus a couple of minutes
+# weighing the chicken and plating. Realistic total ~35 min.
+timings:
+  prep_time: 10
+  total_time: 35
+
+description:
+  en: 'A light, golden chicken-and-cauliflower soup made entirely in the Thermomix. Turmeric and ginger give it a warming, anti-inflammatory edge while the chicken steams in the Varoma above the broth.'
+  es: 'Una sopa ligera y dorada de pollo y coliflor preparada totalmente en la Thermomix. La cúrcuma y el jengibre le dan un toque cálido y antiinflamatorio mientras el pollo se cocina al vapor en el Varoma sobre el caldo.'
+
+tips_and_tricks:
+  en: 'Slice the steamed chicken just before serving for the best texture. To turn it into a full meal, serve with warm tortillas or crusty bread alongside.'
+  es: 'Rebana el pollo al vapor justo antes de servir para una mejor textura. Para convertirla en una comida completa, acompáñala con tortillas calientes o pan crujiente.'
+
+# Recipe had only `dish_type: [soup]`. Adding the missing categories.
+# Conservative on diet:
+#   - `gluten_free` skipped — vegetable bouillon concentrate brands vary
+#     on gluten content (consomé cubes in Mexico can include wheat).
+#   - `low_carb` skipped — the dish itself is low-carb, but the tips
+#     suggest tortillas / bread, which would look contradictory to a
+#     user filtering on the tag.
+# `dish_type` is omitted (already `[soup]` in the DB and per-category set
+# replacement preserves unlisted categories).
+tags:
+  meal_type: [lunch, dinner]
+  diet: [healthy, high_protein]
+  primary_ingredient: [chicken]
+  occasion: [weeknight, comfort_food]
+  practical: [thermomix_basics, leftover_friendly]
+
+# Recipe has zero rows in recipe_kitchen_tools despite being a
+# Thermomix-with-Varoma recipe. Adding the two pieces of equipment the
+# steps actually require. Smaller items (Thermomix spatula, soup plates)
+# are accessories, not modeled as kitchen tools in sibling recipes
+# (e.g. zucchini-soup, tortilla-soup).
+kitchen_tools:
+  set:
+    - name_en: 'Thermomix®'
+    - name_en: 'Thermomix® Varoma'
+
+# Note: `es-ES` translation rows (recipe + steps) currently duplicate `es`
+# byte-for-byte. Project policy retains them for a future Spain audience,
+# so cleanup.delete_locales is intentionally NOT used here.
+
+# requires_authoring intentionally omitted — every gap surfaced by the
+# 16-point rubric is resolved in this YAML. Recipe has 12 ingredients,
+# 4 steps, distinct EN/ES names; no structural blockers.
