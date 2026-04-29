@@ -339,6 +339,12 @@ export interface PreferencesResponse {
   setupCompletedAt: string | null;
 }
 
+/**
+ * `preferences` is always populated. When the user has no row yet,
+ * the server returns `DEFAULT_PREFERENCES` with `setupCompletedAt: null` —
+ * the client uses `setupCompletedAt === null` as the canonical "needs
+ * first-time setup" signal. The object itself is never null.
+ */
 export interface GetPreferencesResponse {
   preferences: PreferencesResponse;
   warnings: string[];
