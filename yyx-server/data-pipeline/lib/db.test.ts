@@ -216,7 +216,7 @@ Deno.test('insertRecipeSteps payload includes thermomix_mode and timer_seconds',
     thermomix_temperature: null,
     thermomix_temperature_unit: null,
     thermomix_is_blade_reversed: null,
-    thermomix_mode: 'steaming',
+    thermomix_mode: 'open_cooking',
     timer_seconds: 600,
     recipe_section_en: 'Main',
     recipe_section_es: 'Principal',
@@ -228,7 +228,7 @@ Deno.test('insertRecipeSteps payload includes thermomix_mode and timer_seconds',
   if (!stepsInsert) throw new Error('Expected an insert into recipe_steps table');
   const rows = stepsInsert.payload as Array<Record<string, unknown>>;
   assertEquals(rows.length, 1);
-  assertEquals(rows[0].thermomix_mode, 'steaming');
+  assertEquals(rows[0].thermomix_mode, 'open_cooking');
   assertEquals(rows[0].timer_seconds, 600);
 });
 

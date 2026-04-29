@@ -130,7 +130,19 @@ type MealComponent = (typeof MEAL_COMPONENTS)[number];
 const COOKING_LEVELS = ['beginner', 'intermediate', 'experienced'] as const;
 type CookingLevel = (typeof COOKING_LEVELS)[number];
 
-const THERMOMIX_MODES = ['open_cooking', 'steaming'] as const;
+// Step-level thermomix_mode values the pipeline writes. Aligned with migration
+// 20260318035215_add_thermomix_mode and yyx-app/types/thermomix.types.ts.
+//
+// We intentionally only list modes the parser can detect from natural step
+// text. The other migration-defined modes (slow_cook, rice_cooker, sous_vide,
+// fermentation, browning, dough, turbo) are TM6/TM7 cooking programs the user
+// selects on the machine — they don't reliably appear in step prose, so they're
+// admin-set via /review-recipe rather than parser-extracted.
+//
+// Varoma steaming is NOT a thermomix_mode — it's signaled via
+// thermomix_temperature='Varoma' (already supported in temperatureEnum) plus
+// the "Varoma Container" kitchen tool.
+const THERMOMIX_MODES = ['open_cooking'] as const;
 type ThermomixMode = (typeof THERMOMIX_MODES)[number];
 
 function isInArray<T extends string>(value: unknown, arr: readonly T[]): value is T {
@@ -390,7 +402,7 @@ const recipeJsonSchema = {
             thermomixMode: {
               type: ['string', 'null'],
               description:
-                'Thermomix cooking mode. ONLY set when equipmentTags includes "thermomix"; otherwise null. When applicable: "steaming" for steps using the Varoma accessory; "open_cooking" when the step explicitly indicates an open lid (Spanish: "sin tapa", "tapa abierta", "destapa", "retira la tapa"; English: "uncovered", "lid off"). Use null when uncertain or not specified.',
+                'Thermomix cooking mode. ONLY set when equipmentTags includes "thermomix"; otherwise null. The only parser-detected value is "open_cooking" — set when the step explicitly indicates an open lid (Spanish: "sin tapa", "tapa abierta", "destapa", "retira la tapa"; English: "uncovered", "lid off"). Use null when uncertain or not specified. NOTE: Varoma steaming is NOT a mode here — set thermomixTemperature to "Varoma" instead, which is the canonical signal for that technique.',
               enum: [...THERMOMIX_MODES, null],
             },
             timerSeconds: {
@@ -564,9 +576,10 @@ Extract the following if present in aside blocks. Use null / [] / false as defau
 ## Thermomix Mode (Thermomix recipes only)
 
 When equipmentTags includes "thermomix", set thermomixMode per step:
-- "steaming" when the step uses the Varoma accessory (steam tray).
 - "open_cooking" when the step explicitly indicates an open lid. Spanish: "sin tapa", "tapa abierta", "destapa", "destapado/a", "retira la tapa", "sin la tapa", "quita la tapa". English: "uncovered", "lid off", "remove the lid".
 - null when uncertain or not specified — do NOT infer from absence of a "tapa" mention.
+
+Varoma steaming is NOT a thermomixMode value. When a step uses the Varoma accessory (steam tray), signal it through thermomixTemperature: "Varoma" instead — the temperature enum supports that value and the Varoma Container is also captured separately as a kitchen tool. Leave thermomixMode null for Varoma steps.
 
 When equipmentTags does NOT include "thermomix", thermomixMode is always null.
 
@@ -1043,6 +1056,39 @@ export async function parseRecipe(
   }
 
   const parsed = validateParsedRecipeData(parseJsonFromLLM(content));
-  logger.success(`Parsed recipe: "${parsed.nameEn}" / "${parsed.nameEs}"`);
-  return parsed;
+  const normalized = enforceThermomixGate(parsed);
+  logger.success(`Parsed recipe: "${normalized.nameEn}" / "${normalized.nameEs}"`);
+  return normalized;
+}
+
+/**
+ * Defense-in-depth for the prompt-level thermomix-extraction gate.
+ *
+ * The system prompt instructs the model to leave every thermomix_* step
+ * field null when equipmentTags excludes "thermomix". The prompt is
+ * best-effort, so a model slip can still emit polluted values. This pass
+ * normalizes parsed output: when the recipe has no "thermomix" equipment
+ * tag, every step's thermomix_* fields are forced to null. timerSeconds
+ * is preserved — it's the canonical signal for non-Thermomix durations.
+ *
+ * Exported so callers and tests can exercise it without going through
+ * the OpenAI fetch path.
+ */
+export function enforceThermomixGate(parsed: ParsedRecipeData): ParsedRecipeData {
+  if (parsed.equipmentTags.includes('thermomix')) {
+    return parsed;
+  }
+
+  return {
+    ...parsed,
+    steps: parsed.steps.map((step) => ({
+      ...step,
+      thermomixTime: null,
+      thermomixTemperature: null,
+      thermomixTemperatureUnit: null,
+      thermomixSpeed: null,
+      thermomixIsBladeReversed: null,
+      thermomixMode: null,
+    })),
+  };
 }

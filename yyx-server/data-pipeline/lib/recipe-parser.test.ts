@@ -1,5 +1,5 @@
 import { assertEquals, assertRejects } from 'std/assert/mod.ts';
-import { type ParsedRecipeData, parseRecipe } from './recipe-parser.ts';
+import { enforceThermomixGate, type ParsedRecipeData, parseRecipe } from './recipe-parser.ts';
 import type { Logger } from './logger.ts';
 
 const mockLogger = {
@@ -202,7 +202,7 @@ Deno.test('parseRecipe round-trips fully-populated meal-planning fields', async 
       steps: [
         {
           ...baseRecipe.steps[0],
-          thermomixMode: 'steaming',
+          thermomixMode: 'open_cooking',
           timerSeconds: 1800,
         },
       ],
@@ -221,7 +221,7 @@ Deno.test('parseRecipe round-trips fully-populated meal-planning fields', async 
     assertEquals(parsed.leftoversFriendly, true);
     assertEquals(parsed.maxHouseholdSizeSupported, 6);
     assertEquals(parsed.batchFriendly, false);
-    assertEquals(parsed.steps[0].thermomixMode, 'steaming');
+    assertEquals(parsed.steps[0].thermomixMode, 'open_cooking');
     assertEquals(parsed.steps[0].timerSeconds, 1800);
   } finally {
     globalThis.fetch = originalFetch;
@@ -304,4 +304,95 @@ Deno.test('parseRecipe rejects invalid equipmentTags enum value', async () => {
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+// Defense-in-depth: even when the model violates the prompt and emits
+// thermomix_* values for a non-Thermomix recipe, the post-validation
+// normalization must scrub every step before the parsed result reaches
+// the importer. This is the regression Codex flagged.
+Deno.test(
+  'parseRecipe scrubs thermomix_* fields when equipmentTags excludes thermomix',
+  async () => {
+    try {
+      const pollutedFromModel = {
+        ...baseRecipe,
+        equipmentTags: ['air_fryer'],
+        steps: [
+          {
+            ...baseRecipe.steps[0],
+            order: 1,
+            thermomixTime: 480,
+            thermomixTemperature: 90,
+            thermomixTemperatureUnit: 'C',
+            thermomixSpeed: { type: 'single', value: 4, start: null, end: null },
+            thermomixIsBladeReversed: true,
+            thermomixMode: 'open_cooking',
+            timerSeconds: 480,
+          },
+          {
+            ...baseRecipe.steps[0],
+            order: 2,
+            thermomixTime: 600,
+            thermomixTemperature: 'Varoma',
+            thermomixTemperatureUnit: 'C',
+            thermomixSpeed: null,
+            thermomixIsBladeReversed: false,
+            thermomixMode: null,
+            timerSeconds: 600,
+          },
+        ],
+      };
+      mockOpenAIResponse({ output_text: JSON.stringify(pollutedFromModel) });
+
+      const parsed = await parseRecipe('recipe markdown', 'test-key', mockLogger);
+
+      assertEquals(parsed.equipmentTags, ['air_fryer']);
+      for (const step of parsed.steps) {
+        assertEquals(step.thermomixTime, null);
+        assertEquals(step.thermomixTemperature, null);
+        assertEquals(step.thermomixTemperatureUnit, null);
+        assertEquals(step.thermomixSpeed, null);
+        assertEquals(step.thermomixIsBladeReversed, null);
+        assertEquals(step.thermomixMode, null);
+      }
+      // timerSeconds is preserved — it's the canonical signal for non-Thermomix durations.
+      assertEquals(parsed.steps[0].timerSeconds, 480);
+      assertEquals(parsed.steps[1].timerSeconds, 600);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  },
+);
+
+// Direct unit test on the helper, in case future callers use it independently
+// from parseRecipe (e.g., a future admin import path that already has parsed data).
+Deno.test('enforceThermomixGate leaves Thermomix recipes untouched', () => {
+  const thermomixRecipe: ParsedRecipeData = {
+    ...baseRecipe,
+    equipmentTags: ['thermomix'],
+    steps: [
+      {
+        ...baseRecipe.steps[0],
+        thermomixTime: 600,
+        thermomixTemperature: 90,
+        thermomixTemperatureUnit: 'C',
+        thermomixSpeed: { type: 'single', value: 'spoon', start: null, end: null },
+        thermomixIsBladeReversed: true,
+        thermomixMode: 'open_cooking',
+        timerSeconds: null,
+      },
+    ],
+  };
+
+  const result = enforceThermomixGate(thermomixRecipe);
+
+  assertEquals(result.steps[0].thermomixTime, 600);
+  assertEquals(result.steps[0].thermomixTemperature, 90);
+  assertEquals(result.steps[0].thermomixSpeed, {
+    type: 'single',
+    value: 'spoon',
+    start: null,
+    end: null,
+  });
+  assertEquals(result.steps[0].thermomixMode, 'open_cooking');
 });

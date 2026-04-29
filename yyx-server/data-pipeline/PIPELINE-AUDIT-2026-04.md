@@ -36,7 +36,7 @@ Final: `deno task test:pipeline` → **135 passed, 0 failed** (15 new tests acro
 Changes:
 
 **`recipe-parser.ts`:**
-- `ParsedRecipeData` step type: added `thermomixMode: 'open_cooking' | 'steaming' | null` and `timerSeconds: number | null`.
+- `ParsedRecipeData` step type: added `thermomixMode: 'open_cooking' | null` and `timerSeconds: number | null`.
 - `ParsedRecipeData` recipe type: added all 8 meal-planning fields.
 - JSON schema: added `thermomixMode`, `timerSeconds` to step schema (both in `properties` and `required`); added all 8 meal-planning fields to recipe schema.
 - System prompt: added "Meal Planning Metadata" section documenting the aside-block keys (`Rol:`, `Equipo:`, `Componentes:`, `Comida completa:`, `Nivel de cocina:`, `Apto para sobras:`, `Porciones máximas:`, `Batch cooking:`) and "Thermomix Mode and Step Timers" section.
