@@ -48,6 +48,7 @@ function zeroCounts(): ApplyRpcCounts {
     pairings_added: 0,
     pairings_removed: 0,
     step_overrides: 0,
+    step_text_overrides: 0,
     tags_added: 0,
     tags_removed: 0,
   };
@@ -92,6 +93,7 @@ Deno.test('sectionsFromCounts: full count surface produces canonical order', () 
     pairings_added: 1,
     pairings_removed: 0,
     step_overrides: 1,
+    step_text_overrides: 1,
     tags_added: 1,
     tags_removed: 0,
   };
@@ -104,8 +106,15 @@ Deno.test('sectionsFromCounts: full count surface produces canonical order', () 
     'kitchen_tools',
     'pairings',
     'step_overrides',
+    'step_text',
     'tags',
   ]);
+});
+
+Deno.test('sectionsFromCounts: step_text_overrides surfaces as "step_text" section', () => {
+  const counts = zeroCounts();
+  counts.step_text_overrides = 3;
+  assertEquals(sectionsFromCounts(counts), ['step_text']);
 });
 
 // ─── appendAppliedEntry ────────────────────────────────

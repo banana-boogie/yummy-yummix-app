@@ -324,6 +324,149 @@ description:
   assertEquals(data.description?.es, 'Un platillo sencillo.');
 });
 
+// ============================================================
+// step_text_overrides
+// ============================================================
+
+Deno.test('step_text_overrides: accepts a single-locale instruction edit', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_text_overrides:
+  - match: { order: 3 }
+    translations:
+      es:
+        instruction: 'Agrega el pollo deshebrado y cocina hasta que quede cubierto.'
+`;
+  const { data } = parseRecipeMetadataYaml(yaml);
+  assertEquals(data.step_text_overrides?.length, 1);
+  assertEquals(data.step_text_overrides?.[0].match.order, 3);
+  assertEquals(
+    data.step_text_overrides?.[0].translations.es?.instruction,
+    'Agrega el pollo deshebrado y cocina hasta que quede cubierto.',
+  );
+  assertEquals(data.step_text_overrides?.[0].translations.en, undefined);
+});
+
+Deno.test('step_text_overrides: accepts both en and es with all three text fields', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_text_overrides:
+  - match: { order: 1 }
+    translations:
+      en:
+        instruction: 'Sauté the onion.'
+        recipe_section: 'Prep'
+        tip: 'Use a non-stick pan.'
+      es:
+        instruction: 'Saltea la cebolla.'
+        recipe_section: 'Preparación'
+        tip: 'Usa un sartén antiadherente.'
+`;
+  const { data } = parseRecipeMetadataYaml(yaml);
+  const ov = data.step_text_overrides?.[0];
+  assertEquals(ov?.translations.en?.instruction, 'Sauté the onion.');
+  assertEquals(ov?.translations.en?.recipe_section, 'Prep');
+  assertEquals(ov?.translations.en?.tip, 'Use a non-stick pan.');
+  assertEquals(ov?.translations.es?.instruction, 'Saltea la cebolla.');
+});
+
+Deno.test('step_text_overrides: rejects an empty translations block', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_text_overrides:
+  - match: { order: 1 }
+    translations: {}
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  assert(
+    err.issues.some((i) => /at least one of `en` or `es`/.test(i.message)),
+    `expected at-least-one-locale error, got: ${JSON.stringify(err.issues)}`,
+  );
+});
+
+Deno.test('step_text_overrides: rejects a locale block with no fields set', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_text_overrides:
+  - match: { order: 1 }
+    translations:
+      en: {}
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  assert(
+    err.issues.some((i) => /at least one of: instruction/.test(i.message)),
+    `expected per-locale required-field error, got: ${JSON.stringify(err.issues)}`,
+  );
+});
+
+Deno.test('step_text_overrides: rejects a missing match block', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_text_overrides:
+  - translations:
+      en:
+        instruction: 'Stir well.'
+`;
+  assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+});
+
+Deno.test('step_text_overrides: rejects an empty instruction string', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_text_overrides:
+  - match: { order: 1 }
+    translations:
+      en:
+        instruction: ''
+`;
+  // Empty instruction is a no-content edit; the schema requires min(1)
+  // because clearing the column should be a separate explicit operation
+  // (currently unsupported — reviewer flags via requires_authoring instead).
+  assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+});
+
 Deno.test('accepts dish_type and primary_ingredient tag categories', () => {
   const yaml = `recipe_match:
   id: '11111111-1111-1111-1111-111111111111'

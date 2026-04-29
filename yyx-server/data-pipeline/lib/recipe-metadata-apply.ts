@@ -21,6 +21,7 @@ export interface ApplyRpcCounts {
   pairings_added: number;
   pairings_removed: number;
   step_overrides: number;
+  step_text_overrides: number;
   tags_added: number;
   tags_removed: number;
 }

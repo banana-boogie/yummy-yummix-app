@@ -188,7 +188,8 @@ For check #11 (`step ingredient link mismatches`): compare the step text, `recip
 - If the step text directly adds or handles an ingredient and the link is missing, flag the missing link.
 - If `recipe_step_ingredients.recipe_ingredient_id` is null from the Step 2 query, flag it as an orphan link: the step claims to use an ingredient absent from this recipe's ingredient list.
 - If a linked step ingredient is not mentioned, handled, or clearly implied by the instruction (for example "all remaining ingredients" can be valid), flag it as suspect.
-- The YAML applier cannot currently mutate `recipe_step_ingredients`; if instruction text is wrong and fixable, use `step_overrides`, but if the relationship row itself is wrong, record it in `requires_authoring.notes` for admin cleanup.
+- For step **instruction / recipe_section / tip text** edits (typos, grammar, voice fixes — usted→tú, gendered noun agreement, etc.), use `step_text_overrides` (per-locale, schema described in Step 5). `step_overrides` is for structured Thermomix fields only (time, speed, temperature, mode); it does not edit text.
+- The YAML applier cannot currently mutate `recipe_step_ingredients` (the relationship table linking steps to ingredients). If the relationship row itself is wrong (orphan link, missing link), record it in `requires_authoring.notes` for admin cleanup. Reserve `requires_authoring.notes` for these structural cases — text-fixable issues belong in `step_text_overrides`.
 
 For check #16 (`no_steps`) and #17 (`few_ingredients`): **stop fixing those sections** and add the trigger to `requires_authoring.reasons`. Never fabricate steps or ingredients.
 
@@ -224,7 +225,15 @@ For every other section, write only what changes. If a section's current state i
 
 Match-key rules:
 - `ingredient_updates`/`ingredient_removes`: prefer durable `ingredient_slug` + `display_order` because `recipe_ingredients.id` values can rotate on re-import. Compute the slug exactly as the SQL helper does — the JS reproduction is in `data-pipeline/lib/recipe-metadata-fetch.ts:slugifyName()`. Use `existing_id` only when a slug is unavailable or the row cannot be disambiguated by slug + display order. Never use names directly.
-- `step_overrides`: prefer `order` because `recipe_steps.id` values can rotate on re-import. Use `step_id` only when order is unavailable or ambiguous.
+- `step_overrides`: prefer `order` because `recipe_steps.id` values can rotate on re-import. Use `step_id` only when order is unavailable or ambiguous. Edits Thermomix structured fields only (time, speed, temperature, mode, blade direction, timer).
+- `step_text_overrides`: same match key rules as `step_overrides` (prefer `order`). Edits per-locale text on `recipe_step_translations` — `instruction`, `recipe_section`, and `tip`. Each entry's `translations` block must contain at least one of `en` / `es`, and each present locale block must set at least one of the three text fields. Omitted fields stay untouched. Use this for fixable text issues — typos, grammar, voice fixes (usted→tú, gendered noun agreement) — instead of routing them to `requires_authoring.notes`. Example:
+  ```yaml
+  step_text_overrides:
+    - match: { order: 5 }
+      translations:
+        es:
+          instruction: 'Coloca los muslos con la piel hacia abajo en el cesto.'
+  ```
 - `kitchen_tools` and `pairings`: declarative `set:` blocks list the full desired state.
 
 **Before writing a `kitchen_tools.set` block — validate canonical names.** The DB stores `Thermomix®` and `Thermomix® Varoma` (with the registered-trademark glyph). A YAML that writes `Thermomix` or `Varoma` (no ®) will hard-fail at apply with an opaque "ambiguous name" error. When using a snapshot, copy strings verbatim from `taxonomy.kitchen_tool_names_en[]`. Only in live fallback mode, run this read-only `execute_sql` once and copy strings verbatim:

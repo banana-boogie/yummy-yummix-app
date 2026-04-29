@@ -78,9 +78,7 @@ Deno.test('tags diff: covers all 7 Track H categories (drift guard)', () => {
     const diff = computeRecipeMetadataDiff(desired, current);
     const tags = tagSection(diff);
     assert(tags, `expected tags section in diff (category=${category})`);
-    const additions = tags.changes.filter((c) =>
-      c.path === `tags.${category}.+`
-    );
+    const additions = tags.changes.filter((c) => c.path === `tags.${category}.+`);
     assertEquals(
       additions.length,
       1,
@@ -107,9 +105,7 @@ Deno.test('tags diff: primary_ingredient slug removal is captured', () => {
   const diff = computeRecipeMetadataDiff(desired, current);
   const tags = tagSection(diff);
   assert(tags);
-  const removals = tags.changes.filter((c) =>
-    c.path === 'tags.primary_ingredient.-'
-  );
+  const removals = tags.changes.filter((c) => c.path === 'tags.primary_ingredient.-');
   assertEquals(removals.length, 1);
   assertEquals(removals[0].before, 'pork');
 });
@@ -127,10 +123,163 @@ Deno.test('tags diff: omitted category in YAML is left untouched', () => {
   const diff = computeRecipeMetadataDiff(desired, current);
   const tags = tagSection(diff);
   assert(tags);
-  const piEntries = tags.changes.filter((c) =>
-    c.path.startsWith('tags.primary_ingredient.')
-  );
+  const piEntries = tags.changes.filter((c) => c.path.startsWith('tags.primary_ingredient.'));
   assertEquals(piEntries.length, 0);
+});
+
+// ============================================================
+// step_text_overrides diff
+// ============================================================
+
+function makeStep(opts: {
+  id?: string;
+  order: number;
+  translations?: {
+    locale: string;
+    instruction?: string | null;
+    recipe_section?: string | null;
+    tip?: string | null;
+  }[];
+}) {
+  return {
+    id: opts.id ?? `step-${opts.order}`,
+    order: opts.order,
+    thermomix_time: null,
+    thermomix_speed: null,
+    thermomix_speed_start: null,
+    thermomix_speed_end: null,
+    thermomix_temperature: null,
+    thermomix_temperature_unit: null,
+    thermomix_mode: null,
+    thermomix_is_blade_reversed: null,
+    timer_seconds: null,
+    translations: (opts.translations ?? []).map((t) => ({
+      locale: t.locale,
+      instruction: t.instruction ?? null,
+      recipe_section: t.recipe_section ?? null,
+      tip: t.tip ?? null,
+    })),
+  };
+}
+
+function stepTextSection(diff: ReturnType<typeof computeRecipeMetadataDiff>) {
+  return diff.sections.find((s) => s.section === 'step_text_overrides');
+}
+
+Deno.test('step_text_overrides diff: emits one entry per locale+field that differs', () => {
+  const desired: RecipeMetadata = {
+    ...makeDesired(),
+    step_text_overrides: [{
+      match: { order: 2 },
+      translations: {
+        es: { instruction: 'Agrega el pollo deshebrado.' },
+      },
+    }],
+  };
+  const current = {
+    ...makeCurrent(),
+    steps: [makeStep({
+      order: 2,
+      translations: [
+        { locale: 'es', instruction: 'Añade el pollo deshebrado.' },
+      ],
+    })],
+  };
+  const diff = computeRecipeMetadataDiff(desired, current);
+  const sec = stepTextSection(diff);
+  assert(sec);
+  assertEquals(sec.changes.length, 1);
+  assertEquals(sec.changes[0].path, 'step_text_overrides[order=2].es.instruction');
+  assertEquals(sec.changes[0].before, 'Añade el pollo deshebrado.');
+  assertEquals(sec.changes[0].after, 'Agrega el pollo deshebrado.');
+});
+
+Deno.test('step_text_overrides diff: identical text produces no change', () => {
+  const desired: RecipeMetadata = {
+    ...makeDesired(),
+    step_text_overrides: [{
+      match: { order: 1 },
+      translations: { en: { instruction: 'Stir well.' } },
+    }],
+  };
+  const current = {
+    ...makeCurrent(),
+    steps: [makeStep({
+      order: 1,
+      translations: [{ locale: 'en', instruction: 'Stir well.' }],
+    })],
+  };
+  const sec = stepTextSection(computeRecipeMetadataDiff(desired, current));
+  assert(sec);
+  assertEquals(sec.changes.length, 0);
+});
+
+Deno.test('step_text_overrides diff: missing translation row treats current as null', () => {
+  // Recipe has no es row for this step yet; the diff should show the desired
+  // text being inserted (before=null), not silently no-op.
+  const desired: RecipeMetadata = {
+    ...makeDesired(),
+    step_text_overrides: [{
+      match: { order: 1 },
+      translations: { es: { instruction: 'Mezcla bien.' } },
+    }],
+  };
+  const current = {
+    ...makeCurrent(),
+    steps: [makeStep({
+      order: 1,
+      translations: [{ locale: 'en', instruction: 'Stir well.' }],
+    })],
+  };
+  const sec = stepTextSection(computeRecipeMetadataDiff(desired, current));
+  assert(sec);
+  assertEquals(sec.changes.length, 1);
+  assertEquals(sec.changes[0].before, null);
+  assertEquals(sec.changes[0].after, 'Mezcla bien.');
+});
+
+Deno.test('step_text_overrides diff: surfaces unmatched step as ⚠ NO MATCH', () => {
+  const desired: RecipeMetadata = {
+    ...makeDesired(),
+    step_text_overrides: [{
+      match: { order: 99 },
+      translations: { en: { instruction: 'Will not match.' } },
+    }],
+  };
+  const current = makeCurrent();
+  const sec = stepTextSection(computeRecipeMetadataDiff(desired, current));
+  assert(sec);
+  assertEquals(sec.changes.length, 1);
+  assertEquals(typeof sec.changes[0].after, 'string');
+  assert(String(sec.changes[0].after).includes('NO MATCH IN DB'));
+});
+
+Deno.test('step_text_overrides diff: ignores fields not present in YAML', () => {
+  // YAML edits instruction only; recipe_section and tip differ in DB but
+  // must not produce diff entries (omit = leave untouched).
+  const desired: RecipeMetadata = {
+    ...makeDesired(),
+    step_text_overrides: [{
+      match: { order: 1 },
+      translations: { en: { instruction: 'New instruction.' } },
+    }],
+  };
+  const current = {
+    ...makeCurrent(),
+    steps: [makeStep({
+      order: 1,
+      translations: [{
+        locale: 'en',
+        instruction: 'Old instruction.',
+        recipe_section: 'Prep',
+        tip: 'A tip.',
+      }],
+    })],
+  };
+  const sec = stepTextSection(computeRecipeMetadataDiff(desired, current));
+  assert(sec);
+  assertEquals(sec.changes.length, 1);
+  assertEquals(sec.changes[0].path, 'step_text_overrides[order=1].en.instruction');
 });
 
 Deno.test('tags diff: identical state produces zero changes', () => {
@@ -170,8 +319,14 @@ Deno.test('formatDiffForCli: groups set adds by parent path with stripped sectio
   assert(out.includes('CHANGES (5)'), `expected total count header, got:\n${out}`);
   assert(out.includes('  tags:'), `expected [tags] section header, got:\n${out}`);
   assert(out.includes('+ cuisine: american'), `expected grouped cuisine add, got:\n${out}`);
-  assert(out.includes('+ meal_type: lunch, dinner'), `expected grouped meal_type add, got:\n${out}`);
-  assert(out.includes('+ practical: quick, make_ahead'), `expected grouped practical add, got:\n${out}`);
+  assert(
+    out.includes('+ meal_type: lunch, dinner'),
+    `expected grouped meal_type add, got:\n${out}`,
+  );
+  assert(
+    out.includes('+ practical: quick, make_ahead'),
+    `expected grouped practical add, got:\n${out}`,
+  );
 });
 
 Deno.test('formatDiffForCli: zero-change diff renders the idempotency hint', () => {

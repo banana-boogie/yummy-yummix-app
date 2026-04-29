@@ -403,6 +403,40 @@ const stepOverrideSchema = z
     'thermomix_speed and thermomix_speed_range are mutually exclusive',
   );
 
+// Per-locale text fields the reviewer is allowed to mutate via step_text_overrides.
+// Mirrors the recipe_step_translations columns. At least one field must be set
+// per locale (an empty `{ en: {} }` is meaningless and refused at parse).
+const stepTextLocaleSchema = z
+  .object({
+    instruction: z.string().min(1).optional(),
+    recipe_section: z.string().optional(),
+    tip: z.string().optional(),
+  })
+  .strict()
+  .refine(
+    (v) =>
+      v.instruction !== undefined ||
+      v.recipe_section !== undefined ||
+      v.tip !== undefined,
+    'each step_text locale must set at least one of: instruction, recipe_section, tip',
+  );
+
+const stepTextOverrideSchema = z
+  .object({
+    match: stepMatchSchema,
+    translations: z
+      .object({
+        en: stepTextLocaleSchema.optional(),
+        es: stepTextLocaleSchema.optional(),
+      })
+      .strict()
+      .refine(
+        (v) => v.en !== undefined || v.es !== undefined,
+        'step_text_overrides.translations must include at least one of `en` or `es`',
+      ),
+  })
+  .strict();
+
 const cleanupSchema = z.object({
   delete_locales: z.array(localeSchema),
 }).strict();
@@ -446,6 +480,7 @@ export const recipeMetadataSchema = z.object({
   kitchen_tools: kitchenToolsSchema.optional(),
   pairings: pairingsSchema.optional(),
   step_overrides: z.array(stepOverrideSchema).optional(),
+  step_text_overrides: z.array(stepTextOverrideSchema).optional(),
   cleanup: cleanupSchema.optional(),
   requires_authoring: requiresAuthoringSchema.optional(),
   applied: z.array(appliedEntrySchema).optional(),

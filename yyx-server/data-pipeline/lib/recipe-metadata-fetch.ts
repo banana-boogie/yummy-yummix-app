@@ -81,6 +81,20 @@ export interface StepSnapshot {
   thermomix_mode: string | null;
   thermomix_is_blade_reversed: boolean | null;
   timer_seconds: number | null;
+  /**
+   * Per-locale text for this step (instruction / recipe_section / tip), one
+   * entry per locale present in `recipe_step_translations`. Required for the
+   * `step_text_overrides` diff so the dry-run can show the user what text
+   * the apply will overwrite.
+   */
+  translations: StepTextSnapshot[];
+}
+
+export interface StepTextSnapshot {
+  locale: string;
+  instruction: string | null;
+  recipe_section: string | null;
+  tip: string | null;
 }
 
 export interface KitchenToolSnapshot {
@@ -106,8 +120,20 @@ export interface PairingSnapshot {
 export function slugifyName(input: string | null | undefined): string {
   if (!input) return '';
   const accentMap: Record<string, string> = {
-    'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U', 'Ü': 'U', 'Ñ': 'N',
-    'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u', 'ü': 'u', 'ñ': 'n',
+    'Á': 'A',
+    'É': 'E',
+    'Í': 'I',
+    'Ó': 'O',
+    'Ú': 'U',
+    'Ü': 'U',
+    'Ñ': 'N',
+    'á': 'a',
+    'é': 'e',
+    'í': 'i',
+    'ó': 'o',
+    'ú': 'u',
+    'ü': 'u',
+    'ñ': 'n',
   };
   return input
     .split('')
@@ -298,12 +324,24 @@ async function fetchSteps(
     .select(
       'id, order, thermomix_time, thermomix_speed, thermomix_speed_start, ' +
         'thermomix_speed_end, thermomix_temperature, thermomix_temperature_unit, ' +
-        'thermomix_mode, thermomix_is_blade_reversed, timer_seconds',
+        'thermomix_mode, thermomix_is_blade_reversed, timer_seconds, ' +
+        'translations:recipe_step_translations(locale, instruction, recipe_section, tip)',
     )
     .eq('recipe_id', recipeId)
     .order('order', { ascending: true });
   if (error) throw new Error(`fetch recipe_steps: ${error.message}`);
-  return ((data ?? []) as unknown) as StepSnapshot[];
+  type Row = Omit<StepSnapshot, 'translations'> & {
+    translations: StepTextSnapshot[] | null;
+  };
+  return (((data ?? []) as unknown) as Row[]).map((s) => ({
+    ...s,
+    translations: (s.translations ?? []).map((t) => ({
+      locale: t.locale,
+      instruction: t.instruction ?? null,
+      recipe_section: t.recipe_section ?? null,
+      tip: t.tip ?? null,
+    })),
+  }));
 }
 
 interface KitchenToolRow {

@@ -5,7 +5,7 @@
  * verification.
  */
 
-import { TAG_CATEGORIES, type RecipeMetadata } from './recipe-metadata-schema.ts';
+import { type RecipeMetadata, TAG_CATEGORIES } from './recipe-metadata-schema.ts';
 import type {
   CurrentRecipeState,
   IngredientSnapshot,
@@ -160,13 +160,16 @@ export function computeRecipeMetadataDiff(
       const before: Record<string, unknown> = {};
       const after: Record<string, unknown> = {};
       if (upd.unit !== undefined && (upd.unit ?? null) !== (target.measurement_unit_id ?? null)) {
-        before.unit = target.measurement_unit_id; after.unit = upd.unit;
+        before.unit = target.measurement_unit_id;
+        after.unit = upd.unit;
       }
       if (upd.quantity !== undefined && Number(upd.quantity) !== Number(target.quantity ?? 0)) {
-        before.quantity = target.quantity; after.quantity = upd.quantity;
+        before.quantity = target.quantity;
+        after.quantity = upd.quantity;
       }
       if (upd.optional !== undefined && upd.optional !== target.optional) {
-        before.optional = target.optional; after.optional = upd.optional;
+        before.optional = target.optional;
+        after.optional = upd.optional;
       }
       if (Object.keys(after).length > 0) {
         changes.push({
@@ -329,6 +332,40 @@ export function computeRecipeMetadataDiff(
     sections.push({ section: 'step_overrides', changes });
   }
 
+  // -- step_text_overrides (per-row, per-locale, per-field) --
+  if (desired.step_text_overrides) {
+    const changes: DiffEntry[] = [];
+    for (const ov of desired.step_text_overrides) {
+      const target = findStep(current.steps, ov.match);
+      if (!target) {
+        changes.push({
+          path: `step_text_overrides`,
+          before: ov.match,
+          after: '⚠ NO MATCH IN DB — apply will raise',
+        });
+        continue;
+      }
+      for (const locale of ['en', 'es'] as const) {
+        const block = ov.translations[locale];
+        if (!block) continue;
+        const cur = target.translations.find((t) => t.locale === locale);
+        for (const field of ['instruction', 'recipe_section', 'tip'] as const) {
+          const desiredVal = block[field];
+          if (desiredVal === undefined) continue;
+          const currentVal = cur ? cur[field] : null;
+          if ((currentVal ?? null) !== desiredVal) {
+            changes.push({
+              path: `step_text_overrides[order=${target.order}].${locale}.${field}`,
+              before: currentVal,
+              after: desiredVal,
+            });
+          }
+        }
+      }
+    }
+    sections.push({ section: 'step_text_overrides', changes });
+  }
+
   // -- tags (per-category set replacement) -------------------
   if (desired.tags) {
     const changes: DiffEntry[] = [];
@@ -386,7 +423,12 @@ export function computeRecipeMetadataDiff(
     recipe_name_en: current.name_en,
     stale_diff: stale,
     ...(stale
-      ? { stale_diff_detail: { db: current.updated_at, expected: desired.recipe_match.expected_recipe_updated_at } }
+      ? {
+        stale_diff_detail: {
+          db: current.updated_at,
+          expected: desired.recipe_match.expected_recipe_updated_at,
+        },
+      }
       : {}),
     sections,
     total_changes,
@@ -505,7 +547,9 @@ function formatSectionChanges(sec: SectionDiff, lines: string[]): void {
     if (r) lines.push(`    - ${key}: ${r.join(', ')}`);
   }
   for (const c of scalar) {
-    lines.push(`    ~ ${stripSectionPrefix(c.path)}: ${formatVal(c.before)} → ${formatVal(c.after)}`);
+    lines.push(
+      `    ~ ${stripSectionPrefix(c.path)}: ${formatVal(c.before)} → ${formatVal(c.after)}`,
+    );
     if (c.details) {
       for (const [key, count] of Object.entries(c.details)) {
         const label = key.padEnd(24);
@@ -579,9 +623,7 @@ export function formatRecipeSnapshot(current: CurrentRecipeState): string {
   lines.push(`  Steps:           ${current.steps.length}`);
   lines.push(
     `  Kitchen tools:   ${
-      current.kitchen_tools.length
-        ? current.kitchen_tools.map((k) => k.name_en).join(', ')
-        : '—'
+      current.kitchen_tools.length ? current.kitchen_tools.map((k) => k.name_en).join(', ') : '—'
     }`,
   );
   lines.push(`  Pairings:        ${current.pairings.length}`);

@@ -102,7 +102,8 @@ The full Zod schema lives at [`yyx-server/data-pipeline/lib/recipe-metadata-sche
 | `ingredient_updates` / `_adds` / `_removes` | optional | per-row | match key: `existing_id` OR `ingredient_slug + display_order` |
 | `kitchen_tools` | optional | declarative `set:` | `name_en` lookup; ambiguous = hard error |
 | `pairings` | optional | declarative `set:` | composite key `(target_id, role)` |
-| `step_overrides` | optional | per-row | match key: `step_id` OR `order` |
+| `step_overrides` | optional | per-row | structured Thermomix fields (time/speed/temp/mode/blade/timer). match key: `step_id` OR `order` |
+| `step_text_overrides` | optional | per-row, per-locale UPSERT | per-locale `instruction` / `recipe_section` / `tip` on `recipe_step_translations`. match key: `step_id` OR `order` |
 | `cleanup.delete_locales` | optional | DELETE per-locale | refuses `'en'` (would orphan recipe) |
 | `requires_authoring` | optional | YAML-only | `reasons[]`, `notes` — surfaces in `--list-authoring`, never persisted |
 | `applied` | auto-written | YAML-only | One entry per change-producing `--apply`. **Reviewers must NOT pre-fill.** Surfaces in `--list-applied` / `--list-unapplied`. |

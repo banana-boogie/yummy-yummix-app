@@ -46,6 +46,7 @@ const COUNT_KEY_TO_SECTION: Record<keyof ApplyRpcCounts, string> = {
   pairings_added: 'pairings',
   pairings_removed: 'pairings',
   step_overrides: 'step_overrides',
+  step_text_overrides: 'step_text',
   tags_added: 'tags',
   tags_removed: 'tags',
 };
