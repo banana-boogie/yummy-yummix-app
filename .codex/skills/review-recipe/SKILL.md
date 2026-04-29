@@ -207,6 +207,18 @@ For each item in the **Judgment-call checks** section of `RECIPE-REVIEW.md`, rea
 
 ## Step 5 — Write the YAML
 
+**Refresh-mode guardrail — required when the YAML already exists.** Before writing, check whether a YAML at `yyx-server/data-pipeline/data/recipe-metadata/<slug>.yaml` is already on disk. If so, you are in *refresh mode*, not first-write mode. In refresh mode, do **not** trust the YAML body. The recipe in the DB may have been re-imported, re-authored, or otherwise diverged from the version the prior YAML described.
+
+Compare the existing YAML's body sections against current DB state field-by-field:
+
+- **Description / tips / scaling notes:** does the YAML's text describe the *same dish* the live recipe is now? If the DB's description says "broccoli + potato cream soup" and the YAML's says "broccoli + cheese baked casserole," the dish identity has diverged — discard the YAML body for those locales and rewrite from live state.
+- **Kitchen tools / pairings / tags:** does the YAML's set match what the live recipe should have, or is it a stale fixture? Do not blindly re-apply lists from a stale YAML.
+- **Ingredient updates / step overrides:** if these reference `existing_id`s or step UUIDs that no longer exist (recipe re-imported), drop them; switch to slug+display_order or step `order` matching.
+
+Only the minimal `recipe_match` + `review` blocks survive a refresh unconditionally. Everything else is a fresh decision against current state. Bumping `expected_recipe_updated_at` alone is **not** a refresh — it is a timestamp-only edit that risks shipping stale fixture content over corrected live content.
+
+When in doubt, treat refresh as first-write: ignore the prior YAML body, look at live state, decide everything from scratch. Re-asserting the same value is zero-write idempotent; over-writing better content is permanent.
+
 Write the YAML to `yyx-server/data-pipeline/data/recipe-metadata/<slug>.yaml` where `<slug>` is the EN name slugified (lowercase, hyphen-separated, e.g. `Mongolian Beef` → `mongolian-beef.yaml`).
 
 Required sections:
@@ -246,7 +258,11 @@ SELECT name FROM public.kitchen_tool_translations WHERE locale = 'en' ORDER BY n
 
 **`is_published` policy.** Only set `is_published: true` when (a) `requires_authoring.reasons` is empty, (b) `planner.role` is non-null, (c) a `meal_type` tag exists (or `planner.role = 'pantry'`), (d) en+es exist for name/description/tips_and_tricks, and (e) at least one ingredient and one step exist. If any condition fails, **omit `is_published` from the YAML** — that preserves the current DB value. Never silently flip a published recipe to `false` from a review; if you think it should be unpublished, flag in `requires_authoring.notes`.
 
+**Symmetric publish-when-criteria-met:** when an unpublished recipe meets all five criteria above after this review's edits land, do set `is_published: true` in the YAML. Quality-gating is the rubric's job; once the gate is passed, publication is the natural next state and silently leaving an eligible recipe unpublished defeats the review pass. The "never silently flip" rule applies in both directions: don't flip true → false without surfacing the reason, and don't leave a publish-eligible recipe at false without surfacing why (if you have a concern, name it in `requires_authoring.notes`).
+
 **`cleanup.delete_locales` is rare.** The pipeline intentionally emits `en + es + es-ES`. `es-ES` is the override slot for future Spain-Spanish content; **never** add `cleanup.delete_locales: ['es-ES']` even when it currently mirrors `es` exactly. Use `cleanup.delete_locales` only to remove a locale that genuinely should not exist for the recipe (e.g. a stray third-party locale).
+
+**`es-ES` drift is out of scope — ignore it.** The launch audience is Mexico-first; Spain-Spanish overrides are a future concern. The schema only exposes `*_en` and `*_es`, the DB has separate `es-ES` rows, and they will routinely drift from `es` because nothing in the pipeline keeps them in sync. **Do not flag es-ES drift in `requires_authoring.notes`, do not document it, do not try to clean it up.** It is expected and intentional. Only revisit when a Spain rollout is on the roadmap. The single rule that still applies: never `cleanup.delete_locales: ['es-ES']` — that destroys the override slot.
 
 Validate the YAML before stopping:
 

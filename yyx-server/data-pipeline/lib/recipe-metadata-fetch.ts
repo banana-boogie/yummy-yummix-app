@@ -67,6 +67,19 @@ export interface IngredientSnapshot {
   name_en: string;
   /** Stable slug derived from name_en — what the YAML's `ingredient_slug` matches against. */
   slug: string;
+  /**
+   * Per-locale notes/section text from `recipe_ingredient_translations`. Used by
+   * the diff renderer to surface `notes_*` / `section_*` changes in the YAML's
+   * `ingredient_updates` section. Without this, those edits silently land in
+   * the apply but never appear in --dry-run output.
+   */
+  translations: IngredientTranslationSnapshot[];
+}
+
+export interface IngredientTranslationSnapshot {
+  locale: string;
+  notes: string | null;
+  recipe_section: string | null;
 }
 
 export interface StepSnapshot {
@@ -285,6 +298,9 @@ interface IngredientRow {
   quantity: number | null;
   optional: boolean;
   ingredient: { translations: { locale: string; name: string }[] } | null;
+  translations:
+    | { locale: string; notes: string | null; recipe_section: string | null }[]
+    | null;
 }
 
 async function fetchIngredients(
@@ -295,7 +311,8 @@ async function fetchIngredients(
     .from('recipe_ingredients')
     .select(
       'id, ingredient_id, display_order, measurement_unit_id, quantity, optional, ' +
-        'ingredient:ingredients(translations:ingredient_translations(locale, name))',
+        'ingredient:ingredients(translations:ingredient_translations(locale, name)), ' +
+        'translations:recipe_ingredient_translations(locale, notes, recipe_section)',
     )
     .eq('recipe_id', recipeId)
     .order('display_order', { ascending: true });
@@ -311,6 +328,11 @@ async function fetchIngredients(
       optional: row.optional,
       name_en: enName,
       slug: slugifyName(enName),
+      translations: (row.translations ?? []).map((t) => ({
+        locale: t.locale,
+        notes: t.notes ?? null,
+        recipe_section: t.recipe_section ?? null,
+      })),
     };
   });
 }

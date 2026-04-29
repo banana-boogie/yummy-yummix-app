@@ -128,6 +128,136 @@ Deno.test('tags diff: omitted category in YAML is left untouched', () => {
 });
 
 // ============================================================
+// ingredient_updates notes / section diff
+// ============================================================
+
+function makeIngredient(opts: {
+  id?: string;
+  slug: string;
+  display_order: number;
+  translations?: {
+    locale: string;
+    notes?: string | null;
+    recipe_section?: string | null;
+  }[];
+}) {
+  return {
+    id: opts.id ?? `ing-${opts.slug}-${opts.display_order}`,
+    ingredient_id: `ingredient-${opts.slug}`,
+    display_order: opts.display_order,
+    measurement_unit_id: null,
+    quantity: 1,
+    optional: false,
+    name_en: opts.slug,
+    slug: opts.slug,
+    translations: (opts.translations ?? []).map((t) => ({
+      locale: t.locale,
+      notes: t.notes ?? null,
+      recipe_section: t.recipe_section ?? null,
+    })),
+  };
+}
+
+function ingredientSection(diff: ReturnType<typeof computeRecipeMetadataDiff>) {
+  return diff.sections.find((s) => s.section === 'ingredient_updates');
+}
+
+Deno.test('ingredient_updates diff: surfaces a notes_es change against current state', () => {
+  const desired: RecipeMetadata = {
+    ...makeDesired(),
+    ingredient_updates: [{
+      match: { ingredient_slug: 'salt', display_order: 5 },
+      notes_es: 'al gusto',
+    }],
+  };
+  const current = {
+    ...makeCurrent(),
+    ingredients: [makeIngredient({
+      slug: 'salt',
+      display_order: 5,
+      translations: [{ locale: 'es', notes: 'a la sazón' }],
+    })],
+  };
+  const sec = ingredientSection(computeRecipeMetadataDiff(desired, current));
+  assert(sec);
+  // Should emit exactly one change for the notes_es update.
+  assertEquals(sec.changes.length, 1);
+  assertEquals(sec.changes[0].path, 'ingredient_updates[salt@5].notes_es');
+  assertEquals(sec.changes[0].before, 'a la sazón');
+  assertEquals(sec.changes[0].after, 'al gusto');
+});
+
+Deno.test('ingredient_updates diff: surfaces a section_es change with no other edits', () => {
+  // Regression test for the testing finding: the YAML's only edit is
+  // section_es and the dry-run was previously silent on it.
+  const desired: RecipeMetadata = {
+    ...makeDesired(),
+    ingredient_updates: [{
+      match: { ingredient_slug: 'salt', display_order: 5 },
+      section_es: 'Principal',
+    }],
+  };
+  const current = {
+    ...makeCurrent(),
+    ingredients: [makeIngredient({
+      slug: 'salt',
+      display_order: 5,
+      translations: [{ locale: 'es', recipe_section: 'Plato principal' }],
+    })],
+  };
+  const sec = ingredientSection(computeRecipeMetadataDiff(desired, current));
+  assert(sec);
+  assertEquals(sec.changes.length, 1);
+  assertEquals(sec.changes[0].path, 'ingredient_updates[salt@5].section_es');
+  assertEquals(sec.changes[0].before, 'Plato principal');
+  assertEquals(sec.changes[0].after, 'Principal');
+});
+
+Deno.test('ingredient_updates diff: identical notes produce no change', () => {
+  const desired: RecipeMetadata = {
+    ...makeDesired(),
+    ingredient_updates: [{
+      match: { ingredient_slug: 'salt', display_order: 5 },
+      notes_es: 'al gusto',
+    }],
+  };
+  const current = {
+    ...makeCurrent(),
+    ingredients: [makeIngredient({
+      slug: 'salt',
+      display_order: 5,
+      translations: [{ locale: 'es', notes: 'al gusto' }],
+    })],
+  };
+  const sec = ingredientSection(computeRecipeMetadataDiff(desired, current));
+  assert(sec);
+  assertEquals(sec.changes.length, 0);
+});
+
+Deno.test('ingredient_updates diff: bootstrap (no translation row yet) treats current as null', () => {
+  const desired: RecipeMetadata = {
+    ...makeDesired(),
+    ingredient_updates: [{
+      match: { ingredient_slug: 'salt', display_order: 5 },
+      notes_es: 'al gusto',
+    }],
+  };
+  const current = {
+    ...makeCurrent(),
+    ingredients: [makeIngredient({
+      slug: 'salt',
+      display_order: 5,
+      translations: [], // no es row yet
+    })],
+  };
+  const sec = ingredientSection(computeRecipeMetadataDiff(desired, current));
+  assert(sec);
+  assertEquals(sec.changes.length, 1);
+  assertEquals(sec.changes[0].before, null);
+  assertEquals(sec.changes[0].after, 'al gusto');
+});
+
+// ============================================================
 // step_text_overrides diff
 // ============================================================
 

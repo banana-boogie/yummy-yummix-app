@@ -178,6 +178,41 @@ export function computeRecipeMetadataDiff(
           after,
         });
       }
+      // Per-locale notes / recipe_section diff. Mirrors the RPC's
+      // ingredient_updates loop: each YAML field is compared against the
+      // matching `recipe_ingredient_translations.{notes,recipe_section}` for
+      // that locale, and an entry is emitted when they differ. Without this,
+      // a YAML whose only edit is `notes_es:` produces a silent apply.
+      for (const locale of ['en', 'es'] as const) {
+        const desiredNotes = (upd as Record<string, unknown>)[`notes_${locale}`] as
+          | string
+          | undefined;
+        const desiredSection = (upd as Record<string, unknown>)[`section_${locale}`] as
+          | string
+          | undefined;
+        if (desiredNotes === undefined && desiredSection === undefined) continue;
+        const cur = target.translations.find((t) => t.locale === locale);
+        if (desiredNotes !== undefined) {
+          const curNotes = cur?.notes ?? null;
+          if (curNotes !== desiredNotes) {
+            changes.push({
+              path: `ingredient_updates[${target.slug}@${target.display_order}].notes_${locale}`,
+              before: curNotes,
+              after: desiredNotes,
+            });
+          }
+        }
+        if (desiredSection !== undefined) {
+          const curSection = cur?.recipe_section ?? null;
+          if (curSection !== desiredSection) {
+            changes.push({
+              path: `ingredient_updates[${target.slug}@${target.display_order}].section_${locale}`,
+              before: curSection,
+              after: desiredSection,
+            });
+          }
+        }
+      }
     }
     sections.push({ section: 'ingredient_updates', changes });
   }
