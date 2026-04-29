@@ -9,14 +9,14 @@ Review the recipe identified by `$ARGUMENTS` (an EN/ES name fragment, or a UUID)
 
 Read [docs/agent-guidelines/RECIPE-REVIEW.md](../../../docs/agent-guidelines/RECIPE-REVIEW.md) before proceeding — that file is the rubric.
 
-## Preflight — reasoning effort gate (required)
+## Preflight — reasoning effort
 
-Recipe quality is reputation-critical. A wrong tag, an invented Spanish translation, or a misclassified `planner_role` ships to real users. Before doing **anything else** in this skill:
+Recipe quality is reputation-critical, but most recipes don't need maximum reasoning. **High effort matters when the review will exercise the judgment-call portion of the rubric** — and is overkill when it won't. Pick one before Step 1:
 
-1. Confirm you are running at the highest reasoning level your harness exposes (`$effort high` in Codex, equivalently `o1`/`gpt-5` thinking-tier or whatever the current top tier is). If you cannot confirm high reasoning, stop and tell the user:
-   > Recipe review requires the highest reasoning effort available. The judgment-call portion of the rubric (planner role, tag selection, translation, ingredient/step quality) is the failure mode that hurts reputation, and high effort is the floor for those calls. Please raise effort and re-invoke `$review-recipe`.
-2. Do not start Step 1 until effort is confirmed high. This is not negotiable — even on follow-up turns of an existing `$review-recipe` session, if effort drops below high, pause and prompt for re-elevation.
-3. When you are uncertain on a judgment call (translation correctness, tag fit, role assignment, ingredient quality), prefer routing to `requires_authoring.notes` over guessing. The skill never penalizes caution.
+- **High effort recommended** when any of the following will fire: first-pass review of a recipe never reviewed before; refresh-mode review where the existing fixture has diverged from DB; recipe is a candidate for an exclusion-style diet tag (`vegan` / `vegetarian` / `gluten_free` / `pescatarian`); planner role flip from the current DB value; ES voice rewrites across multiple steps; cuisine is unfamiliar enough that authentic-seasoning judgment matters.
+- **Medium effort acceptable** for refresh reviews where the existing fixture is healthy, recipes with no diet-tag candidates, recipes whose role is uncontroversial, and routine YAML touch-ups (tag adds in non-exclusion categories, kitchen-tool corrections, pairing additions).
+
+When uncertain on a judgment call (translation correctness, tag fit, role assignment, ingredient quality), prefer routing to `requires_authoring.notes` over guessing. The skill never penalizes caution — and caution is cheaper than burning max effort to "be safe" on calls the reviewer can flag back to the human admin.
 
 ## Inputs
 
