@@ -1,6 +1,7 @@
 import { assertEquals, assertMatch } from 'std/assert/mod.ts';
 import {
   buildSnapshotFilename,
+  fetchTaxonomy,
   formatSnapshotTimestamp,
   parseManifest,
   resolveManifest,
@@ -209,8 +210,91 @@ Deno.test('resolveManifest: name with no match surfaces not_found', async () => 
 
 import { type ReviewSnapshotPointer, SNAPSHOT_VERSION } from './recipe-review-snapshot.ts';
 
-Deno.test('SNAPSHOT_VERSION is 1 (bump intentionally on schema change)', () => {
-  assertEquals(SNAPSHOT_VERSION, 1);
+Deno.test('SNAPSHOT_VERSION is 2 (bump intentionally on schema change)', () => {
+  assertEquals(SNAPSHOT_VERSION, 2);
+});
+
+// ─── fetchTaxonomy (mocked Supabase) ──────────────────
+
+function makeTaxonomyMock(opts: {
+  tags?: Array<{ slug: string | null; categories: string[] | null }>;
+  toolNames?: Array<{ name: string | null }>;
+  tagsError?: { message: string } | null;
+  toolsError?: { message: string } | null;
+}) {
+  return {
+    from(table: string) {
+      if (table === 'recipe_tags') {
+        return {
+          select: () => ({
+            order: () =>
+              Promise.resolve({
+                data: opts.tags ?? [],
+                error: opts.tagsError ?? null,
+              }),
+          }),
+        };
+      }
+      if (table === 'kitchen_tool_translations') {
+        return {
+          select: () => ({
+            eq: () => ({
+              order: () =>
+                Promise.resolve({
+                  data: opts.toolNames ?? [],
+                  error: opts.toolsError ?? null,
+                }),
+            }),
+          }),
+        };
+      }
+      throw new Error(`unexpected table: ${table}`);
+    },
+  };
+}
+
+Deno.test('fetchTaxonomy: returns slugs + kitchen-tool names verbatim', async () => {
+  const mock = makeTaxonomyMock({
+    tags: [
+      { slug: 'breakfast', categories: ['meal_type'] },
+      { slug: 'gluten_free', categories: ['diet'] },
+    ],
+    toolNames: [{ name: 'Thermomix®' }, { name: 'Thermomix® Varoma' }],
+  });
+  // deno-lint-ignore no-explicit-any
+  const tax = await fetchTaxonomy(mock as any);
+  assertEquals(tax.recipe_tags.length, 2);
+  assertEquals(tax.recipe_tags[0], { slug: 'breakfast', categories: ['meal_type'] });
+  assertEquals(tax.kitchen_tool_names_en, ['Thermomix®', 'Thermomix® Varoma']);
+});
+
+Deno.test('fetchTaxonomy: drops null/empty entries defensively', async () => {
+  const mock = makeTaxonomyMock({
+    tags: [
+      { slug: 'breakfast', categories: ['meal_type'] },
+      { slug: null, categories: ['diet'] }, // null slug — drop
+    ],
+    toolNames: [{ name: 'Thermomix®' }, { name: null }, { name: '' }],
+  });
+  // deno-lint-ignore no-explicit-any
+  const tax = await fetchTaxonomy(mock as any);
+  assertEquals(tax.recipe_tags.map((t) => t.slug), ['breakfast']);
+  assertEquals(tax.kitchen_tool_names_en, ['Thermomix®']);
+});
+
+Deno.test('fetchTaxonomy: surfaces a clear error when tag query fails', async () => {
+  const mock = makeTaxonomyMock({
+    tagsError: { message: 'permission denied' },
+  });
+  let threw = false;
+  try {
+    // deno-lint-ignore no-explicit-any
+    await fetchTaxonomy(mock as any);
+  } catch (e) {
+    threw = true;
+    assertMatch(String(e), /recipe_tags taxonomy.*permission denied/);
+  }
+  assertEquals(threw, true);
 });
 
 Deno.test('latest.json pointer shape: required fields are present', () => {

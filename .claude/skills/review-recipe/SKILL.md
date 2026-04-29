@@ -53,6 +53,8 @@ Resolution order, in priority:
 
 When you read a recipe out of a snapshot, copy `recipe.updated_at` verbatim into `recipe_match.expected_recipe_updated_at` (do not reformat). The apply RPC's stale-diff guard compares against this exact value — if the live `recipes.updated_at` has advanced past the snapshot's value, the apply will be rejected with `stale_diff` and you can either (a) refresh the single recipe via live Supabase, or (b) re-export the snapshot. Snapshot freshness alone never blocks review; only an apply-time mismatch on a specific recipe does.
 
+**Surface the snapshot timestamp at the start of the review.** Before Step 1, print the snapshot's `generated_at` and the recipe's `updated_at` so the user can decide whether to re-export. Example: `Snapshot: 2026-04-29T02:10:00Z (recipe.updated_at: 2026-04-29T01:53:11Z)`. No live-DB roundtrip — the apply-time stale_diff guard is the safety net for the dangerous case.
+
 `apply-recipe-metadata` itself never reads snapshots. Dry-run and apply still go through live Supabase — the snapshot is review-input only.
 
 ## Step 1 — Resolve the recipe
@@ -76,6 +78,16 @@ SELECT r.id, r.updated_at,
 ## Step 2 — Fetch full recipe state
 
 Run these in parallel via `execute_sql` (each is read-only). Capture the full result of each — you will reference it in steps 3-5.
+
+**Read canonical taxonomy from the snapshot (preferred) or live DB (fallback).** Every YAML you write must use real `recipe_tags.slug` values and verbatim `kitchen_tool_translations.name` strings — typos silently no-op tags or hard-fail kitchen tools at apply. Resolution order:
+
+1. **Snapshot taxonomy.** When the snapshot is loaded (see "Recipe state source" above), read the canonical lists from `taxonomy.recipe_tags[]` and `taxonomy.kitchen_tool_names_en[]`. The exporter captures these at snapshot time so reviews require zero live-DB roundtrips. Re-export to refresh.
+2. **Live-DB fallback.** If the snapshot is missing the `taxonomy` block (snapshot version < 2) or you fell through to live Supabase entirely, run these read-only queries once and reuse for every recipe in the session:
+
+```sql
+SELECT slug, categories FROM public.recipe_tags ORDER BY slug;
+SELECT name FROM public.kitchen_tool_translations WHERE locale = 'en' ORDER BY name;
+```
 
 ```sql
 -- recipe row
@@ -223,13 +235,27 @@ The applier ignores this section — it is YAML-only, surfaced by `--list-author
 
 ## Step 7 — Report
 
-Tell the user, in 3-5 short bullets:
+Structure the report into **three explicit buckets** so the user can scan judgment changes separately from mechanical ones. Lead with the recipe identifier, then the buckets in this order:
 
-- Recipe reviewed: `<name>` (`<id>`)
-- Auto-check hits: N (list categories)
-- Judgment-call concerns: N (list)
-- requires_authoring: yes/no (list reasons if yes)
-- Next step: `deno task pipeline:apply-recipe-metadata --local --recipe <slug> --dry-run`
+```
+Recipe: <name> (<id>)
+Snapshot: <generated_at>  recipe.updated_at: <updated_at>
+
+▸ Will apply on --apply (mechanical / rubric-driven)
+  - <one line per dry-run section that changes — planner, tags, kitchen_tools, etc.>
+
+▸ Judgment calls — please ratify or push back
+  - <one line per opinion-driven change, e.g. "Added diet:gluten_free + rewrote tip to GF crouton — push back if uncomfortable">
+  - <e.g. "Kept pairing role 'side' for White Rice with Vegetables">
+  - <e.g. "Renamed description from X to Y for clarity">
+
+▸ Needs you (admin panel / SQL — schema can't fix)
+  - <one line per requires_authoring.reasons item, with a pointer to notes>
+
+Next step: deno task pipeline:apply-recipe-metadata --local --recipe <slug> --dry-run
+```
+
+The **Judgment calls** bucket is the most important one — it surfaces every change driven by reviewer opinion (tag additions/removals, tip rewrites, role re-decisions that flip the DB value, ES translations, pairing reasons). The user uses this list to spot reputation risks before apply. If a section is empty, omit the bucket header entirely; do not pad with "n/a".
 
 Do not apply the YAML yourself — that is the human's call after reviewing the diff.
 

@@ -29,6 +29,7 @@ import {
   buildSnapshotFilename,
   fetchPublishedRecipeIds,
   fetchRecipeSnapshot,
+  fetchTaxonomy,
   parseManifest,
   resolveManifest,
   type ReviewSnapshotFile,
@@ -151,6 +152,12 @@ async function main() {
     Deno.exit(1);
   }
 
+  const taxonomy = await fetchTaxonomy(config.supabase);
+  logger.info(
+    `Taxonomy: ${taxonomy.recipe_tags.length} tag slugs, ` +
+      `${taxonomy.kitchen_tool_names_en.length} kitchen-tool names`,
+  );
+
   const createdAt = new Date();
   const filename = buildSnapshotFilename(createdAt, opts.label);
   const filePath = `${opts.outDir}${filename}`;
@@ -165,6 +172,7 @@ async function main() {
     recipe_count: recipes.length,
     recipes,
     unresolved_manifest_entries: unresolved,
+    taxonomy,
   };
 
   Deno.writeTextFileSync(filePath, JSON.stringify(file, null, 2) + '\n');

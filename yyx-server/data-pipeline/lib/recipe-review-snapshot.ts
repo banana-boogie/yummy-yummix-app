@@ -15,7 +15,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-export const SNAPSHOT_VERSION = 1 as const;
+export const SNAPSHOT_VERSION = 2 as const;
 
 // ───────────────── Snapshot file shape ─────────────────
 
@@ -36,6 +36,18 @@ export interface ReviewSnapshotFile {
    * is 'published' or every manifest line resolved cleanly.
    */
   unresolved_manifest_entries: UnresolvedManifestEntry[];
+  /**
+   * Global taxonomy snapshotted at export time. The `/review-recipe` skill
+   * reads these to validate slugs and kitchen-tool names without a live-DB
+   * roundtrip per review. Re-export to refresh; otherwise falls back to live
+   * Supabase queries when missing (snapshot version < 2).
+   */
+  taxonomy: SnapshotTaxonomy;
+}
+
+export interface SnapshotTaxonomy {
+  recipe_tags: Array<{ slug: string; categories: string[] }>;
+  kitchen_tool_names_en: string[];
 }
 
 export interface UnresolvedManifestEntry {
@@ -589,6 +601,39 @@ async function fetchRecipePairings(
     target_name_en: row.target?.translations?.find((t) => t.locale === 'en')?.name ?? null,
     target_name_es: row.target?.translations?.find((t) => t.locale === 'es')?.name ?? null,
   }));
+}
+
+/**
+ * Fetch the global taxonomy lists the `/review-recipe` skill validates against
+ * (canonical `recipe_tags.slug` rows and EN-locale `kitchen_tools.name` strings).
+ * Snapshotting these eliminates the per-review live-DB roundtrip and prevents
+ * typo'd slugs from sneaking into YAMLs.
+ */
+export async function fetchTaxonomy(supabase: SupabaseClient): Promise<SnapshotTaxonomy> {
+  const [tagsRes, toolsRes] = await Promise.all([
+    supabase.from('recipe_tags').select('slug, categories').order('slug', { ascending: true }),
+    supabase
+      .from('kitchen_tool_translations')
+      .select('name')
+      .eq('locale', 'en')
+      .order('name', { ascending: true }),
+  ]);
+
+  if (tagsRes.error) throw new Error(`fetch recipe_tags taxonomy: ${tagsRes.error.message}`);
+  if (toolsRes.error) {
+    throw new Error(`fetch kitchen_tool_translations taxonomy: ${toolsRes.error.message}`);
+  }
+
+  const recipe_tags =
+    ((tagsRes.data ?? []) as Array<{ slug: string | null; categories: string[] | null }>)
+      .filter((r): r is { slug: string; categories: string[] | null } => typeof r.slug === 'string')
+      .map((r) => ({ slug: r.slug, categories: r.categories ?? [] }));
+
+  const kitchen_tool_names_en = ((toolsRes.data ?? []) as Array<{ name: string | null }>)
+    .map((r) => r.name)
+    .filter((n): n is string => typeof n === 'string' && n.length > 0);
+
+  return { recipe_tags, kitchen_tool_names_en };
 }
 
 async function fetchRecipeTags(
