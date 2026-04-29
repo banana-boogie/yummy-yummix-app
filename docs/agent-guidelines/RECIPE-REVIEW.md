@@ -19,7 +19,7 @@ The reviewer's job: produce a YAML config at `yyx-server/data-pipeline/data/reci
 
 ## Snapshot-first review workflow
 
-Reviewing dozens of recipes by hitting Supabase per recipe is slow and noisy. The **recipe review snapshot** is a local-first export that captures the same review-critical state — recipe row, translations, ingredients (+ ingredient translations + measurement unit), steps, step translations, step ingredient links, kitchen tools (+ translations), pairings, tags — in a single JSON file. Reviewers iterate from that snapshot; the live DB is only touched when a recipe is missing from it.
+Reviewing dozens of recipes by hitting Supabase per recipe is slow and noisy. The **recipe review snapshot** is a local-first export that captures the same review-critical state — recipe row, translations, ingredients (+ ingredient translations + measurement unit), steps, step translations, step ingredient links, kitchen tools (+ translations), pairings, tags, and global taxonomy (tag slugs, EN kitchen-tool names, measurement units) — in a single JSON file. Reviewers iterate from that snapshot; the live DB is only touched when a recipe is missing from it, the snapshot lacks the required taxonomy version, or apply later raises `stale_diff`.
 
 **Producing a snapshot.** Run from `yyx-server/`:
 
@@ -110,12 +110,12 @@ These trip every first-time reviewer. Internalize them.
 
 - **`recipe_steps.order`** — NOT `step_order`. A column-name typo on PostgREST returns null silently, never errors.
 - **`recipe_steps.thermomix_temperature`** — NOT `thermomix_temp`. Unit lives in `thermomix_temperature_unit` and is `'C'` or `'F'` (single character), NOT `'celsius'` / `'fahrenheit'`.
-- **`recipe_ingredients.measurement_unit_id`** — string FK to `measurement_units.id` (e.g. `'g'`, `'clove'`, `'unit'`), NOT free text. Bogus IDs silently get rejected by the FK; missing FK on an existing row leaves the field null.
+- **`recipe_ingredients.measurement_unit_id`** — string FK to `measurement_units.id` (e.g. `'g'`, `'clove'`, `'unit'`), NOT free text. Bogus IDs silently get rejected by the FK; missing FK on an existing row leaves the field null. Validate units against snapshot `taxonomy.measurement_units[]`; only query live `measurement_units` when using live fallback.
 - **`recipe_translations.description`, `recipe_translations.tips_and_tricks`, `recipe_translations.scaling_notes`** — these are the canonical text fields. The matching columns on `recipes` itself either don't exist (`scaling_notes` was migrated out in `20260417225253`) or are stale. Always write to `recipe_translations`.
 - **No cross-language fallback.** `en` and `es` are independent user groups. A Spanish user must never see English content, and vice versa. Never store base content under a regional code.
 - **`recipes.verified_by`** — UUID FK to `auth.users`, reserved for admin-UI verification. Reviewer attestation goes in YAML's `review:` section, NOT this column.
 - **PostgREST silently returns null for non-existent columns.** When fetching for review, double-check column names against the live schema if a value looks suspicious.
-- **`kitchen_tools.set[].name_en` must match `kitchen_tool_translations.name` exactly — including trademark glyphs.** The DB stores `Thermomix® Varoma` (with the ® registered-trademark symbol) and `Thermomix®` for the appliance. A YAML that writes `Varoma` or `Thermomix Varoma` (no ®) will hard-fail at apply with an "ambiguous name" or "tool not found" error. **Always query `SELECT name FROM kitchen_tool_translations WHERE locale = 'en' ORDER BY name` before authoring `kitchen_tools.set` and copy the canonical string verbatim.** No auto-create — taxonomy stays human-curated.
+- **`kitchen_tools.set[].name_en` must match `kitchen_tool_translations.name` exactly — including trademark glyphs.** The DB stores `Thermomix® Varoma` (with the ® registered-trademark symbol) and `Thermomix®` for the appliance. A YAML that writes `Varoma` or `Thermomix Varoma` (no ®) will hard-fail at apply with an "ambiguous name" or "tool not found" error. Copy names from snapshot `taxonomy.kitchen_tool_names_en[]`; only query `SELECT name FROM kitchen_tool_translations WHERE locale = 'en' ORDER BY name` when using live fallback. No auto-create — taxonomy stays human-curated.
 - **`recipes.equipment_tags` taxonomy is lowercase free strings, conventionally `[thermomix]`.** The schema accepts `z.array(z.string().min(1))` (no enum) but the project convention is the lowercase appliance family. Do not write `Thermomix`, `TM6`, `varoma`, or other variants — match what existing YAMLs in `data-pipeline/data/recipe-metadata/*.yaml` use. As of 2026-04, `thermomix` is the only accepted value.
 
 ---

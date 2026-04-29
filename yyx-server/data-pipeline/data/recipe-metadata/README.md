@@ -128,7 +128,7 @@ deno task pipeline:export-review-snapshot --local --scope published --label publ
 deno task pipeline:export-review-snapshot --local --manifest /tmp/recipes.txt
 ```
 
-Snapshots are immutable timestamped files; `latest.json` points at the most recent one. Snapshots are **review input only** — `apply-recipe-metadata` always talks to live Supabase, and the YAML's `recipe_match.expected_recipe_updated_at` plus the RPC's stale-diff guard remain the apply-time safety boundary. The snapshot directory is gitignored (snapshots can be large and may capture unpublished/draft content).
+Snapshots are immutable timestamped files; `latest.json` points at the most recent one. Snapshots include the global taxonomy needed for local review (`recipe_tags`, EN kitchen-tool names, and measurement units), so a normal snapshot-backed review needs no per-recipe SQL roundtrips. Snapshots are **review input only** — `apply-recipe-metadata` always talks to live Supabase, and the YAML's `recipe_match.expected_recipe_updated_at` plus the RPC's stale-diff guard remain the apply-time safety boundary. The snapshot directory is gitignored (snapshots can be large and may capture unpublished/draft content).
 
 ---
 

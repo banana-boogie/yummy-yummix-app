@@ -210,8 +210,8 @@ Deno.test('resolveManifest: name with no match surfaces not_found', async () => 
 
 import { type ReviewSnapshotPointer, SNAPSHOT_VERSION } from './recipe-review-snapshot.ts';
 
-Deno.test('SNAPSHOT_VERSION is 2 (bump intentionally on schema change)', () => {
-  assertEquals(SNAPSHOT_VERSION, 2);
+Deno.test('SNAPSHOT_VERSION is 3 (bump intentionally on schema change)', () => {
+  assertEquals(SNAPSHOT_VERSION, 3);
 });
 
 // ─── fetchTaxonomy (mocked Supabase) ──────────────────
@@ -219,8 +219,15 @@ Deno.test('SNAPSHOT_VERSION is 2 (bump intentionally on schema change)', () => {
 function makeTaxonomyMock(opts: {
   tags?: Array<{ slug: string | null; categories: string[] | null }>;
   toolNames?: Array<{ name: string | null }>;
+  units?: Array<{
+    id: string | null;
+    type: string | null;
+    system: string | null;
+    translations: Array<{ locale: string; name: string | null; symbol: string | null }>;
+  }>;
   tagsError?: { message: string } | null;
   toolsError?: { message: string } | null;
+  unitsError?: { message: string } | null;
 }) {
   return {
     from(table: string) {
@@ -248,24 +255,61 @@ function makeTaxonomyMock(opts: {
           }),
         };
       }
+      if (table === 'measurement_units') {
+        return {
+          select: () => ({
+            order: () =>
+              Promise.resolve({
+                data: opts.units ?? [],
+                error: opts.unitsError ?? null,
+              }),
+          }),
+        };
+      }
       throw new Error(`unexpected table: ${table}`);
     },
   };
 }
 
-Deno.test('fetchTaxonomy: returns slugs + kitchen-tool names verbatim', async () => {
+Deno.test('fetchTaxonomy: returns slugs, kitchen-tool names, and measurement units verbatim', async () => {
   const mock = makeTaxonomyMock({
     tags: [
       { slug: 'breakfast', categories: ['meal_type'] },
       { slug: 'gluten_free', categories: ['diet'] },
     ],
     toolNames: [{ name: 'Thermomix®' }, { name: 'Thermomix® Varoma' }],
+    units: [
+      {
+        id: 'g',
+        type: 'weight',
+        system: 'metric',
+        translations: [
+          { locale: 'en', name: 'gram', symbol: 'g' },
+          { locale: 'es', name: 'gramo', symbol: 'g' },
+        ],
+      },
+      {
+        id: 'clove',
+        type: 'count',
+        system: null,
+        translations: [{ locale: 'en', name: 'clove', symbol: null }],
+      },
+    ],
   });
   // deno-lint-ignore no-explicit-any
   const tax = await fetchTaxonomy(mock as any);
   assertEquals(tax.recipe_tags.length, 2);
   assertEquals(tax.recipe_tags[0], { slug: 'breakfast', categories: ['meal_type'] });
   assertEquals(tax.kitchen_tool_names_en, ['Thermomix®', 'Thermomix® Varoma']);
+  assertEquals(tax.measurement_units[0], {
+    id: 'g',
+    type: 'weight',
+    system: 'metric',
+    translations: [
+      { locale: 'en', name: 'gram', symbol: 'g' },
+      { locale: 'es', name: 'gramo', symbol: 'g' },
+    ],
+  });
 });
 
 Deno.test('fetchTaxonomy: drops null/empty entries defensively', async () => {
@@ -275,11 +319,26 @@ Deno.test('fetchTaxonomy: drops null/empty entries defensively', async () => {
       { slug: null, categories: ['diet'] }, // null slug — drop
     ],
     toolNames: [{ name: 'Thermomix®' }, { name: null }, { name: '' }],
+    units: [
+      {
+        id: 'g',
+        type: 'weight',
+        system: 'metric',
+        translations: [{ locale: 'en', name: 'gram', symbol: 'g' }],
+      },
+      {
+        id: null,
+        type: 'count',
+        system: null,
+        translations: [{ locale: 'en', name: 'bad', symbol: null }],
+      },
+    ],
   });
   // deno-lint-ignore no-explicit-any
   const tax = await fetchTaxonomy(mock as any);
   assertEquals(tax.recipe_tags.map((t) => t.slug), ['breakfast']);
   assertEquals(tax.kitchen_tool_names_en, ['Thermomix®']);
+  assertEquals(tax.measurement_units.map((u) => u.id), ['g']);
 });
 
 Deno.test('fetchTaxonomy: surfaces a clear error when tag query fails', async () => {
@@ -293,6 +352,21 @@ Deno.test('fetchTaxonomy: surfaces a clear error when tag query fails', async ()
   } catch (e) {
     threw = true;
     assertMatch(String(e), /recipe_tags taxonomy.*permission denied/);
+  }
+  assertEquals(threw, true);
+});
+
+Deno.test('fetchTaxonomy: surfaces a clear error when measurement unit query fails', async () => {
+  const mock = makeTaxonomyMock({
+    unitsError: { message: 'permission denied' },
+  });
+  let threw = false;
+  try {
+    // deno-lint-ignore no-explicit-any
+    await fetchTaxonomy(mock as any);
+  } catch (e) {
+    threw = true;
+    assertMatch(String(e), /measurement_units taxonomy.*permission denied/);
   }
   assertEquals(threw, true);
 });

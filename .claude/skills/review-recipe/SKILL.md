@@ -53,7 +53,7 @@ Resolution order, in priority:
 
 When you read a recipe out of a snapshot, copy `recipe.updated_at` verbatim into `recipe_match.expected_recipe_updated_at` (do not reformat). The apply RPC's stale-diff guard compares against this exact value — if the live `recipes.updated_at` has advanced past the snapshot's value, the apply will be rejected with `stale_diff` and you can either (a) refresh the single recipe via live Supabase, or (b) re-export the snapshot. Snapshot freshness alone never blocks review; only an apply-time mismatch on a specific recipe does.
 
-**Surface the snapshot timestamp at the start of the review.** Before Step 1, print the snapshot's `generated_at` and the recipe's `updated_at` so the user can decide whether to re-export. Example: `Snapshot: 2026-04-29T02:10:00Z (recipe.updated_at: 2026-04-29T01:53:11Z)`. No live-DB roundtrip — the apply-time stale_diff guard is the safety net for the dangerous case.
+**Surface the snapshot timestamp at the start of the review.** Before Step 1, print the snapshot's `created_at` and the recipe's `updated_at` so the user can decide whether to re-export. If you are handed an older snapshot with `generated_at` instead, print that value and label it clearly. Example: `Snapshot: 2026-04-29T02:10:00Z (recipe.updated_at: 2026-04-29T01:53:11Z)`. No live-DB roundtrip — the apply-time stale_diff guard is the safety net for the dangerous case.
 
 **When to re-export the snapshot.** The snapshot is review-input infrastructure; re-exporting defensively defeats its purpose (one export should serve a 21-recipe batch, not 21 round-trips dressed up as exports).
 
@@ -73,7 +73,9 @@ Do **not** re-export because:
 
 ## Step 1 — Resolve the recipe
 
-Use the Supabase MCP `execute_sql` tool (read-only — safe per the project's MCP rules) to find candidate matches:
+If a snapshot is loaded, resolve the recipe from `recipes[]` by UUID or by `translations[].name` and do **not** run SQL. If 0 snapshot matches, tell the user the recipe is missing from the snapshot and either fall through to live Supabase or ask whether to re-export. If 2+ snapshot matches, list them and ask which one. If 1 match, capture `recipe.id`, `recipe.updated_at`, and the `en` / `es` names for use throughout.
+
+Only when no usable snapshot path exists, use the Supabase MCP `execute_sql` tool (read-only — safe per the project's MCP rules) to find candidate matches:
 
 ```sql
 SELECT r.id, r.updated_at,
@@ -91,17 +93,23 @@ SELECT r.id, r.updated_at,
 
 ## Step 2 — Fetch full recipe state
 
-Run these in parallel via `execute_sql` (each is read-only). Capture the full result of each — you will reference it in steps 3-5.
+If a snapshot recipe was resolved in Step 1, use that recipe object's `recipe`, `translations`, `ingredients`, `steps`, `kitchen_tools`, `pairings`, and `tags` arrays as the full recipe state. Do **not** run SQL for state that is already present in the snapshot.
 
-**Read canonical taxonomy from the snapshot (preferred) or live DB (fallback).** Every YAML you write must use real `recipe_tags.slug` values and verbatim `kitchen_tool_translations.name` strings — typos silently no-op tags or hard-fail kitchen tools at apply. Resolution order:
+**Read canonical taxonomy from the snapshot (preferred) or live DB (fallback).** Every YAML you write must use real `recipe_tags.slug` values, verbatim `kitchen_tool_translations.name` strings, and real `measurement_units.id` values — typos silently no-op tags or hard-fail kitchen tools / ingredients at apply. Resolution order:
 
-1. **Snapshot taxonomy.** When the snapshot is loaded (see "Recipe state source" above), read the canonical lists from `taxonomy.recipe_tags[]` and `taxonomy.kitchen_tool_names_en[]`. The exporter captures these at snapshot time so reviews require zero live-DB roundtrips. Re-export to refresh.
-2. **Live-DB fallback.** If the snapshot is missing the `taxonomy` block (snapshot version < 2) or you fell through to live Supabase entirely, run these read-only queries once and reuse for every recipe in the session:
+1. **Snapshot taxonomy.** When the snapshot is loaded (see "Recipe state source" above), read the canonical lists from `taxonomy.recipe_tags[]`, `taxonomy.kitchen_tool_names_en[]`, and `taxonomy.measurement_units[]`. The exporter captures these at snapshot time so reviews require zero live-DB roundtrips. Re-export to refresh.
+2. **Live-DB fallback.** If the snapshot is missing the required `taxonomy` block (snapshot version < 3), or you fell through to live Supabase entirely, run these read-only queries once and reuse for every recipe in the session:
 
 ```sql
 SELECT slug, categories FROM public.recipe_tags ORDER BY slug;
 SELECT name FROM public.kitchen_tool_translations WHERE locale = 'en' ORDER BY name;
+SELECT mu.id, mu.type, mu.system, mut.locale, mut.name, mut.symbol
+  FROM public.measurement_units mu
+  LEFT JOIN public.measurement_unit_translations mut ON mut.measurement_unit_id = mu.id
+  ORDER BY mu.id, mut.locale;
 ```
+
+When live fallback is required, run these in parallel via `execute_sql` (each is read-only). Capture the full result of each — you will reference it in steps 3-5. Skip this SQL block entirely when the snapshot supplied the recipe state.
 
 ```sql
 -- recipe row
@@ -204,7 +212,7 @@ Required sections:
 
 - `recipe_match.id` — the UUID from step 1
 - `recipe_match.name_en` — the live EN name (so the apply hard-fails if the YAML drifts to a different recipe)
-- `recipe_match.expected_recipe_updated_at` — the live `updated_at` from step 1, **converted to canonical ISO 8601**: `T` separator, preserve microseconds, full `+00:00` offset. Postgres returns `2026-03-17 20:22:55.099866+00` — write it as `'2026-03-17T20:22:55.099866+00:00'`. Truncating to seconds risks `stale_diff` rejection.
+- `recipe_match.expected_recipe_updated_at` — when using a snapshot, copy `recipe.updated_at` verbatim. When using live SQL fallback, convert the returned `updated_at` to canonical ISO 8601: `T` separator, preserve microseconds, full `+00:00` offset. Postgres returns `2026-03-17 20:22:55.099866+00` — write it as `'2026-03-17T20:22:55.099866+00:00'`. Truncating to seconds risks `stale_diff` rejection.
 - `review.reviewed_by_label` — your model label (e.g. `'claude-opus-4-7'`)
 - `review.reviewed_at` — current ISO 8601 timestamp
 
@@ -215,11 +223,11 @@ For every other section, write only what changes. If a section's current state i
 **YAML comments: mechanical only.** Reserve `#` comments for mechanical facts a future reader needs while looking at the file: what canonical name a `name_en` resolves to, why a match key uses `order` instead of `step_id`, what a `null` override clears, why a one-off slug deviates from the obvious choice. Do **not** write multi-paragraph rationale for tag additions, role re-decisions, description rewrites, or other judgment calls. That belongs in the Step 7 report's "Judgment calls" bucket — the report is what the user reads to ratify before apply; the YAML is what the apply pipeline reads, and `--dry-run` does not surface YAML comments. Duplicating rationale in both places stales fast and clutters the diff.
 
 Match-key rules:
-- `ingredient_updates`/`ingredient_removes`: prefer `existing_id` (the `id` from step 2's recipe_ingredients query). Fallback: `ingredient_slug` + `display_order`. Compute the slug exactly as the SQL helper does — the JS reproduction is in `data-pipeline/lib/recipe-metadata-fetch.ts:slugifyName()`. Never use names directly.
-- `step_overrides`: prefer `step_id`. Fallback: `order`.
+- `ingredient_updates`/`ingredient_removes`: prefer durable `ingredient_slug` + `display_order` because `recipe_ingredients.id` values can rotate on re-import. Compute the slug exactly as the SQL helper does — the JS reproduction is in `data-pipeline/lib/recipe-metadata-fetch.ts:slugifyName()`. Use `existing_id` only when a slug is unavailable or the row cannot be disambiguated by slug + display order. Never use names directly.
+- `step_overrides`: prefer `order` because `recipe_steps.id` values can rotate on re-import. Use `step_id` only when order is unavailable or ambiguous.
 - `kitchen_tools` and `pairings`: declarative `set:` blocks list the full desired state.
 
-**Before writing a `kitchen_tools.set` block — query the canonical names.** The DB stores `Thermomix®` and `Thermomix® Varoma` (with the registered-trademark glyph). A YAML that writes `Thermomix` or `Varoma` (no ®) will hard-fail at apply with an opaque "ambiguous name" error. Run this read-only `execute_sql` once and copy strings verbatim:
+**Before writing a `kitchen_tools.set` block — validate canonical names.** The DB stores `Thermomix®` and `Thermomix® Varoma` (with the registered-trademark glyph). A YAML that writes `Thermomix` or `Varoma` (no ®) will hard-fail at apply with an opaque "ambiguous name" error. When using a snapshot, copy strings verbatim from `taxonomy.kitchen_tool_names_en[]`. Only in live fallback mode, run this read-only `execute_sql` once and copy strings verbatim:
 
 ```sql
 SELECT name FROM public.kitchen_tool_translations WHERE locale = 'en' ORDER BY name;
@@ -237,7 +245,7 @@ Validate the YAML before stopping:
 cd yyx-server && deno task pipeline:apply-recipe-metadata --local --recipe <slug> --dry-run
 ```
 
-The dry-run prints the diff. If validation fails, fix the YAML and re-run.
+The dry-run prints the diff. If validation fails, fix the YAML and re-run. Immediately after the final dry-run, write the Step 7 report with the actual dry-run change count and stale status; do not leave judgment calls only in YAML comments.
 
 ## Step 6 — requires_authoring triage
 
@@ -257,7 +265,8 @@ Structure the report into **three explicit buckets** so the user can scan judgme
 
 ```
 Recipe: <name> (<id>)
-Snapshot: <generated_at>  recipe.updated_at: <updated_at>
+Snapshot: <created_at>  recipe.updated_at: <updated_at>
+Dry-run: <N> changes  stale_diff: <yes/no>
 
 ▸ Will apply on --apply (mechanical / rubric-driven)
   - <one line per dry-run section that changes — planner, tags, kitchen_tools, etc.>
@@ -270,10 +279,10 @@ Snapshot: <generated_at>  recipe.updated_at: <updated_at>
 ▸ Needs you (admin panel / SQL — schema can't fix)
   - <one line per requires_authoring.reasons item, with a pointer to notes>
 
-Next step: deno task pipeline:apply-recipe-metadata --local --recipe <slug> --dry-run
+Next step: review the judgment calls; if approved, run `deno task pipeline:apply-recipe-metadata --local --recipe <slug> --apply`.
 ```
 
-The **Judgment calls** bucket is the most important one — it surfaces every change driven by reviewer opinion (tag additions/removals, tip rewrites, role re-decisions that flip the DB value, ES translations, pairing reasons). The user uses this list to spot reputation risks before apply. If a section is empty, omit the bucket header entirely; do not pad with "n/a".
+The **Judgment calls** bucket is the most important one — it surfaces every change driven by reviewer opinion (tag additions/removals, tip rewrites, role re-decisions that flip the DB value, ES translations, pairing reasons). The user uses this list to spot reputation risks before apply. If a section is empty, omit the bucket header entirely; do not pad with "n/a". If the dry-run hit `stale_diff`, say so in the dry-run line and make the next step refresh/re-export instead of apply.
 
 Do not apply the YAML yourself — that is the human's call after reviewing the diff.
 

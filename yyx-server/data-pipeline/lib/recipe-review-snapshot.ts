@@ -15,7 +15,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-export const SNAPSHOT_VERSION = 2 as const;
+export const SNAPSHOT_VERSION = 3 as const;
 
 // ───────────────── Snapshot file shape ─────────────────
 
@@ -38,9 +38,9 @@ export interface ReviewSnapshotFile {
   unresolved_manifest_entries: UnresolvedManifestEntry[];
   /**
    * Global taxonomy snapshotted at export time. The `/review-recipe` skill
-   * reads these to validate slugs and kitchen-tool names without a live-DB
+   * reads these to validate slugs, kitchen-tool names, and measurement units without a live-DB
    * roundtrip per review. Re-export to refresh; otherwise falls back to live
-   * Supabase queries when missing (snapshot version < 2).
+   * Supabase queries when missing (snapshot version < 3).
    */
   taxonomy: SnapshotTaxonomy;
 }
@@ -48,6 +48,7 @@ export interface ReviewSnapshotFile {
 export interface SnapshotTaxonomy {
   recipe_tags: Array<{ slug: string; categories: string[] }>;
   kitchen_tool_names_en: string[];
+  measurement_units: SnapshotMeasurementUnit[];
 }
 
 export interface UnresolvedManifestEntry {
@@ -604,24 +605,32 @@ async function fetchRecipePairings(
 }
 
 /**
- * Fetch the global taxonomy lists the `/review-recipe` skill validates against
- * (canonical `recipe_tags.slug` rows and EN-locale `kitchen_tools.name` strings).
- * Snapshotting these eliminates the per-review live-DB roundtrip and prevents
- * typo'd slugs from sneaking into YAMLs.
+ * Fetch the global taxonomy lists the `/review-recipe` skill validates against:
+ * canonical `recipe_tags.slug` rows, EN-locale kitchen-tool names, and
+ * measurement unit IDs/translations. Snapshotting these eliminates per-review
+ * live-DB roundtrips and prevents typo'd taxonomy values from sneaking into
+ * YAMLs.
  */
 export async function fetchTaxonomy(supabase: SupabaseClient): Promise<SnapshotTaxonomy> {
-  const [tagsRes, toolsRes] = await Promise.all([
+  const [tagsRes, toolsRes, unitsRes] = await Promise.all([
     supabase.from('recipe_tags').select('slug, categories').order('slug', { ascending: true }),
     supabase
       .from('kitchen_tool_translations')
       .select('name')
       .eq('locale', 'en')
       .order('name', { ascending: true }),
+    supabase
+      .from('measurement_units')
+      .select('id, type, system, translations:measurement_unit_translations(locale, name, symbol)')
+      .order('id', { ascending: true }),
   ]);
 
   if (tagsRes.error) throw new Error(`fetch recipe_tags taxonomy: ${tagsRes.error.message}`);
   if (toolsRes.error) {
     throw new Error(`fetch kitchen_tool_translations taxonomy: ${toolsRes.error.message}`);
+  }
+  if (unitsRes.error) {
+    throw new Error(`fetch measurement_units taxonomy: ${unitsRes.error.message}`);
   }
 
   const recipe_tags =
@@ -633,7 +642,16 @@ export async function fetchTaxonomy(supabase: SupabaseClient): Promise<SnapshotT
     .map((r) => r.name)
     .filter((n): n is string => typeof n === 'string' && n.length > 0);
 
-  return { recipe_tags, kitchen_tool_names_en };
+  const measurement_units = ((unitsRes.data ?? []) as SnapshotMeasurementUnit[])
+    .filter((u) => typeof u.id === 'string' && u.id.length > 0)
+    .map((u) => ({
+      id: u.id,
+      type: u.type ?? null,
+      system: u.system ?? null,
+      translations: u.translations ?? [],
+    }));
+
+  return { recipe_tags, kitchen_tool_names_en, measurement_units };
 }
 
 async function fetchRecipeTags(

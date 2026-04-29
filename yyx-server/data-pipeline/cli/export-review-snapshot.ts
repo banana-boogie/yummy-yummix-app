@@ -155,7 +155,8 @@ async function main() {
   const taxonomy = await fetchTaxonomy(config.supabase);
   logger.info(
     `Taxonomy: ${taxonomy.recipe_tags.length} tag slugs, ` +
-      `${taxonomy.kitchen_tool_names_en.length} kitchen-tool names`,
+      `${taxonomy.kitchen_tool_names_en.length} kitchen-tool names, ` +
+      `${taxonomy.measurement_units.length} measurement units`,
   );
 
   const createdAt = new Date();
