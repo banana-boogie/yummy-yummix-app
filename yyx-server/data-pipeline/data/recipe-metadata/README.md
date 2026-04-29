@@ -108,6 +108,23 @@ The Reviewer captures `recipes.updated_at` at fetch time and writes it to `recip
 
 ---
 
+## Recipe review snapshots (review input only)
+
+For batch reviews, the Reviewer reads recipe state from a local **recipe review snapshot** instead of round-tripping to Supabase per recipe. A snapshot captures the same review-critical state in a single JSON file under `data/recipe-review-snapshots/`.
+
+```bash
+# Export every published recipe into a single snapshot
+deno task pipeline:export-review-snapshot --local --scope published --label published-review
+
+# Export only recipes named in a newline-separated manifest (IDs preferred,
+# names allowed — duplicates surface as unresolved entries)
+deno task pipeline:export-review-snapshot --local --manifest /tmp/recipes.txt
+```
+
+Snapshots are immutable timestamped files; `latest.json` points at the most recent one. Snapshots are **review input only** — `apply-recipe-metadata` always talks to live Supabase, and the YAML's `recipe_match.expected_recipe_updated_at` plus the RPC's stale-diff guard remain the apply-time safety boundary. The snapshot directory is gitignored (snapshots can be large and may capture unpublished/draft content).
+
+---
+
 ## Idempotency
 
 Every section uses `IS DISTINCT FROM` gating, set-replacement diffs, or composite-key existence checks. Re-running an unchanged YAML produces zero data writes. The CLI's dry-run output is the source of truth for what an apply would touch.

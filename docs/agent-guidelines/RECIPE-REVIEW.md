@@ -8,12 +8,40 @@ The reviewer's job: produce a YAML config at `yyx-server/data-pipeline/data/reci
 
 ## How to use this rubric
 
-1. Fetch the current recipe state from the DB (recipe row + ingredients, steps, translations, kitchen tools, pairings, tags, recipe_to_tag).
+1. Fetch the current recipe state. Prefer a local **recipe review snapshot** (see "Snapshot-first review workflow" below); fall through to live Supabase only when no snapshot is available or the recipe was created after the snapshot was exported.
 2. Walk the **deterministic auto-checks** below and record any positive hits as YAML diffs.
 3. Walk the **judgment-call checks** and decide what (if anything) needs changing. When unsure, flag in `requires_authoring.notes` rather than guess.
 4. If any **unfixable-by-Applier** signal fires (`no_steps`, `few_ingredients`, `same_en_es_name` without an obvious ES name), set `requires_authoring.reasons` and STOP — do not fabricate content.
-5. Capture `recipe_match.expected_recipe_updated_at` from the row you fetched in step 1. The Applier rejects the apply if the DB row has advanced since.
+5. Capture `recipe_match.expected_recipe_updated_at` verbatim from the snapshot's `recipe.updated_at` (or the live row, when falling through). The Applier rejects the apply if the DB row has advanced since — do not reformat the value.
 6. Set `review.reviewed_by_label` and `review.reviewed_at` (ISO 8601) — this is YAML-only attestation, never written to `recipes.verified_by`.
+
+---
+
+## Snapshot-first review workflow
+
+Reviewing dozens of recipes by hitting Supabase per recipe is slow and noisy. The **recipe review snapshot** is a local-first export that captures the same review-critical state — recipe row, translations, ingredients (+ ingredient translations + measurement unit), steps, step translations, step ingredient links, kitchen tools (+ translations), pairings, tags — in a single JSON file. Reviewers iterate from that snapshot; the live DB is only touched when a recipe is missing from it.
+
+**Producing a snapshot.** Run from `yyx-server/`:
+
+```bash
+deno task pipeline:export-review-snapshot --local --scope published
+deno task pipeline:export-review-snapshot --local --scope published --label published-review
+deno task pipeline:export-review-snapshot --local --manifest /tmp/recipes.txt
+```
+
+Snapshots are written to `yyx-server/data-pipeline/data/recipe-review-snapshots/<timestamp>_<label>.json` (immutable after creation). A `latest.json` pointer is updated to identify the most recent file. Snapshots are gitignored — they can be large and may include unpublished/draft content.
+
+**Resolution order for the reviewer.** Read recipe state from the first source that has the recipe:
+
+1. an explicit snapshot path passed by the user;
+2. otherwise, the file referenced by `latest.json`;
+3. otherwise (or if the recipe is not in the snapshot), live Supabase.
+
+**Snapshot staleness — narrow definition.** A snapshot does not become stale just because time has passed. A snapshot is stale **for a specific recipe** only when the live `recipes.updated_at` differs from the snapshot's `recipe.updated_at` at dry-run/apply time. The apply RPC's existing stale-diff guard is the sole source of truth for this; the YAML's `recipe_match.expected_recipe_updated_at` carries the captured value forward verbatim. New recipes created after the snapshot was exported are simply "not in snapshot" — that is a fall-through, not staleness.
+
+**On stale-diff at apply time.** Either (a) refresh the single recipe by re-fetching live state and re-running the reviewer, or (b) re-export the snapshot and re-run. Do not patch the snapshot in-place — snapshots are immutable.
+
+**`apply-recipe-metadata` does not read snapshots.** Snapshots are review input only. Dry-run and apply both go through live Supabase, governed by the YAML's stale-diff guard.
 
 ---
 

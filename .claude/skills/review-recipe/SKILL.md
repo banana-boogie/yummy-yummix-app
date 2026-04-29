@@ -41,6 +41,20 @@ Ask the user which one to review (by name or by number). Once they pick, proceed
 
 If both lists are empty, tell the user every recipe in the DB already has a YAML and ask if they want to refresh an existing one.
 
+## Recipe state source — snapshot first, live Supabase as fallback
+
+Reviews read recipe state from a local **recipe review snapshot** when one is available. Snapshots are produced by `deno task pipeline:export-review-snapshot` (see `yyx-server/data-pipeline/data/recipe-review-snapshots/`) and capture the same review-critical state the SQL queries below would otherwise fetch one-recipe-at-a-time. Use them — they are dramatically faster for batch review and produce no Supabase load.
+
+Resolution order, in priority:
+
+1. **Explicit snapshot.** If the user passed a snapshot path (e.g. `/review-recipe Mongolian Beef --snapshot /abs/path.json`), load that file and resolve the recipe out of `recipes[]` by `recipe.id` or `translations[].name`.
+2. **`latest.json` pointer.** Otherwise, look for `yyx-server/data-pipeline/data/recipe-review-snapshots/latest.json`. If it exists, read the `snapshot_file` field and load that snapshot.
+3. **Live Supabase fallback.** If no snapshot is available, or the recipe is not in the snapshot (e.g. a recipe created after the snapshot was exported), fall through to the live `execute_sql` queries in Steps 1-2 below.
+
+When you read a recipe out of a snapshot, copy `recipe.updated_at` verbatim into `recipe_match.expected_recipe_updated_at` (do not reformat). The apply RPC's stale-diff guard compares against this exact value — if the live `recipes.updated_at` has advanced past the snapshot's value, the apply will be rejected with `stale_diff` and you can either (a) refresh the single recipe via live Supabase, or (b) re-export the snapshot. Snapshot freshness alone never blocks review; only an apply-time mismatch on a specific recipe does.
+
+`apply-recipe-metadata` itself never reads snapshots. Dry-run and apply still go through live Supabase — the snapshot is review-input only.
+
 ## Step 1 — Resolve the recipe
 
 Use the Supabase MCP `execute_sql` tool (read-only — safe per the project's MCP rules) to find candidate matches:
