@@ -85,6 +85,23 @@ Snapshots are written to `yyx-server/data-pipeline/data/recipe-review-snapshots/
     Each match → fix via `step_text_overrides` rewriting the locale's instruction (or `recipe_section` / `tip`) to the tú equivalent (`Coloca`, `Añade`, `Agrega`, `Licúa`, `Pica`, `Baja`, `Cocina`, `Transfiere`, `Sirve`, `Enjuaga`, …). Voice fixes are exactly what `step_text_overrides` exists for; do not route to `requires_authoring.notes`.
 21. **Step-ingredient quantity / unit drift.** When `recipe_step_ingredients.recipe_ingredient_id` is non-null, the row carries its own `quantity` and `measurement_unit_id` — those should match the recipe-level `recipe_ingredients` row for the same ingredient (within rounding for unit conversions). Mismatch is almost always import drift (e.g. recipe-level cornstarch 30 g, step-level says 20 g). Walk every step ingredient against its recipe-level counterpart; flag any mismatch in `requires_authoring.notes` — the YAML applier cannot mutate `recipe_step_ingredients` (link table, same constraint as auto-check #12), so this routes to admin cleanup. The data is in the snapshot under `recipe.steps[].step_ingredients[]` joined to `recipe.ingredients[]`; no extra query needed.
 
+    **Include the SQL UPDATE template per drift in `requires_authoring.notes`.** The admin panel for ingredient editing is unreliable; admins are running these fixes via SQL Editor. Write one statement per drift, scoped by `recipe_id` + step `"order"` + ingredient `name` (locale `'en'`) so the admin can copy-paste each line without ambiguity:
+
+    ```sql
+    -- Step <N> (<Ingredient Name>): step quantity = <step_qty> <unit>, recipe quantity = <recipe_qty> <unit>
+    UPDATE public.recipe_step_ingredients rsi
+       SET quantity = <recipe_qty>
+      FROM public.recipe_steps rs, public.ingredient_translations it
+     WHERE rsi.recipe_step_id = rs.id
+       AND rsi.ingredient_id = it.ingredient_id
+       AND it.locale = 'en'
+       AND rs.recipe_id = '<recipe-uuid>'
+       AND rs."order" = <N>
+       AND it.name = '<Ingredient Name>';
+    ```
+
+    For unit drift, also set `measurement_unit_id` in the same `SET` clause. Apply the same pattern to auto-check #12's link-table issues (orphan link → `DELETE`; missing link → `INSERT`); reviewers were leaving prose-only notes that admins still had to translate to SQL.
+
 ### Judgment-call checks (require Claude's reasoning)
 
 - **Planner role / meal components / is_complete_meal — re-decide from scratch.** **Do NOT trust the existing DB values.** Many recipes were imported with incorrect planner roles (e.g. complete-meal salads with salmon mis-coded as `side`, dips coded as `snack` when they're really `condiment`). For every review, decide independently:

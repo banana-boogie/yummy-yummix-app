@@ -710,7 +710,10 @@ function formatVal(v: unknown): string {
   if (v === null) return 'null';
   if (v === undefined) return 'undefined';
   if (typeof v === 'string') {
-    if (v.length > 60) return `'${v.slice(0, 57)}…' (${v.length} chars)`;
+    // Render strings in full — long-form text fields (step instructions,
+    // descriptions, tips) need full visibility for the reviewer to verify
+    // rewrites. Truncating 122-char step text to 57 chars + `…` defeats
+    // the purpose of the dry-run.
     return `'${v}'`;
   }
   if (typeof v === 'number' || typeof v === 'boolean') return String(v);
