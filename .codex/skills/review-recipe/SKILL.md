@@ -199,7 +199,11 @@ For check #14 (`same_en_es_name`): if the ES translation is unambiguous (e.g. pr
 
 For each item in the **Judgment-call checks** section of `RECIPE-REVIEW.md`, reason about the recipe and decide what (if anything) the YAML should change. When in doubt, flag the concern in `requires_authoring.notes` instead of silently changing.
 
-**`planner_role` is special — re-decide it from scratch every time.** Do not look at the current DB value first; look at the recipe (ingredients, portions, meal_components, dish identity) and decide what role/meal_components/is_complete_meal *should* be. Only then compare against the DB. Many recipes were imported with mis-coded roles (complete-meal salads as `side`, dips as `snack`), so the "preserve if present" default is unsafe here. Always include the `planner` section in the YAML with at least `role`, `meal_components`, and `is_complete_meal`, even when your decision matches the current DB value — re-asserting the same value is a zero-write idempotent op and makes the review's role decision visible in git history.
+**`planner_role` is special — re-decide it from scratch every time.** Do not look at the current DB value first; look at the recipe (ingredients, portions, meal_components, dish identity) and decide what role/meal_components/is_complete_meal *should* be. Only then compare against the DB. Many recipes were imported with mis-coded roles (complete-meal salads as `side`, dips as `snack`), so the "preserve if present" default is unsafe here.
+
+**Planner field inclusion — explicit:**
+- **Always include** `role`, `meal_components`, `is_complete_meal` in the YAML, even when they match the current DB value. Re-asserting these in git history is the point — they are the role-decision audit trail.
+- **Write only what changes** for every other planner field: `equipment_tags`, `cooking_level`, `leftovers_friendly`, `batch_friendly`, `max_household_size_supported`, `alternate_planner_roles`. These follow the standard "omit if unchanged" rule from the rest of the schema. Including them when they match the DB just creates no-op writes and clutters the YAML; trim them out.
 
 **Exclusion-style diet tags must be audited against user-visible content.** Adding `vegan`, `vegetarian`, `gluten_free`, or `pescatarian` is a promise to the user. Before keeping or adding one of these tags, scan the description, `tips_and_tricks`, ingredient list, and step text for items that violate the promise (cheese mentioned in a vegan tip; bread mentioned in a gluten-free description; anchovies in a vegetarian dressing). If you find a contradiction: rewrite the content to surface a compliant alternative alongside the existing suggestion, or drop the tag. Never ship the contradiction — these tags are reputation-critical.
 
@@ -247,6 +251,8 @@ Match-key rules:
           instruction: 'Coloca los muslos con la piel hacia abajo en el cesto.'
   ```
 - `kitchen_tools` and `pairings`: declarative `set:` blocks list the full desired state.
+
+**`tags` is per-category set replacement — write a category only if you mean to redefine it.** Each `tags.<category>` you write replaces the recipe's full set in that category. Writing `tags.diet: [vegetarian]` removes every other diet tag on the recipe (e.g. an existing `gluten_free` is silently dropped). The dry-run shows the removals as `- diet: gluten_free` so a careful reviewer would catch it, but the easier rule is: **omit a category to leave its current contents untouched**; only write a category when you intend to redefine the entire list. If you want to add one diet tag while preserving others, you must list all the diet tags you want — including the ones already there.
 
 **Before writing a `kitchen_tools.set` block — validate canonical names.** The DB stores `Thermomix®` and `Thermomix® Varoma` (with the registered-trademark glyph). A YAML that writes `Thermomix` or `Varoma` (no ®) will hard-fail at apply with an opaque "ambiguous name" error. When using a snapshot, copy strings verbatim from `taxonomy.kitchen_tool_names_en[]`. Only in live fallback mode, run this read-only `execute_sql` once and copy strings verbatim:
 
@@ -307,13 +313,21 @@ Dry-run: <N> changes  stale_diff: <yes/no>
   - <e.g. "Kept pairing role 'side' for White Rice with Vegetables">
   - <e.g. "Renamed description from X to Y for clarity">
 
+▸ Considered and skipped — push back if you'd add
+  - <tag/decision deliberately omitted> — <one-line reason>
+  - <e.g. "diet:vegetarian skipped — avocado mayo may contain egg, not in data">
+  - <e.g. "kid_friendly skipped — adult flavor (mustard, vinegar bite)">
+  - <e.g. "pairings skipped — no plausible match for this dressing in current catalog">
+
 ▸ Needs you (admin panel / SQL — schema can't fix)
   - <one line per requires_authoring.reasons item, with a pointer to notes>
 
 Next step: review the judgment calls; if approved, run `deno task pipeline:apply-recipe-metadata --local --recipe <slug> --apply`.
 ```
 
-The **Judgment calls** bucket is the most important one — it surfaces every change driven by reviewer opinion (tag additions/removals, tip rewrites, role re-decisions that flip the DB value, ES translations, pairing reasons). The user uses this list to spot reputation risks before apply. If a section is empty, omit the bucket header entirely; do not pad with "n/a". If the dry-run hit `stale_diff`, say so in the dry-run line and make the next step refresh/re-export instead of apply.
+The **Judgment calls** bucket surfaces every change driven by reviewer opinion (tag additions/removals, tip rewrites, role re-decisions that flip the DB value, ES translations, pairing reasons). The **Considered and skipped** bucket is its symmetric counterpart: deliberate *omissions* the user can ratify or override. A scanning reviewer sees what you added but cannot push back on what you silently chose not to do — list the non-trivial omissions (tags you weighed and rejected, pairings you considered and dropped, role flips you considered and reverted) with a one-line reason each. Omit the bucket if there's nothing genuinely worth raising; do not pad it with low-stakes calls (e.g. "considered weeknight, recipe has no time data" — that's not a judgment call worth ratifying).
+
+Both ratification buckets together close the loop: the user can override an addition (by reading Judgment calls) or request an addition (by reading Considered and skipped). The user uses these lists to spot reputation risks before apply. If a section is empty, omit the bucket header entirely; do not pad with "n/a". If the dry-run hit `stale_diff`, say so in the dry-run line and make the next step refresh/re-export instead of apply.
 
 Do not apply the YAML yourself — that is the human's call after reviewing the diff.
 
