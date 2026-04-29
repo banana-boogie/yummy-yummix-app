@@ -11,12 +11,18 @@ Read [docs/agent-guidelines/RECIPE-REVIEW.md](../../docs/agent-guidelines/RECIPE
 
 ## Preflight — reasoning effort
 
-Recipe quality is reputation-critical, but most recipes don't need maximum reasoning. **High effort matters when the review will exercise the judgment-call portion of the rubric** — and is overkill when it won't. Pick one before Step 1:
+**Default to medium effort.** Bulk imports of human-authored recipes (the common case) don't benefit from high reasoning — the work is mostly mechanical mapping (auto-checks 1-21), closed-vocabulary tag selection, voice rewrites against a known list, and planner-role decisions that plateau by medium. The model's reasoning depth doesn't change its world-knowledge of whether soy sauce contains wheat, whether a Mexican mole needs chocolate, or whether a dish is well-balanced; those come from training data, not effort tier. High effort costs ~3-5x tokens for marginal gain on most recipes.
 
-- **High effort recommended** when any of the following will fire: first-pass review of a recipe never reviewed before; refresh-mode review where the existing fixture has diverged from DB; recipe is a candidate for an exclusion-style diet tag (`vegan` / `vegetarian` / `gluten_free` / `pescatarian`); planner role flip from the current DB value; ES voice rewrites across multiple steps; cuisine is unfamiliar enough that authentic-seasoning judgment matters.
-- **Medium effort acceptable** for refresh reviews where the existing fixture is healthy, recipes with no diet-tag candidates, recipes whose role is uncontroversial, and routine YAML touch-ups (tag adds in non-exclusion categories, kitchen-tool corrections, pairing additions).
+**Escalate to high effort only when one of these is genuinely true:**
 
-When uncertain on a judgment call (translation correctness, tag fit, role assignment, ingredient quality), prefer routing to `requires_authoring.notes` over guessing. The skill never penalizes caution — and caution is cheaper than burning max effort to "be safe" on calls the reviewer can flag back to the human admin.
+- The recipe is **AI-generated** (the source itself may be wrong — high helps catch upstream errors).
+- The cuisine is **unfamiliar enough** that authentic-seasoning judgment is the bottleneck (e.g. specific regional Mexican variants the reviewer is uncertain about).
+- The structural decision is **genuinely hard** — multi-role candidates (`alternate_planner_roles`), close calls on `is_complete_meal`, or pairings that need careful catalog-aware reasoning.
+- A previous medium-effort review on a similar recipe **shipped a judgment error** a human caught.
+
+For everything else — refreshes, routine YAML touch-ups, well-known cuisines, uncontroversial roles, voice rewrites, tag adds — medium is the right cost/quality point.
+
+**When uncertain on any judgment call** (translation correctness, tag fit, role assignment, ingredient quality), route to `requires_authoring.notes` instead of guessing. Caution is cheaper than reasoning — and the human admin reviews the worklist anyway.
 
 ## Inputs
 
