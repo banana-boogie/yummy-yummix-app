@@ -65,6 +65,12 @@ deno task pipeline:apply-recipe-metadata --list-missing
 # Worklist: which committed YAMLs flag requires_authoring?
 deno task pipeline:apply-recipe-metadata --list-authoring
 
+# Worklist: which YAMLs have already been applied to the live DB?
+deno task pipeline:apply-recipe-metadata --list-applied
+
+# Worklist: which YAMLs have not been applied yet?
+deno task pipeline:apply-recipe-metadata --list-unapplied
+
 # Single recipe — dry-run
 deno task pipeline:apply-recipe-metadata --local --recipe mongolian-beef --dry-run
 
@@ -99,6 +105,7 @@ The full Zod schema lives at [`yyx-server/data-pipeline/lib/recipe-metadata-sche
 | `step_overrides` | optional | per-row | match key: `step_id` OR `order` |
 | `cleanup.delete_locales` | optional | DELETE per-locale | refuses `'en'` (would orphan recipe) |
 | `requires_authoring` | optional | YAML-only | `reasons[]`, `notes` — surfaces in `--list-authoring`, never persisted |
+| `applied` | auto-written | YAML-only | One entry per change-producing `--apply`. **Reviewers must NOT pre-fill.** Surfaces in `--list-applied` / `--list-unapplied`. |
 
 ---
 
@@ -128,6 +135,33 @@ Snapshots are immutable timestamped files; `latest.json` points at the most rece
 ## Idempotency
 
 Every section uses `IS DISTINCT FROM` gating, set-replacement diffs, or composite-key existence checks. Re-running an unchanged YAML produces zero data writes. The CLI's dry-run output is the source of truth for what an apply would touch.
+
+---
+
+## Apply state — the `applied:` block
+
+After a successful `--apply` that produces non-zero changes, the CLI appends an entry to the YAML's `applied:` block so reviewers can answer "has this been pushed to the DB?" without dry-running. **Reviewers must never pre-fill this block** — the `/review-recipe` skill produces YAMLs without `applied:`, and the apply CLI is the only writer.
+
+Entry shape:
+
+```yaml
+applied:
+  - applied_at: '2026-04-28T22:35:00.000Z'
+    applied_by: 'banana@local'
+    pre_recipe_updated_at: '2026-04-28T22:30:39.70381+00:00'   # YAML's expected_recipe_updated_at at apply time
+    post_recipe_updated_at: '2026-04-28T22:35:00.123456+00:00' # recipes.updated_at after apply
+    sections_changed: ['planner', 'tags', 'kitchen_tools', 'step_overrides']
+    environment: local
+```
+
+Append-only semantics:
+
+- **No-op applies (zero rows touched) leave the file untouched.** Re-running `--apply` on an unchanged YAML is common and we don't want noise.
+- **Edits → re-apply → fresh entry.** The full history of meaningful applies stays in order.
+- **Schema is YAML-only.** The `apply_recipe_metadata` RPC never reads `applied:`; the existing `recipe_match.expected_recipe_updated_at` stale-diff guard remains the apply-time safety boundary.
+- **DB-commit-then-file-write ordering.** If the YAML write fails after a successful DB commit, the CLI logs loudly and exits non-zero. Recovery: re-running will be a no-op (so the entry will not be re-recorded), and the reviewer can hand-edit the missing entry from the CLI's logged values.
+
+Use `--list-applied` and `--list-unapplied` to see the worklist at any time.
 
 ---
 

@@ -242,3 +242,4 @@ Do not apply the YAML yourself — that is the human's call after reviewing the 
 - Touch `recipes.verified_by` (UUID FK reserved for admin-UI verification).
 - Write to MCP `apply_migration` or run any DDL.
 - Push to git — output is a YAML file change for human review and commit.
+- **Pre-fill the `applied:` block.** The apply CLI auto-writes one entry per change-producing `--apply`. If you copy a YAML's structure as a template, omit any `applied:` block — the reviewer never authors it. (Surfaces in `--list-applied` / `--list-unapplied` for batch tracking.)

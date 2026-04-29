@@ -1,0 +1,75 @@
+recipe_match:
+  id: '074b4467-a73e-406d-b46a-29614bdfae0a'
+  name_en: 'Air Fryer Chicken Thighs'
+  expected_recipe_updated_at: '2026-04-29T01:53:11.823697+00:00'
+
+review:
+  reviewed_by_label: 'claude-opus-4-7'
+  reviewed_at: '2026-04-29T02:00:00Z'
+
+# Re-decided from scratch. 4 bone-in chicken thighs with simple seasoning are
+# a protein centerpiece, not a complete meal — needs a carb/veg side such as
+# White Rice with Vegetables (already paired). Matches the current DB row;
+# re-asserting per RECIPE-REVIEW.md "always include planner".
+planner:
+  role: main
+  alternate_planner_roles: []
+  meal_components: [protein]
+  is_complete_meal: false
+  equipment_tags: [air_fryer]
+  cooking_level: beginner
+  leftovers_friendly: false
+  batch_friendly: true
+  max_household_size_supported: 4
+
+# Refresh notes (claude-opus-4-7, 2026-04-29):
+#
+# Earlier codex-gpt-5.5 review applied locally on 2026-04-29T01:53:12Z (see
+# `applied:` block below). Reviewed those edits against the rubric and
+# concluded they are correct or net-neutral, so this refresh does NOT
+# rewrite description / tips_and_tricks / scaling_notes / tags /
+# kitchen_tools / pairings / step_overrides — they are already in the
+# desired state and re-asserting them would just reshuffle no-op writes.
+#
+# Diet-tag audit: the `high_protein` and `low_carb` tags promise nothing
+# the recipe contradicts. `gluten_free` is intentionally not added — the
+# recipe is naturally GF but adding the exclusion-style tag without a
+# coeliac-aware sourcing pass on baking powder / paprika is the kind of
+# reputation risk RECIPE-REVIEW.md flags.
+#
+# Pairing audit: White Rice with Vegetables (side) is set with a meaningful
+# reason. No other published side reads as a more obvious match for plain
+# air-fried chicken thighs.
+#
+# Step ingredient links: every recipe ingredient is linked to a step where
+# it is actually used. No orphans, no missing links.
+#
+# Quantity sanity: 5 ml olive oil ≈ 1 tsp; 2 g baking powder ≈ 1/2 tsp;
+# 2 g black pepper ≈ 1/2 tsp; 2 g paprika ≈ 1/2 tsp. Notes ↔ metric
+# quantities all line up.
+
+# Schema-unfixable items handed off to admin authoring. The `reasons` list
+# was empty in the prior YAML even though notes were populated — fixing
+# that mismatch.
+requires_authoring:
+  reasons: [es_voice_inconsistency, es_grammar_error, ingredient_section_inconsistency]
+  notes: |
+    Spanish step text (recipe_step_translations) — schema cannot edit per-locale step text:
+      - es step 1 ("Pat the chicken thighs..."): "Seca completamente las muslos" → "los muslos" (muslo is masculine; gender agreement error).
+      - es step 8 ("Check internal temperature..."): switches to usted-voice ("Verifique" / "apunte") while the rest of es step text uses tú-voice. Change to "Verifica" / "apunta".
+      - es-ES step 5 ("Place thighs skin-side down..."): "Coloque" is usted-voice, inconsistent with tú-voice elsewhere in es-ES. Change to "Coloca".
+
+    Ingredient section (recipe_ingredient_translations) — schema exposes `section_es` but not `section_es-ES`:
+      - Salt's es-ES recipe_section is "Plato principal"; every other ingredient in this recipe uses "Principal" in es-ES. Normalize Salt's es-ES section to "Principal" so ingredient grouping is consistent across the recipe.
+
+applied:
+  - applied_at: 2026-04-29T01:53:12.134Z
+    applied_by: ian@local
+    pre_recipe_updated_at: 2026-04-28T22:30:39.70381+00:00
+    post_recipe_updated_at: 2026-04-29T01:53:11.823697+00:00
+    sections_changed:
+      - translations
+      - kitchen_tools
+      - step_overrides
+      - tags
+    environment: local

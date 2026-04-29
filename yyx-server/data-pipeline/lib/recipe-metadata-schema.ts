@@ -11,7 +11,7 @@
  */
 
 import { z } from 'zod';
-import { LineCounter, parseDocument, type Document, type Node } from 'yaml';
+import { type Document, LineCounter, type Node, parseDocument } from 'yaml';
 
 // ============================================================
 // Enum sources of truth
@@ -87,8 +87,26 @@ export const VAROMA = 'Varoma';
 // To extend: first add the value to the DB enum via a migration, then add it
 // here. Keep these two in lockstep.
 export const VALID_SPEED_NUMBERS = [
-  0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5,
-  5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10,
+  0.5,
+  1,
+  1.5,
+  2,
+  2.5,
+  3,
+  3.5,
+  4,
+  4.5,
+  5,
+  5.5,
+  6,
+  6.5,
+  7,
+  7.5,
+  8,
+  8.5,
+  9,
+  9.5,
+  10,
 ] as const;
 
 // Valid temperature values — must match the public.thermomix_temperature_type
@@ -106,15 +124,54 @@ export const VALID_SPEED_NUMBERS = [
 // `\dT+` output.
 export const VALID_TEMPERATURE_NUMBERS = [
   // Original CREATE TYPE values, in enumsortorder:
-  37, 40, 45, 50, 55, 60, 65, 70, 75, 80,
-  85, 90, 95, 98, 100, 105, 110, 115, 120,
+  37,
+  40,
+  45,
+  50,
+  55,
+  60,
+  65,
+  70,
+  75,
+  80,
+  85,
+  90,
+  95,
+  98,
+  100,
+  105,
+  110,
+  115,
+  120,
   // (Varoma sorts here — see VAROMA above.)
-  130, 140, 150, 160,
-  170, 175, 185, 195, 200, 205,
-  212, 220, 230, 240, 250,
+  130,
+  140,
+  150,
+  160,
+  170,
+  175,
+  185,
+  195,
+  200,
+  205,
+  212,
+  220,
+  230,
+  240,
+  250,
   // TM7-extended values, appended in migration order:
-  125, 135, 145, 155,
-  257, 266, 275, 284, 293, 302, 311, 320,
+  125,
+  135,
+  145,
+  155,
+  257,
+  266,
+  275,
+  284,
+  293,
+  302,
+  311,
+  320,
 ] as const;
 
 const VALID_SPEED_SET: ReadonlySet<number | string> = new Set([
@@ -356,6 +413,19 @@ const requiresAuthoringSchema = z.object({
   notes: z.string().optional(),
 }).strict();
 
+// `applied` is the auto-written apply log. Reviewers MUST NOT pre-fill it —
+// the apply CLI appends an entry after each successful, change-producing apply.
+// No-op applies (zero rows touched) leave the file untouched. The block is
+// YAML-only telemetry; the apply RPC never reads it.
+const appliedEntrySchema = z.object({
+  applied_at: isoTimestampSchema,
+  applied_by: z.string().min(1),
+  pre_recipe_updated_at: isoTimestampSchema,
+  post_recipe_updated_at: isoTimestampSchema,
+  sections_changed: z.array(z.string().min(1)),
+  environment: z.enum(['local', 'production']).optional(),
+}).strict();
+
 // ============================================================
 // Top-level schema
 // ============================================================
@@ -378,6 +448,7 @@ export const recipeMetadataSchema = z.object({
   step_overrides: z.array(stepOverrideSchema).optional(),
   cleanup: cleanupSchema.optional(),
   requires_authoring: requiresAuthoringSchema.optional(),
+  applied: z.array(appliedEntrySchema).optional(),
 }).strict();
 
 export type RecipeMetadata = z.infer<typeof recipeMetadataSchema>;

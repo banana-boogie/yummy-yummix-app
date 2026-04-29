@@ -21,14 +21,11 @@
  *   --verbose                Print no-op sections too
  *   --list-missing           Print recipes with no YAML yet (added in task 8)
  *   --list-authoring         Print YAMLs with non-empty requires_authoring (task 8)
+ *   --list-applied           Print YAMLs that have been applied (have an applied: entry)
+ *   --list-unapplied         Print YAMLs that have not been applied yet (no applied: entry)
  */
 
-import {
-  createPipelineConfig,
-  hasFlag,
-  parseEnvironment,
-  parseFlag,
-} from '../lib/config.ts';
+import { createPipelineConfig, hasFlag, parseEnvironment, parseFlag } from '../lib/config.ts';
 import { Logger } from '../lib/logger.ts';
 import {
   parseRecipeMetadataYaml,
@@ -46,6 +43,12 @@ import {
   StaleDiffError,
   summariseCounts,
 } from '../lib/recipe-metadata-apply.ts';
+import {
+  appendAppliedEntry,
+  readAppliedEntries,
+  resolveAppliedBy,
+  sectionsFromCounts,
+} from '../lib/recipe-metadata-applied-log.ts';
 
 const logger = new Logger('apply-recipe-metadata');
 
@@ -200,7 +203,9 @@ function commandListAuthoring(): number {
     try {
       parsed = parseRecipeMetadataYaml(yamlText);
     } catch (e) {
-      logger.warn(`  ${slug}.yaml — schema invalid (skipping in scan): ${String(e).split('\n')[0]}`);
+      logger.warn(
+        `  ${slug}.yaml — schema invalid (skipping in scan): ${String(e).split('\n')[0]}`,
+      );
       continue;
     }
     const ra = parsed.data.requires_authoring;
@@ -210,7 +215,9 @@ function commandListAuthoring(): number {
   }
 
   if (flagged.length === 0) {
-    logger.info('No YAMLs with non-empty requires_authoring. All committed recipes are reviewer-clean.');
+    logger.info(
+      'No YAMLs with non-empty requires_authoring. All committed recipes are reviewer-clean.',
+    );
     return 0;
   }
 
@@ -225,6 +232,94 @@ function commandListAuthoring(): number {
 function resolvePath(input: string): string {
   if (input.startsWith('/')) return input;
   return `${Deno.cwd()}/${input}`;
+}
+
+async function fetchRecipeUpdatedAt(
+  supabase: ReturnType<typeof createPipelineConfig>['supabase'],
+  recipeId: string,
+): Promise<string> {
+  const { data, error } = await supabase
+    .from('recipes')
+    .select('updated_at')
+    .eq('id', recipeId)
+    .maybeSingle();
+  if (error) throw new Error(`fetch post-apply updated_at: ${error.message}`);
+  if (!data) throw new Error(`recipe ${recipeId} disappeared after apply`);
+  return (data as { updated_at: string }).updated_at;
+}
+
+// ============================================================
+// --list-applied / --list-unapplied (apply-state worklists)
+// ============================================================
+
+function commandListApplied(): number {
+  const yamls = listExistingYamlSlugs();
+  const applied: Array<{ slug: string; entryCount: number; lastAppliedAt: string }> = [];
+
+  for (const [slug, path] of yamls) {
+    let yamlText: string;
+    try {
+      yamlText = Deno.readTextFileSync(path);
+    } catch {
+      continue;
+    }
+    const entries = readAppliedEntries(yamlText);
+    if (!entries || entries.length === 0) continue;
+    const last = entries[entries.length - 1];
+    applied.push({
+      slug,
+      entryCount: entries.length,
+      lastAppliedAt: last.applied_at,
+    });
+  }
+
+  if (applied.length === 0) {
+    logger.info('No YAMLs have an applied: entry yet.');
+    return 0;
+  }
+
+  applied.sort((a, b) => a.lastAppliedAt.localeCompare(b.lastAppliedAt));
+
+  logger.section(`YAMLs with applied: entries (${applied.length})`);
+  for (const a of applied) {
+    const suffix = a.entryCount > 1 ? `  (${a.entryCount} applies)` : '';
+    logger.info(`  ${a.slug}.yaml  last: ${a.lastAppliedAt}${suffix}`);
+  }
+  return 0;
+}
+
+function commandListUnapplied(): number {
+  const yamls = listExistingYamlSlugs();
+  const unapplied: string[] = [];
+
+  for (const [slug, path] of yamls) {
+    let yamlText: string;
+    try {
+      yamlText = Deno.readTextFileSync(path);
+    } catch {
+      continue;
+    }
+    const entries = readAppliedEntries(yamlText);
+    if (entries === null || entries.length === 0) {
+      unapplied.push(slug);
+    }
+  }
+
+  if (unapplied.length === 0) {
+    logger.info('Every YAML has at least one applied: entry.');
+    return 0;
+  }
+
+  logger.section(`YAMLs without an applied: entry (${unapplied.length})`);
+  for (const slug of unapplied.sort()) {
+    logger.info(`  ${slug}.yaml`);
+  }
+  logger.info('');
+  logger.info(
+    `Run \`deno task pipeline:apply-recipe-metadata --local --recipe <slug> --apply\` ` +
+      `to apply one. The CLI will append the applied: entry on success.`,
+  );
+  return 0;
 }
 
 interface ProcessOutcome {
@@ -253,7 +348,9 @@ async function processFile(
     if (e instanceof RecipeMetadataValidationError) {
       logger.error(`${filePath} — schema validation failed:`);
       for (const issue of e.issues) {
-        const loc = issue.line !== undefined ? `${filePath}:${issue.line}:${issue.col ?? 1}` : filePath;
+        const loc = issue.line !== undefined
+          ? `${filePath}:${issue.line}:${issue.col ?? 1}`
+          : filePath;
         logger.error(`  ${loc} — ${issue.path ? issue.path + ' — ' : ''}${issue.message}`);
       }
       return { file: filePath, ok: false, totalChanges: 0, message: 'schema validation failed' };
@@ -325,7 +422,7 @@ async function processFile(
 
   if (opts.apply) {
     if (diff.total_changes === 0) {
-      logger.info(`  apply: no-op (idempotent)`);
+      logger.info(`  apply: no-op (idempotent) — applied log unchanged`);
       return { file: filePath, ok: true, totalChanges: 0 };
     }
     try {
@@ -335,6 +432,52 @@ async function processFile(
       if (result.errors.length > 0) {
         for (const e of result.errors) logger.warn(`  ${e}`);
       }
+
+      // Append an `applied:` entry on success when changes actually landed.
+      // Skip on no-op: the RPC may report changed=false in edge cases (e.g.
+      // every diff section was already idempotent at the row level).
+      // Transactional note: the DB commit has already succeeded by this point
+      // — if the YAML write fails we log loudly so the reviewer can recover
+      // (re-running --apply will be a no-op and won't double-record).
+      if (
+        result.ok &&
+        result.changed &&
+        result.errors.length === 0
+      ) {
+        try {
+          const postUpdatedAt = await fetchRecipeUpdatedAt(
+            config.supabase,
+            parsed.data.recipe_match.id,
+          );
+          const entry = {
+            applied_at: new Date().toISOString(),
+            applied_by: resolveAppliedBy(opts.env),
+            pre_recipe_updated_at: parsed.data.recipe_match.expected_recipe_updated_at,
+            post_recipe_updated_at: postUpdatedAt,
+            sections_changed: sectionsFromCounts(result.counts),
+            environment: opts.env,
+          };
+          const updated = appendAppliedEntry(yamlText, entry);
+          Deno.writeTextFileSync(filePath, updated);
+          logger.info(
+            `  applied log: appended entry (sections: ${
+              entry.sections_changed.join(', ') || '(none)'
+            })`,
+          );
+        } catch (logErr) {
+          logger.error(
+            `  applied log: DB commit succeeded but YAML write FAILED — ${logErr}. ` +
+              `Re-run will no-op; manual edit may be needed.`,
+          );
+          return {
+            file: filePath,
+            ok: false,
+            totalChanges: diff.total_changes,
+            message: `applied-log write failed after successful apply: ${logErr}`,
+          };
+        }
+      }
+
       return {
         file: filePath,
         ok: result.ok && result.errors.length === 0,
@@ -369,12 +512,20 @@ async function main() {
   if (hasFlag(Deno.args, '--list-authoring')) {
     Deno.exit(commandListAuthoring());
   }
+  if (hasFlag(Deno.args, '--list-applied')) {
+    Deno.exit(commandListApplied());
+  }
+  if (hasFlag(Deno.args, '--list-unapplied')) {
+    Deno.exit(commandListUnapplied());
+  }
 
   const opts = parseOptions(Deno.args);
   const config = createPipelineConfig(opts.env);
 
   logger.section(
-    `Apply recipe metadata (${opts.env})${opts.dryRun && !opts.apply ? ' [DRY RUN]' : opts.apply ? ' [APPLY]' : ''}`,
+    `Apply recipe metadata (${opts.env})${
+      opts.dryRun && !opts.apply ? ' [DRY RUN]' : opts.apply ? ' [APPLY]' : ''
+    }`,
   );
   logger.info(`Files: ${opts.files.length}`);
 
