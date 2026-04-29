@@ -211,7 +211,7 @@ run_loop() {
   echo "-- Step 9: get_current_plan (final state) --"
   call get_current_plan '{}' >/dev/null
 
-  echo "-- Step 10: shopping list (gated stub) --"
+  echo "-- Step 10: shopping list (expected 501 NOT_IMPLEMENTED until Track B) --"
   call generate_shopping_list "{\"mealPlanId\": \"$plan_id\"}" >/dev/null
 }
 
