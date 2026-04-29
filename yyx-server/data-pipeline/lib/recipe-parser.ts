@@ -439,46 +439,46 @@ const recipeJsonSchema = {
       plannerRole: {
         type: ['string', 'null'],
         description:
-          'Meal planner role. Extract from "Rol:" aside field. Null if not present.',
+          'Meal planner role. Extract from the recipe\'s aside-block planner-role field — Spanish key "Rol:" or English key "Role:". Null if not present.',
         enum: [...PLANNER_ROLES, null],
       },
       equipmentTags: {
         type: 'array',
         description:
-          'Equipment required beyond standard cookware. Extract from "Equipo:" aside field (comma-separated). Empty array if not present.',
+          'Equipment required beyond standard cookware. Extract from the recipe\'s aside-block equipment field (comma-separated) — Spanish key "Equipo:" or English key "Equipment:". Empty array if not present.',
         items: { type: 'string', enum: [...EQUIPMENT_TAGS] },
       },
       mealComponents: {
         type: 'array',
         description:
-          'Meal components this recipe provides. Extract from "Componentes:" aside field (comma-separated). Empty array if not present.',
+          'Meal components this recipe provides. Extract from the recipe\'s aside-block components field (comma-separated) — Spanish key "Componentes:" or English key "Components:". Empty array if not present.',
         items: { type: 'string', enum: [...MEAL_COMPONENTS] },
       },
       isCompleteMeal: {
         type: 'boolean',
         description:
-          'Whether this recipe is a complete meal on its own. Extract from "Comida completa: Sí/No" aside field. Default false if not present.',
+          'Whether this recipe is a complete meal on its own. Extract from the recipe\'s aside-block complete-meal field — Spanish key "Comida completa: Sí/No" or English key "Complete meal: Yes/No". Default false if not present.',
       },
       cookingLevel: {
         type: ['string', 'null'],
         description:
-          'Cooking skill level required. Extract from "Nivel de cocina:" aside field. Null if not present.',
+          'Cooking skill level required. Extract from the recipe\'s aside-block cooking-level field — Spanish key "Nivel de cocina:" or English key "Cooking level:". Null if not present.',
         enum: [...COOKING_LEVELS, null],
       },
       leftoversFriendly: {
         type: ['boolean', 'null'],
         description:
-          'Whether this recipe keeps well as leftovers. Extract from "Apto para sobras: Sí/No" aside field. Null if not present.',
+          'Whether this recipe keeps well as leftovers. Extract from the recipe\'s aside-block leftovers field — Spanish key "Apto para sobras: Sí/No" or English key "Good for leftovers: Yes/No". Null if not present.',
       },
       maxHouseholdSizeSupported: {
         type: ['number', 'null'],
         description:
-          'Maximum household size this recipe can serve. Extract from "Porciones máximas:" aside field as an integer. Null if not present.',
+          'Maximum household size this recipe can serve. Extract from the recipe\'s aside-block max-portions field as an integer — Spanish key "Porciones máximas:" or English key "Max servings:". Null if not present.',
       },
       batchFriendly: {
         type: ['boolean', 'null'],
         description:
-          'Whether this recipe is suitable for batch cooking (make ahead in large quantities). Extract from "Batch cooking: Sí/No" aside field. Null if not present.',
+          'Whether this recipe is suitable for batch cooking (make ahead in large quantities). Extract from the recipe\'s aside-block batch-cooking field — Spanish key "Batch cooking: Sí/No" or English key "Batch cooking: Yes/No". Null if not present.',
       },
     },
     required: [
@@ -509,7 +509,7 @@ const recipeJsonSchema = {
 };
 
 const systemPrompt = `
-You are a recipe parser that converts recipe Markdown into structured JSON data. The input may come from a variety of sources (Notion exports, AI generation, hand-written, web scrapes). Be permissive about structure — extract what's present, leave optional fields null/empty/false when absent. Never invent content.
+You are a recipe parser that converts recipe content into structured JSON data. The input is typically Markdown but may also be plain text, lightly-structured prose, or HTML — pulled from a variety of sources (Notion exports, AI generation, hand-written notes, web scrapes). Be permissive about structure and format — extract what's present, leave optional fields null/empty/false when absent. Never invent content.
 
 ## Recipe Identity
 
@@ -555,9 +555,9 @@ Example: "licúa 20 seg/vel 4-8, aumentando la velocidad progresivamente"
 
 ## Missing Data
 
-- totalTime / prepTime: extract from aside blocks ("Tiempo total: 15 mins", etc.). Values are ALWAYS in minutes (e.g., "15 mins" → 15, "1 hora" → 60). If missing, use 0.
-- portions: extract from aside blocks ("Porciones: 4"). Must be a whole number of servings. If a weight is given instead (e.g., "200g", "1 kg"), use 4 as default. If missing, use 4.
-- difficulty: extract from aside blocks ("Nivel de dificultad: fácil" → "easy", "medio/media" → "medium", "difícil" → "hard"). If missing, use "medium".
+- totalTime / prepTime: extract from aside blocks. Spanish: "Tiempo total: 15 mins", "Tiempo de preparación: 5 mins". English: "Total time: 15 mins", "Prep time: 5 mins". Values are ALWAYS in minutes (e.g., "15 mins" → 15, "1 hora" → 60, "1 hour" → 60). If missing, use 0.
+- portions: extract from aside blocks. Spanish: "Porciones: 4". English: "Portions: 4" or "Servings: 4". Must be a whole number of servings. If a weight is given instead (e.g., "200g", "1 kg"), use 4 as default. If missing, use 4.
+- difficulty: extract from aside blocks. Spanish: "Nivel de dificultad: fácil" → "easy", "medio/media" → "medium", "difícil" → "hard". English: "Difficulty: easy/medium/hard". If missing, use "medium".
 - If English content is empty or missing, translate the Spanish content to English.
 
 ## Meal Planning Metadata (from aside blocks, all optional)
@@ -615,7 +615,7 @@ When in doubt: if the item is APPLIED to or BECOMES PART OF the food, it's an in
 ## Critical Rules
 
 DO NOT make up recipe content (ingredients, steps, tools, tips).
-DO NOT include anything not found in the markdown.
+DO NOT include anything not found in the source content.
 DO translate names and content to English when only Spanish is provided.
 `;
 
