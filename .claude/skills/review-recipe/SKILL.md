@@ -256,9 +256,15 @@ SELECT name FROM public.kitchen_tool_translations WHERE locale = 'en' ORDER BY n
 
 **`equipment_tags` taxonomy.** The schema accepts free strings but the convention is lowercase, currently just `[thermomix]`. Match what existing YAMLs in `data-pipeline/data/recipe-metadata/*.yaml` use — never invent variants like `Thermomix`, `TM6`, or `varoma`.
 
-**`is_published` policy.** Only set `is_published: true` when (a) `requires_authoring.reasons` is empty, (b) `planner.role` is non-null, (c) a `meal_type` tag exists (or `planner.role = 'pantry'`), (d) en+es exist for name/description/tips_and_tricks, and (e) at least one ingredient and one step exist. If any condition fails, **omit `is_published` from the YAML** — that preserves the current DB value. Never silently flip a published recipe to `false` from a review; if you think it should be unpublished, flag in `requires_authoring.notes`.
+**`is_published` is admin-only — never set it in the YAML.** Publishing is a business/editorial decision (release timing, marketing alignment, content batching), not a reviewer-side decision. Always omit `is_published` from the YAML. The reviewer's job is quality-gating recipe content; the admin's job is flipping the publish bit when they decide it's the right time.
 
-**Symmetric publish-when-criteria-met:** when an unpublished recipe meets all five criteria above after this review's edits land, do set `is_published: true` in the YAML. Quality-gating is the rubric's job; once the gate is passed, publication is the natural next state and silently leaving an eligible recipe unpublished defeats the review pass. The "never silently flip" rule applies in both directions: don't flip true → false without surfacing the reason, and don't leave a publish-eligible recipe at false without surfacing why (if you have a concern, name it in `requires_authoring.notes`).
+When publish state and content quality disagree:
+
+- **Quality criteria met but unpublished:** add a readiness signal to `requires_authoring.notes` (e.g. "Ready to publish — all rubric checks pass, awaiting admin sign-off"). Do not set `is_published: true`.
+- **Published but failing quality criteria:** flag the failing criteria in `requires_authoring.notes`. Do not set `is_published: false`.
+- **State matches quality:** omit `is_published` entirely.
+
+The publish-readiness criteria (for the readiness note, not for setting the field): (a) `requires_authoring.reasons` is empty, (b) `planner.role` is non-null, (c) a `meal_type` tag exists (or `planner.role = 'pantry'`), (d) en+es exist for name/description/tips_and_tricks, (e) at least one ingredient and one step exist.
 
 **`cleanup.delete_locales` is rare.** The pipeline intentionally emits `en + es + es-ES`. `es-ES` is the override slot for future Spain-Spanish content; **never** add `cleanup.delete_locales: ['es-ES']` even when it currently mirrors `es` exactly. Use `cleanup.delete_locales` only to remove a locale that genuinely should not exist for the recipe (e.g. a stray third-party locale).
 

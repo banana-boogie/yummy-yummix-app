@@ -55,7 +55,7 @@ Snapshots are written to `yyx-server/data-pipeline/data/recipe-review-snapshots/
 4. **Thermomix steps without equipment tag.** Step instructions mention "Thermomix", "Varoma", "TM6", or speed/temperature numerics, but `recipes.equipment_tags` does not include `thermomix`.
 5. **Missing description or tips.** `recipe_translations.description IS NULL` or `tips_and_tricks = ''` for any locale the recipe supports.
 6. **`es-ES` rows are retained, not stripped.** The import pipeline intentionally emits `en + es + es-ES`. `es-ES` is the override slot for future Spain-Spanish content; even when it currently mirrors `es` exactly, it stays. **Never** add `cleanup.delete_locales: ['es-ES']` — that wipes the override slot. The only legitimate use of `cleanup.delete_locales` is to remove a locale that genuinely should not exist for this recipe (e.g. an accidental third-party locale). The `es-ES = es` duplication is by design and not a defect.
-7. **Published without planner role.** `recipes.is_published = true` and `planner_role IS NULL`. See the **Publishing policy** section below for when the reviewer should flip `is_published: true`.
+7. **Published without planner role.** `recipes.is_published = true` and `planner_role IS NULL`. Flag in `requires_authoring.notes` for admin review. The reviewer never sets `is_published` — see the **Publishing policy** section below.
 8. **No kitchen tools.** Zero entries in `recipe_kitchen_tools`. (Pantry recipes that genuinely need none — e.g. spice blends — can stay empty.)
 9. **Step text vs structured Thermomix fields.** Step instructions specify temperature/speed in prose but the corresponding columns (`thermomix_speed`, `thermomix_temperature`) are NULL.
 10. **Step references unknown ingredient.** Step instruction names an ingredient that is not in `recipe_ingredients`.
@@ -129,9 +129,17 @@ These trip every first-time reviewer. Internalize them.
 
 ## Publishing policy
 
-Auto-check #7 catches the *symptom* (published without `planner_role`); this section is the *prescription* (when the reviewer should flip `is_published: true`).
+**Publishing is admin-only. The reviewer never sets `is_published` in the YAML — in either direction.** Always omit the field, which preserves the current DB value. Publishing a recipe makes it discoverable to real users; that is an editorial / business decision (timing of release, marketing alignment, content batching) that lives outside the reviewer's role. Quality-gating recipe content is the rubric's job; flipping the publish bit is the admin's.
 
-The reviewer **may set `is_published: true`** when **all** of these hold:
+Auto-check #7 (published without `planner_role`) catches a *symptom* of broken publish state. The reviewer's response to it is to flag in `requires_authoring.notes`, not to fix `is_published`.
+
+When you encounter publish-related concerns, the only correct outcomes are:
+
+- **Recipe meets all quality criteria but is unpublished:** mention it as a positive readiness signal in `requires_authoring.notes` (e.g. "Ready to publish — all rubric checks pass, awaiting admin sign-off") so an admin can act. Do not set `is_published: true`.
+- **Recipe is published but fails one or more quality criteria:** flag the failing criteria in `requires_authoring.notes` so an admin can decide whether to unpublish, fix the gaps, or accept the trade-off. Do not set `is_published: false`.
+- **Recipe's publish state matches its quality state:** do nothing. Omit `is_published` from the YAML.
+
+Quality criteria worth checking when writing the readiness note:
 
 1. `requires_authoring.reasons` is empty (no fabrication-blocked gaps).
 2. `planner.role` is set to a non-null value.
@@ -139,9 +147,7 @@ The reviewer **may set `is_published: true`** when **all** of these hold:
 4. EN and ES translations both exist for `name`, `description`, and `tips_and_tricks`.
 5. The recipe has at least one ingredient and at least one step (the `no_steps` / `few_ingredients` guards are not tripped).
 
-The reviewer **must NOT set `is_published: true`** when any of the above fails. Leave the field unset (omit it from `planner:`) — that preserves the current DB value. **Do not** silently flip `is_published: false` either; downgrading a published recipe is an admin operation, not a reviewer one. If you believe a published recipe should be unpublished, flag it in `requires_authoring.notes` and let a human decide.
-
-`is_published` and `recipes.verified_by` are independent bits. Verification (admin-UI button) attests that a human reviewed the recipe; publishing makes it discoverable. The reviewer never touches `verified_by`.
+`is_published` and `recipes.verified_by` are independent bits. Verification (admin-UI button) attests that a human reviewed the recipe; publishing makes it discoverable. The reviewer never touches `is_published` *or* `verified_by`.
 
 ---
 

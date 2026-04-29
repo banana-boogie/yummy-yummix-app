@@ -29,7 +29,6 @@ planner:
   leftovers_friendly: true
   batch_friendly: false
   max_household_size_supported: 6
-  is_published: true
 
 timings:
   prep_time: 15
