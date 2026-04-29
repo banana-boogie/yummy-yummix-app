@@ -146,6 +146,17 @@ Deno.test('appendAppliedEntry: appends without removing prior entries', () => {
   assertEquals(parsed.data.applied![1].sections_changed, ['ingredients']);
 });
 
+Deno.test('appendAppliedEntry: advances recipe_match.expected_recipe_updated_at to post value', () => {
+  // Without this bump, re-applying the just-applied YAML would fail stale_diff
+  // because live recipes.updated_at advanced past the pre-apply expected value.
+  const out = appendAppliedEntry(BASE_YAML, SAMPLE_ENTRY);
+  const parsed = parseRecipeMetadataYaml(out);
+  assertEquals(
+    parsed.data.recipe_match.expected_recipe_updated_at,
+    SAMPLE_ENTRY.post_recipe_updated_at,
+  );
+});
+
 Deno.test('appendAppliedEntry: does not reflow long quoted strings', () => {
   // A 200-char single-line description must stay on one line after the round
   // trip (lineWidth: 0). Reflowing would pollute the git diff with unrelated

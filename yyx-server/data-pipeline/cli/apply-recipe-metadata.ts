@@ -465,9 +465,18 @@ async function processFile(
             })`,
           );
         } catch (logErr) {
+          // The DB row's updated_at has advanced past the YAML's
+          // expected_recipe_updated_at; re-run will fail stale_diff until the
+          // reviewer hand-updates the expected timestamp. We log the post-apply
+          // value so they don't need to round-trip to Supabase.
+          const postNow = await fetchRecipeUpdatedAt(
+            config.supabase,
+            parsed.data.recipe_match.id,
+          ).catch(() => '<could not fetch>');
           logger.error(
             `  applied log: DB commit succeeded but YAML write FAILED — ${logErr}. ` +
-              `Re-run will no-op; manual edit may be needed.`,
+              `Hand-update recipe_match.expected_recipe_updated_at to: ${postNow} ` +
+              `before re-running --apply (otherwise it will fail stale_diff).`,
           );
           return {
             file: filePath,

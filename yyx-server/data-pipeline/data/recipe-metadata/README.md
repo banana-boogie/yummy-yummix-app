@@ -159,7 +159,8 @@ Append-only semantics:
 - **No-op applies (zero rows touched) leave the file untouched.** Re-running `--apply` on an unchanged YAML is common and we don't want noise.
 - **Edits → re-apply → fresh entry.** The full history of meaningful applies stays in order.
 - **Schema is YAML-only.** The `apply_recipe_metadata` RPC never reads `applied:`; the existing `recipe_match.expected_recipe_updated_at` stale-diff guard remains the apply-time safety boundary.
-- **DB-commit-then-file-write ordering.** If the YAML write fails after a successful DB commit, the CLI logs loudly and exits non-zero. Recovery: re-running will be a no-op (so the entry will not be re-recorded), and the reviewer can hand-edit the missing entry from the CLI's logged values.
+- **`expected_recipe_updated_at` auto-advances on apply.** When the CLI appends an `applied:` entry, it also bumps `recipe_match.expected_recipe_updated_at` to the post-apply DB value in the same write. Without this, the just-applied YAML would immediately fail `stale_diff` on the next run.
+- **DB-commit-then-file-write ordering.** If the YAML write fails after a successful DB commit, the CLI logs loudly and exits non-zero. The YAML is then stale (DB row advanced, YAML's expected timestamp didn't): re-running `--apply` will fail `stale_diff` until the reviewer refreshes `expected_recipe_updated_at` (or re-runs `/review-recipe`). The CLI logs the post-apply timestamp so the reviewer can hand-update without round-tripping to Supabase.
 
 Use `--list-applied` and `--list-unapplied` to see the worklist at any time.
 

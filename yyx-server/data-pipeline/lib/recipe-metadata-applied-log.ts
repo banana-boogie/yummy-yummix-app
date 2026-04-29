@@ -79,10 +79,20 @@ export function resolveAppliedBy(env: 'local' | 'production'): string {
 }
 
 /**
- * Append an entry to the YAML's `applied:` block. Preserves comments,
- * quoting style, and key order in the rest of the document. Returns the
- * updated YAML text. Idempotency note: this function ALWAYS appends — the
- * caller decides whether to skip on no-op (current convention: skip).
+ * Append an entry to the YAML's `applied:` block AND advance
+ * `recipe_match.expected_recipe_updated_at` to `entry.post_recipe_updated_at`.
+ *
+ * Both writes happen in the same Document mutation and one `toString()` →
+ * one file write, so the YAML can never end up with an applied entry whose
+ * `pre_recipe_updated_at` matches the YAML's expected timestamp. Without the
+ * timestamp bump, re-running --apply on the just-applied YAML would fail with
+ * `stale_diff` (live `recipes.updated_at` advanced past the pre-apply
+ * expected value) — defeating the "re-run is a no-op" recovery story.
+ *
+ * Preserves comments, quoting style, and key order in the rest of the
+ * document. Returns the updated YAML text. Idempotency note: this function
+ * ALWAYS appends — the caller decides whether to skip on no-op (current
+ * convention: skip).
  *
  * If the YAML has no `applied:` block, one is added at the end of the
  * document so it sits below the reviewer-authored sections.
@@ -121,6 +131,18 @@ export function appendAppliedEntry(yamlText: string, entry: AppliedEntry): strin
     const seq = doc.createNode([]) as YAMLSeq;
     seq.add(entryNode);
     rootMap.set('applied', seq);
+  }
+
+  // Advance recipe_match.expected_recipe_updated_at to the post-apply value so
+  // the YAML stays in sync with the live row. Without this, the next --apply
+  // immediately fails stale_diff against its own freshly-written DB state.
+  const recipeMatch = rootMap.get('recipe_match', true);
+  if (recipeMatch && isMap(recipeMatch)) {
+    (recipeMatch as YAMLMap).set('expected_recipe_updated_at', entry.post_recipe_updated_at);
+  } else {
+    throw new Error(
+      'applied-log: recipe_match block missing or not a mapping — cannot advance expected_recipe_updated_at',
+    );
   }
 
   // lineWidth: 0 disables word-wrap of quoted strings — without this, a long
