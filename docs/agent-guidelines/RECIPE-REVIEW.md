@@ -92,7 +92,7 @@ Snapshots are written to `yyx-server/data-pipeline/data/recipe-review-snapshots/
   - **`beginner`** — the recipe is mostly Thermomix-automated or a single technique (one chop, one mix, one bake), uses common pantry ingredients, ≤8 ingredients, no tempering/folding/proofing/searing-then-deglazing, and a botched batch is still recognizable as the dish. Default for soups, blended sauces, dump-and-cook braises, simple breads.
   - **`intermediate`** — multi-step recipes that require sequencing (e.g. a sofrito built before the protein hits, a sauce reduced separately, two Thermomix cycles back-to-back), heat control beyond preset Thermomix temperatures, or knife work where dice size matters. Examples: most curries, layered casseroles, rice + protein + sauce mains, recipes with a Varoma + bowl coordination.
   - **`experienced`** — failure modes are subtle (curd-on-the-edge, underproofed dough, broken emulsion), require tasting-as-you-go, or use techniques (tempering chocolate, candying, lamination, spherification, multiple resting periods that gate next steps). Rare in the launch catalog; default to intermediate when in doubt.
-  
+
   When uncertain between beginner and intermediate: pick beginner if the recipe is a standard Thermomix recipe (the appliance handles the cooking; the user mostly weighs and dumps) and pick intermediate if there's coordination across steps or vessels. When uncertain between intermediate and experienced: pick intermediate; experienced is reserved for recipes with failure modes that punish inattention.
 - **Authentic seasoning balance.** A Mexican mole missing chocolate or chili is suspect. A Thai green curry without fish sauce or kaffir lime is suspect.
 - **Portion size matches ingredient volume.** 4 portions from 200 g of pasta is wrong. 8 portions from 2 kg of beef is wrong.
@@ -116,7 +116,7 @@ Snapshots are written to `yyx-server/data-pipeline/data/recipe-review-snapshots/
   1. **The recipe yields a complete meal** (`planner.is_complete_meal: true` or, equivalently, `meal_components` covers the full plate — typically `[protein, carb, vegetable]` or `[protein, vegetable]` for low-carb mains). A soup that's only a starter is not one-pot. A protein cooked alone in the bowl is not one-pot.
   2. **All cooking happens in the same vessel.** Thermomix bowl + Varoma steaming attachment counts as one vessel (it's a single appliance running one cycle); Thermomix + a separate stovetop pan or oven tray does not. Pre-cooking pasta in a different pot disqualifies it.
   3. **Plating doesn't require additional cooked components.** Garnishes (cilantro, lime, a drizzle of oil) are fine; "serve with rice" or "serve with bread you toasted separately" disqualifies the tag.
-  
+
   Default to omitting `one_pot`. A recipe can be quick, easy, low-effort, AND not one-pot — those qualities are captured by other tags. If you have to argue for the tag, drop it.
 - **`kid_friendly` is a promise, not a vibe — default OFF.** This tag is over-applied. Reviewers see "looks like family food" and tag it; users then filter on it and get burned by anything a typical 5–8-year-old would refuse. Apply `kid_friendly` **only** when **all** of the following hold:
   1. **Heat is low or absent.** No raw chiles, no measurable cayenne/chile powder beyond a trace, no horseradish, no wasabi, no pickled jalapeños as a primary flavor. Trace heat used as background seasoning is fine; if a child would notice it on the first bite, the tag is wrong.
@@ -124,7 +124,7 @@ Snapshots are written to `yyx-server/data-pipeline/data/recipe-review-snapshots/
   3. **Texture is approachable.** No mostly-raw vegetables as the main component, no heavy seed/nut chunks in a savory dish, no chewy or rubbery proteins (octopus, certain offal). Smooth, soft, or crunchy-crispy is fine; slimy or tough is not.
   4. **No alcohol-as-flavor.** Cooked-off splash for braising is fine. A pasta sauce whose name is "wine sauce" is not.
   5. **The recipe is plausibly something a parent would serve a child without negotiating.** If you have to argue for the tag ("kids could try it…"), drop it.
-  
+
   Default to omitting `kid_friendly`. When unsure, leave it off and flag in `requires_authoring.notes` with the specific concern. Removing an over-applied `kid_friendly` is a normal and welcome outcome of review — the rubric does NOT treat it as a regression.
 - **Spanish voice/register follows Irmixy: tú, never usted.** The runtime source of truth (`docs/references/IRMIXY-PERSONALITY.md` and `buildPersonalityBlock()` in `system-prompt-builder.ts`) says Spanish should use **tú**. When writing or rewriting `description.es`, `tips_and_tricks.es`, `scaling_notes.es`, or step text, use natural Mexican Spanish tú forms (`Coloca`, `Acompaña`, `Agrega`, `Sirve`) unless you are preserving an already-authored quoted phrase. Existing usted step text is legacy drift, not the target voice; do not propagate it into new reviewer-authored content. Use `step_text_overrides` to mutate `recipe_step_translations.instruction` (or `recipe_section` / `tip`) per-locale — that is the YAML-driven path. Reserve `requires_authoring.notes` for issues the schema cannot fix (e.g. orphaned `recipe_step_ingredients` rows or fundamentally missing procedure).
 
