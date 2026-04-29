@@ -524,6 +524,50 @@ Deno.test("update_preferences canonicalizes meal types and persists", async () =
   assertEquals(body.preferences.defaultMaxWeeknightMinutes, 30);
   assertEquals(body.preferences.autoLeftovers, true);
   assertEquals(body.preferences.preferredEatTimes, { lunch: "14:00" });
+  // First-save-wins: setupCompletedAt is stamped to a real ISO string when
+  // no prior row existed. The empty-supabase mock returns null on read, so
+  // this is the "first save" path.
+  if (typeof body.preferences.setupCompletedAt !== "string") {
+    throw new Error(
+      "expected setupCompletedAt to be set on first update_preferences call",
+    );
+  }
+});
+
+Deno.test("update_preferences preserves existing setup_completed_at on subsequent saves", async () => {
+  const existingTimestamp = "2026-04-01T10:00:00.000Z";
+  const { supabase, upserts } = makeStatefulSupabase({
+    preferences: {
+      meal_types: ["dinner"],
+      busy_days: [],
+      active_day_indexes: [0, 1, 2, 3, 4],
+      default_max_weeknight_minutes: 45,
+      auto_leftovers: true,
+      preferred_eat_times: {},
+      setup_completed_at: existingTimestamp,
+    },
+  });
+  const req = createAuthenticatedRequest({
+    action: "update_preferences",
+    payload: { busyDays: [1, 3] },
+  });
+  const response = await handleMealPlannerRequest(req, {
+    ...mockDependencies,
+    createUserClient: () => supabase as never,
+  });
+  const body = await response.json();
+  assertEquals(response.status, 200);
+  assertEquals(body.preferences.setupCompletedAt, existingTimestamp);
+  // The upsert payload should also carry the original timestamp, not a new
+  // one — the server must not silently bump it on every save.
+  const upserted = upserts.user_meal_planning_preferences?.[0];
+  if (!upserted || upserted.setup_completed_at !== existingTimestamp) {
+    throw new Error(
+      `expected upsert to preserve setup_completed_at=${existingTimestamp}, got ${
+        JSON.stringify(upserted)
+      }`,
+    );
+  }
 });
 
 Deno.test("update_preferences rejects malformed payload values", async () => {

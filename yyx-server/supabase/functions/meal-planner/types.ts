@@ -330,6 +330,13 @@ export interface PreferencesResponse {
   defaultMaxWeeknightMinutes: number;
   autoLeftovers: boolean;
   preferredEatTimes: Record<string, unknown>;
+  /**
+   * ISO timestamp of the user's first successful `update_preferences` call.
+   * Null until setup completes (server stamps it on first save; subsequent
+   * saves do not overwrite). The client uses this as the canonical signal
+   * for "first-time setup needed" — no local flag.
+   */
+  setupCompletedAt: string | null;
 }
 
 export interface GetPreferencesResponse {

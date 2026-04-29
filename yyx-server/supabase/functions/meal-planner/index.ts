@@ -75,6 +75,9 @@ export const DEFAULT_PREFERENCES: PreferencesResponse = {
   // when they want fresh meals throughout the week.
   autoLeftovers: true,
   preferredEatTimes: {},
+  // Null until the user's first successful `update_preferences` call.
+  // The client treats this as the canonical "needs first-time setup" flag.
+  setupCompletedAt: null,
 };
 
 // ============================================================
@@ -284,6 +287,7 @@ interface PreferencesRow {
   default_max_weeknight_minutes: number | null;
   auto_leftovers: boolean | null;
   preferred_eat_times: Record<string, unknown> | null;
+  setup_completed_at: string | null;
 }
 
 function rowToPreferences(row: PreferencesRow): PreferencesResponse {
@@ -299,6 +303,7 @@ function rowToPreferences(row: PreferencesRow): PreferencesResponse {
       DEFAULT_PREFERENCES.defaultMaxWeeknightMinutes,
     autoLeftovers: row.auto_leftovers ?? DEFAULT_PREFERENCES.autoLeftovers,
     preferredEatTimes: row.preferred_eat_times ?? {},
+    setupCompletedAt: row.setup_completed_at,
   };
 }
 
@@ -990,7 +995,7 @@ async function handleGetPreferences(
   const { data, error } = await supabase
     .from("user_meal_planning_preferences")
     .select(
-      "meal_types, busy_days, active_day_indexes, default_max_weeknight_minutes, auto_leftovers, preferred_eat_times",
+      "meal_types, busy_days, active_day_indexes, default_max_weeknight_minutes, auto_leftovers, preferred_eat_times, setup_completed_at",
     )
     .eq("user_id", userId)
     .maybeSingle();
@@ -1015,7 +1020,7 @@ async function handleUpdatePreferences(
   const { data: existing, error: readErr } = await supabase
     .from("user_meal_planning_preferences")
     .select(
-      "meal_types, busy_days, active_day_indexes, default_max_weeknight_minutes, auto_leftovers, preferred_eat_times",
+      "meal_types, busy_days, active_day_indexes, default_max_weeknight_minutes, auto_leftovers, preferred_eat_times, setup_completed_at",
     )
     .eq("user_id", userId)
     .maybeSingle();
@@ -1033,6 +1038,12 @@ async function handleUpdatePreferences(
     return errorResponse("INVALID_INPUT", (error as Error).message);
   }
 
+  // First-save-wins: stamp `setup_completed_at` only when the existing row
+  // (if any) had it null. This is the canonical "first-time setup done"
+  // signal the client reads — replaces any client-side flag.
+  const setupCompletedAt = base.setupCompletedAt ?? new Date().toISOString();
+  next.setupCompletedAt = setupCompletedAt;
+
   const { error } = await supabase
     .from("user_meal_planning_preferences")
     .upsert({
@@ -1043,6 +1054,7 @@ async function handleUpdatePreferences(
       default_max_weeknight_minutes: next.defaultMaxWeeknightMinutes,
       auto_leftovers: next.autoLeftovers,
       preferred_eat_times: next.preferredEatTimes,
+      setup_completed_at: setupCompletedAt,
     }, { onConflict: "user_id" });
   if (error) {
     throw new Error(`Failed to save preferences: ${error.message}`);
