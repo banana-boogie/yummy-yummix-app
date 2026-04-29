@@ -12,7 +12,7 @@
  *   --local          Target local Supabase instance
  *   --production     Target production Supabase
  *   --reset          Reset progress tracker and start fresh
- *   --dir <path>     Directory containing markdown files (default: data/notion-exports)
+ *   --dir <path>     Directory containing markdown files (default: data/recipes-to-import)
  *   --limit <n>      Max recipes to import this run (default: unlimited)
  *   --skip-existing  Skip recipes that already exist in DB (by name match)
  *   --dry-run        Parse and resolve entities but skip all DB writes (for previewing output)
@@ -22,7 +22,7 @@ import { createPipelineConfig, hasFlag, parseEnvironment, parseFlag } from '../l
 import { sleep } from '../lib/utils.ts';
 import { Logger } from '../lib/logger.ts';
 import { ProgressTracker } from '../lib/progress-tracker.ts';
-import { type ParsedRecipeData, parseRecipeMarkdown } from '../lib/recipe-parser.ts';
+import { type ParsedRecipeData, parseRecipe } from '../lib/recipe-parser.ts';
 import {
   type DbIngredient,
   type DbKitchenTool,
@@ -46,7 +46,7 @@ const env = parseEnvironment(Deno.args);
 const config = createPipelineConfig(env);
 
 const dataDir = parseFlag(Deno.args, '--dir') ||
-  new URL('../data/notion-exports', import.meta.url).pathname;
+  new URL('../data/recipes-to-import', import.meta.url).pathname;
 const skipExisting = hasFlag(Deno.args, '--skip-existing');
 const dryRun = hasFlag(Deno.args, '--dry-run');
 const limitArg = parseFlag(Deno.args, '--limit');
@@ -262,7 +262,7 @@ async function importRecipe(
   allUnits: DbMeasurementUnit[],
 ): Promise<string> {
   // 1. Parse markdown with OpenAI
-  const parsed = await parseRecipeMarkdown(
+  const parsed = await parseRecipe(
     markdown,
     config.openaiApiKey,
     logger,
@@ -347,6 +347,21 @@ async function importRecipe(
     );
     if (parsed.tipsAndTricksEn) logger.info(`Tips: ${parsed.tipsAndTricksEn}`);
 
+    // Meal planning fields — labels match DB column names so the dry-run
+    // output reads exactly like the row that would be written.
+    logger.info('Meal planning:');
+    const mealPlanningLines = [
+      `planner_role: ${parsed.plannerRole ?? 'null'}`,
+      `equipment_tags: [${parsed.equipmentTags.join(', ')}]`,
+      `meal_components: [${parsed.mealComponents.join(', ')}]`,
+      `is_complete_meal: ${parsed.isCompleteMeal}`,
+      `cooking_level: ${parsed.cookingLevel ?? 'null'}`,
+      `leftovers_friendly: ${parsed.leftoversFriendly ?? 'null'}`,
+      `max_household_size_supported: ${parsed.maxHouseholdSizeSupported ?? 'null'}`,
+      `batch_friendly: ${parsed.batchFriendly ?? 'null'}`,
+    ];
+    for (const line of mealPlanningLines) logger.info(`  ${line}`);
+
     // Show entity resolution status
     const missingIngredients = parsed.ingredients.filter(
       (i) =>
@@ -400,6 +415,14 @@ async function importRecipe(
     is_published: false, // Safety: require manual publish
     tips_and_tricks_en: parsed.tipsAndTricksEn || '',
     tips_and_tricks_es: parsed.tipsAndTricksEs || '',
+    planner_role: parsed.plannerRole,
+    equipment_tags: parsed.equipmentTags,
+    meal_components: parsed.mealComponents,
+    is_complete_meal: parsed.isCompleteMeal,
+    cooking_level: parsed.cookingLevel,
+    leftovers_friendly: parsed.leftoversFriendly,
+    max_household_size_supported: parsed.maxHouseholdSizeSupported,
+    batch_friendly: parsed.batchFriendly,
   });
 
   logger.info(`Created recipe: ${recipeId}`);
@@ -666,7 +689,7 @@ async function main() {
   } catch (e) {
     logger.error(`Failed to load markdown files from ${dataDir}: ${e}`);
     logger.info(
-      'Place Notion markdown exports in data-pipeline/data/notion-exports/, or pass --dir path/to/RECIPES/',
+      'Place recipe markdown files in data-pipeline/data/recipes-to-import/, or pass --dir path/to/recipes/',
     );
     Deno.exit(1);
   }
