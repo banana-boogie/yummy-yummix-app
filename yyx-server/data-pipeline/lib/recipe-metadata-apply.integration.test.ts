@@ -24,23 +24,24 @@
  *   - New tag categories (`dish_type`, `primary_ingredient`) round-trip
  *     against the recipe's existing tag state with no diff.
  *
- * Mutating regression tests for the two SQL bug fixes (translation bootstrap,
- * step speed/range clearing) are NOT yet implemented — they require a
- * sandbox/test database with a controllable seed state. See the comment at
- * the bottom of this file for the test plan that should be implemented when
- * that harness is built.
+ * Mutating regression tests for the SQL behaviors below are NOT yet
+ * implemented — they require a sandbox/test database with a controllable seed
+ * state. See the comment at the bottom of this file for the full test plan:
+ *   - Translation bootstrap (recipe_translations) when a locale row is missing.
+ *   - Step speed/range column clearing across forms.
+ *   - **`step_text_overrides`** (added in 20260429052521): same-text apply is a
+ *     no-op (count stays zero); changed text bumps the count and updates
+ *     `recipe_step_translations`; bootstrap path refuses when YAML omits
+ *     `instruction` for a step+locale that has no row yet (the column is
+ *     NOT NULL).
  */
 
 import { assert, assertEquals, assertRejects } from 'std/assert/mod.ts';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import {
-  applyRecipeMetadata,
-  StaleDiffError,
-} from './recipe-metadata-apply.ts';
+import { applyRecipeMetadata, StaleDiffError } from './recipe-metadata-apply.ts';
 
 const TEST_RECIPE_ID = Deno.env.get('RECIPE_METADATA_INTEGRATION_TEST_RECIPE_ID') ?? '';
-const TEST_RECIPE_NAME_EN =
-  Deno.env.get('RECIPE_METADATA_INTEGRATION_TEST_RECIPE_NAME_EN') ?? '';
+const TEST_RECIPE_NAME_EN = Deno.env.get('RECIPE_METADATA_INTEGRATION_TEST_RECIPE_NAME_EN') ?? '';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
