@@ -98,7 +98,7 @@ If a snapshot recipe was resolved in Step 1, use that recipe object's `recipe`, 
 **Read canonical taxonomy from the snapshot (preferred) or live DB (fallback).** Every YAML you write must use real `recipe_tags.slug` values, verbatim `kitchen_tool_translations.name` strings, and real `measurement_units.id` values — typos silently no-op tags or hard-fail kitchen tools / ingredients at apply. Resolution order:
 
 1. **Snapshot taxonomy.** When the snapshot is loaded (see "Recipe state source" above), read the canonical lists from `taxonomy.recipe_tags[]`, `taxonomy.kitchen_tool_names_en[]`, and `taxonomy.measurement_units[]`. The exporter captures these at snapshot time so reviews require zero live-DB roundtrips. Re-export to refresh.
-2. **Live-DB fallback.** If the snapshot is missing the required `taxonomy` block (snapshot version < 3), or you fell through to live Supabase entirely, run these read-only queries once and reuse for every recipe in the session:
+2. **Live-DB fallback.** If the snapshot is missing the required `taxonomy` block (snapshot version < 3), or you fell through to live Supabase entirely, run these read-only queries once and reuse for every recipe in the session. Older snapshots without `taxonomy.measurement_units` (v2) are expected — they predate the unit-taxonomy bump and the fallback below covers them. If you have shell access and plan to review more than one recipe, prefer re-exporting via `deno task pipeline:export-review-snapshot --local` over running live SQL every session — re-export takes seconds and keeps subsequent recipes snapshot-cheap.
 
 ```sql
 SELECT slug, categories FROM public.recipe_tags ORDER BY slug;
