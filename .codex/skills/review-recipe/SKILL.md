@@ -303,6 +303,7 @@ The applier ignores this section — it is YAML-only, surfaced by `--list-author
 The report is a **triage**, not an exhaustive change log. The dry-run is the source of truth for every mechanical change — the report's job is to tell the user what to look at *before* running `--apply`. Lead with the recipe identifier, then the buckets in this order:
 
 ```
+STATUS: <READY | REVIEW (N risks) | BLOCKED (stale_diff)>
 Recipe: <name> (<id>)
 Snapshot: <created_at>  recipe.updated_at: <updated_at>
 Dry-run: <N> changes  stale_diff: <yes/no>
@@ -331,6 +332,8 @@ Dry-run: <N> changes  stale_diff: <yes/no>
 
 Next step: review risks, then run `deno task pipeline:apply-recipe-metadata --local --recipe <slug> --apply`.
 ```
+
+**Status line.** First line of the report, computed from the buckets — lets a user scanning a stack of reports triage at a glance. Three values: **READY** (0 risks, no stale_diff), **REVIEW (N risks)** (≥1 risk, no stale_diff), **BLOCKED (stale_diff)** (regardless of risk count — apply will fail until the YAML is refreshed). Nothing else goes on this line; the buckets carry the detail.
 
 **Bucket rules:**
 
