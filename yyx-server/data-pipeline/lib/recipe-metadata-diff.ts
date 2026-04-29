@@ -55,9 +55,10 @@ const PLANNER_FIELDS = [
   'leftovers_friendly',
   'batch_friendly',
   'max_household_size_supported',
-  'is_published',
 ] as const;
 
+// `is_published` is omitted intentionally — publishing is admin-only and
+// the YAML schema rejects it. See plannerSchema in recipe-metadata-schema.ts.
 const PLANNER_TO_DB: Record<string, string> = {
   role: 'planner_role',
   alternate_planner_roles: 'alternate_planner_roles',
@@ -68,7 +69,6 @@ const PLANNER_TO_DB: Record<string, string> = {
   leftovers_friendly: 'leftovers_friendly',
   batch_friendly: 'batch_friendly',
   max_household_size_supported: 'max_household_size_supported',
-  is_published: 'is_published',
 };
 
 export function computeRecipeMetadataDiff(

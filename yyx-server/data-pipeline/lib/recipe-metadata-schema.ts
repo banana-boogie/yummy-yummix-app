@@ -238,6 +238,11 @@ const reviewSchema = z.object({
   reviewed_at: isoTimestampSchema,
 }).strict();
 
+// Note: `is_published` is intentionally NOT in this schema. Publishing
+// is admin-only — never settable from a reviewer YAML. The strict() call
+// below causes any YAML containing `planner.is_published` to fail
+// validation with an unknown-key error, enforcing the policy in code
+// rather than only in prose. See RECIPE-REVIEW.md "Publishing policy".
 const plannerSchema = z.object({
   role: z.enum(PLANNER_ROLES).optional(),
   alternate_planner_roles: z.array(z.enum(ALTERNATE_PLANNER_ROLES)).optional(),
@@ -248,7 +253,6 @@ const plannerSchema = z.object({
   leftovers_friendly: z.boolean().optional(),
   batch_friendly: z.boolean().optional(),
   max_household_size_supported: z.number().int().positive().optional(),
-  is_published: z.boolean().optional(),
 }).strict();
 
 const timingsSchema = z.object({

@@ -48,18 +48,23 @@ planner:
 # 2 g black pepper ≈ 1/2 tsp; 2 g paprika ≈ 1/2 tsp. Notes ↔ metric
 # quantities all line up.
 
-# Schema-unfixable items handed off to admin authoring. The `reasons` list
-# was empty in the prior YAML even though notes were populated — fixing
-# that mismatch.
+# Items still flagged for handoff. The Spanish step-text fixes below are
+# now schema-fixable via `step_text_overrides` (added in migration
+# 20260429052521); they're left in `requires_authoring.notes` here only
+# because this YAML predates that migration and a refresh review would
+# materialize the overrides with the full corrected instruction text.
+# The es-ES step 5 issue is intentionally dropped per Mexico-first scope
+# (RECIPE-REVIEW.md: ignore es-ES drift). The Salt section issue stays —
+# `section_es-ES` is not exposed by `step_text_overrides` (that section
+# only edits `recipe_step_translations`, not `recipe_ingredient_translations`).
 requires_authoring:
   reasons: [es_voice_inconsistency, es_grammar_error, ingredient_section_inconsistency]
   notes: |
-    Spanish step text (recipe_step_translations) — schema cannot edit per-locale step text:
+    Spanish step text — fixable via `step_text_overrides` on next refresh review (skill needs the full corrected instruction text, which was not captured in the original review notes):
       - es step 1 ("Pat the chicken thighs..."): "Seca completamente las muslos" → "los muslos" (muslo is masculine; gender agreement error).
       - es step 8 ("Check internal temperature..."): switches to usted-voice ("Verifique" / "apunte") while the rest of es step text uses tú-voice. Change to "Verifica" / "apunta".
-      - es-ES step 5 ("Place thighs skin-side down..."): "Coloque" is usted-voice, inconsistent with tú-voice elsewhere in es-ES. Change to "Coloca".
 
-    Ingredient section (recipe_ingredient_translations) — schema exposes `section_es` but not `section_es-ES`:
+    Ingredient section (recipe_ingredient_translations.section_es-ES) — not exposed by `step_text_overrides`:
       - Salt's es-ES recipe_section is "Plato principal"; every other ingredient in this recipe uses "Principal" in es-ES. Normalize Salt's es-ES section to "Principal" so ingredient grouping is consistent across the recipe.
 
 applied:

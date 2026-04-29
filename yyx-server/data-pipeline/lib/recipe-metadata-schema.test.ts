@@ -25,6 +25,31 @@ Deno.test('parses the canonical Mongolian Beef fixture', () => {
   assertEquals(data.step_overrides?.[0].thermomix_temperature_unit, 'C');
 });
 
+Deno.test('rejects planner.is_published — publishing is admin-only', () => {
+  // Reviewer YAMLs must never set is_published. The strict() planner
+  // schema rejects the unknown key, and the RPC migration drops it
+  // from the planner UPDATE — belt and suspenders.
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+planner:
+  role: main
+  is_published: true
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  const issue = err.issues.find(
+    (i) => i.path === 'planner' && i.message.includes('is_published'),
+  );
+  assert(issue, `expected an unrecognized-key issue for planner.is_published, got: ${JSON.stringify(err.issues, null, 2)}`);
+});
+
 Deno.test('rejects an unknown cooking_level and points at the YAML line', () => {
   const yaml = `recipe_match:
   id: '11111111-1111-1111-1111-111111111111'
