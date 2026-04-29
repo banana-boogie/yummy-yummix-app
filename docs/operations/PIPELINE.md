@@ -189,7 +189,7 @@ data-pipeline/
 │   ├── logger.ts                 # Colored terminal output
 │   └── utils.ts                  # sleep(), parseJsonFromLLM()
 └── data/
-    └── notion-exports/           # Place Notion exports here
+    └── recipes-to-import/        # Drop recipe markdown files here for import
 ```
 
 ## Environment

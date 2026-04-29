@@ -244,6 +244,52 @@ Deno.test('parseRecipe rejects invalid plannerRole enum value', async () => {
   }
 });
 
+// Locks in the equipmentTags gate that prevents thermomix_* fields from
+// leaking onto steps in non-Thermomix (e.g., air fryer, oven) recipes. The
+// validators don't enforce this — the system prompt does — so this test
+// confirms a payload with the gating already applied round-trips through
+// the parser without the validators rejecting all-null thermomix_* fields.
+Deno.test(
+  'parseRecipe accepts non-Thermomix recipe with all step thermomix_* fields null',
+  async () => {
+    try {
+      const airFryerRecipe: ParsedRecipeData = {
+        ...baseRecipe,
+        equipmentTags: ['air_fryer'],
+        steps: [
+          {
+            ...baseRecipe.steps[0],
+            instructionEn: 'Cook for 8 minutes at 190°C, then flip.',
+            thermomixTime: null,
+            thermomixTemperature: null,
+            thermomixTemperatureUnit: null,
+            thermomixSpeed: null,
+            thermomixIsBladeReversed: null,
+            thermomixMode: null,
+            timerSeconds: 480,
+          },
+        ],
+      };
+      mockOpenAIResponse({
+        output_text: JSON.stringify(airFryerRecipe),
+      });
+
+      const parsed = await parseRecipe('recipe markdown', 'test-key', mockLogger);
+
+      assertEquals(parsed.equipmentTags, ['air_fryer']);
+      assertEquals(parsed.steps[0].thermomixTime, null);
+      assertEquals(parsed.steps[0].thermomixTemperature, null);
+      assertEquals(parsed.steps[0].thermomixTemperatureUnit, null);
+      assertEquals(parsed.steps[0].thermomixSpeed, null);
+      assertEquals(parsed.steps[0].thermomixIsBladeReversed, null);
+      assertEquals(parsed.steps[0].thermomixMode, null);
+      assertEquals(parsed.steps[0].timerSeconds, 480);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  },
+);
+
 Deno.test('parseRecipe rejects invalid equipmentTags enum value', async () => {
   try {
     mockOpenAIResponse({

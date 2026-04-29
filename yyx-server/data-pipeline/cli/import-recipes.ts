@@ -12,7 +12,7 @@
  *   --local          Target local Supabase instance
  *   --production     Target production Supabase
  *   --reset          Reset progress tracker and start fresh
- *   --dir <path>     Directory containing markdown files (default: data/notion-exports)
+ *   --dir <path>     Directory containing markdown files (default: data/recipes-to-import)
  *   --limit <n>      Max recipes to import this run (default: unlimited)
  *   --skip-existing  Skip recipes that already exist in DB (by name match)
  *   --dry-run        Parse and resolve entities but skip all DB writes (for previewing output)
@@ -46,7 +46,7 @@ const env = parseEnvironment(Deno.args);
 const config = createPipelineConfig(env);
 
 const dataDir = parseFlag(Deno.args, '--dir') ||
-  new URL('../data/notion-exports', import.meta.url).pathname;
+  new URL('../data/recipes-to-import', import.meta.url).pathname;
 const skipExisting = hasFlag(Deno.args, '--skip-existing');
 const dryRun = hasFlag(Deno.args, '--dry-run');
 const limitArg = parseFlag(Deno.args, '--limit');
@@ -689,7 +689,7 @@ async function main() {
   } catch (e) {
     logger.error(`Failed to load markdown files from ${dataDir}: ${e}`);
     logger.info(
-      'Place Notion markdown exports in data-pipeline/data/notion-exports/, or pass --dir path/to/RECIPES/',
+      'Place recipe markdown files in data-pipeline/data/recipes-to-import/, or pass --dir path/to/recipes/',
     );
     Deno.exit(1);
   }

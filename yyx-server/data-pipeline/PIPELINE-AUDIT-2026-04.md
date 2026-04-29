@@ -169,6 +169,26 @@ None. All original open questions resolved.
 7. `refactor(pipeline): hoist meal-planning enums + tighten validators` — single source for `PLANNER_ROLES`, `EQUIPMENT_TAGS`, `MEAL_COMPONENTS`, `COOKING_LEVELS`, `THERMOMIX_MODES`; `hasRecipeContent` switched to a heading-level-tolerant regex; thermomix_mode prompt expanded with more "open lid" phrasings; new fixture-based parser test locks in round-trip of all meal-planning fields.
 8. `fix(pipeline): align meal-planning enums with DB CHECK constraints + add db.ts payload tests` — Codex found that `MEAL_COMPONENTS` included `'snack'` (DB rejects), `COOKING_LEVELS` used `'advanced'` (DB uses `'experienced'`), and `EQUIPMENT_TAGS` was missing `'none'` (frontend type includes it). All would have caused the bulk import to fail at insert time. Added 6 payload-capturing tests for `createRecipe`, `insertRecipeSteps`, `upsertIngredientNutrition` to catch this drift class going forward.
 
+**Real-world validation phase (2026-04-28 evening):**
+
+End-to-end exercised by importing 12 air-fryer recipes (Chicken Breast, Salmon, Shrimp, Pork Chops, Meatballs, Fish Fillets, Tofu, Potato Wedges, Broccoli, Cauliflower, Carrots, Brussels Sprouts) into the live cloud DB. All 12 landed cleanly with `is_published=false`, all 8 meal-planning fields populated, and locales `[en, es, es-ES]` (Spain adaptation working).
+
+Two real bugs surfaced and were fixed during the validation pass:
+
+9. `fix(pipeline): gate thermomix step extraction on equipmentTags` — the system prompt was extracting `thermomixTime` / `thermomixTemperature` from any step with "X min" / "X°C" text regardless of the recipe's `equipment_tags`. Air-fryer recipes were landing with bogus `thermomix_time=480` and similar pollution on every step. Parser is now gated: `thermomix_*` fields stay null on every step unless `equipmentTags` includes `'thermomix'`. `timerSeconds` was widened to capture all timed actions (oven, air-fryer, stovetop, rest) — previously it was scoped to "non-Thermomix" only. New regression test in `recipe-parser.test.ts` locks in the gate.
+
+10. `fix(pipeline): clarify ingredient vs kitchen-tool classification` — aerosol/spray products (cooking spray, "aceite en spray") were being randomly classified as either ingredients or kitchen tools across recipes. Parser prompt now codifies the rule: items APPLIED TO or BECOMING PART OF the food (sprays, oils, seasonings) are ingredients; items that HOLD, SHAPE, or SEPARATE the food (parchment paper, foil, plastic wrap, towels) are kitchen tools. Matches existing DB convention (`Baking paper`, `Wax Paper`, `Kitchen towel` already live in `kitchen_tools`).
+
+11. `chore(pipeline): rename data/notion-exports → data/recipes-to-import` — folder name was a vestige of the original Notion-only era. Pipeline is source-agnostic now (per commit 6), so the directory name should match. Updated CLI default, error message, usage doc, gitignore, and `docs/operations/PIPELINE.md` tree diagram.
+
+## Validation Summary
+
+- 136 unit tests passing (was 135 before commit 9).
+- 12 recipes round-tripped through the full pipeline: parse → entity match → DB insert → Spain adaptation → tracker update.
+- 0 thermomix-field pollution across ~96 imported air-fryer recipe steps.
+- 1 new ingredient (`kosher salt`) and 0 unexpected new entities created during the imports — entity matching is working.
+- Discovered post-import data hygiene items (cooking-spray-as-tool, breadcrumb/panko duplicates with mismatched Spanish) are review-time concerns, not pipeline bugs.
+
 ## Cross-Contract Reference
 
 The meal-planning enum constants in `lib/recipe-parser.ts` are mirrored from these canonical sources. Update there before changing them here:

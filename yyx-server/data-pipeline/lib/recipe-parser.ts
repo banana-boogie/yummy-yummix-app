@@ -282,21 +282,25 @@ const recipeJsonSchema = {
             instructionEs: { type: 'string', description: 'Full instruction text in Spanish.' },
             thermomixTime: {
               type: ['number', 'null'],
-              description: 'Time in seconds, extracted from thermomix patterns.',
+              description:
+                'Time in seconds extracted from inline Thermomix patterns. ONLY set when equipmentTags includes "thermomix"; otherwise null (route the duration to timerSeconds instead).',
             },
             thermomixTemperature: {
               type: ['number', 'string', 'null'],
-              description: 'Temperature extracted from thermomix patterns. Null if not found.',
+              description:
+                'Temperature extracted from inline Thermomix patterns. ONLY set when equipmentTags includes "thermomix"; otherwise null (oven/air-fryer temperatures do NOT belong here).',
               enum: temperatureEnum,
             },
             thermomixTemperatureUnit: {
               type: ['string', 'null'],
-              description: 'Temperature unit in C or F, if it exists, null otherwise',
+              description:
+                'Temperature unit in C or F. ONLY set when equipmentTags includes "thermomix" and a Thermomix temperature was extracted; otherwise null.',
               enum: ['C', 'F', null],
             },
             thermomixSpeed: {
               type: ['object', 'null'],
-              description: 'Speed section extracted from thermomix patterns.',
+              description:
+                'Speed section extracted from inline Thermomix patterns. ONLY set when equipmentTags includes "thermomix"; otherwise null.',
               properties: {
                 type: {
                   type: 'string',
@@ -324,7 +328,8 @@ const recipeJsonSchema = {
             },
             thermomixIsBladeReversed: {
               type: ['boolean', 'null'],
-              description: 'Reverse blade extracted from thermomix patterns.',
+              description:
+                'Reverse blade flag extracted from inline Thermomix patterns ("giro a la izquierda"). ONLY set when equipmentTags includes "thermomix"; otherwise null.',
             },
             ingredients: {
               type: 'array',
@@ -385,13 +390,13 @@ const recipeJsonSchema = {
             thermomixMode: {
               type: ['string', 'null'],
               description:
-                'Thermomix cooking mode. Set "steaming" when the step uses the Varoma accessory (steam tray). Set "open_cooking" when the step explicitly indicates an open lid — Spanish phrasings include "sin tapa", "tapa abierta", "destapa", "retira la tapa", "sin la tapa"; English equivalents include "uncovered", "lid off". Use null when uncertain or not specified.',
+                'Thermomix cooking mode. ONLY set when equipmentTags includes "thermomix"; otherwise null. When applicable: "steaming" for steps using the Varoma accessory; "open_cooking" when the step explicitly indicates an open lid (Spanish: "sin tapa", "tapa abierta", "destapa", "retira la tapa"; English: "uncovered", "lid off"). Use null when uncertain or not specified.',
               enum: [...THERMOMIX_MODES, null],
             },
             timerSeconds: {
               type: ['number', 'null'],
               description:
-                'Duration in seconds of a non-Thermomix timed action in this step (e.g., baking, resting, preheating). Extract from phrases like "hornear 30 min" → 1800, "reposar 10 minutos" → 600. If thermomixTime is set for this step, set timerSeconds to null.',
+                'Duration in seconds of a timed action in this step (baking, resting, preheating, air-fryer cook time, etc.). Extract from phrases like "hornear 30 min" → 1800, "reposar 10 minutos" → 600, "Cook for 8 minutes" → 480. Set on every kind of recipe — Thermomix, oven, air-fryer, stovetop. If this step has thermomixTime set (Thermomix recipe with inline params), set timerSeconds to null instead.',
             },
           },
           required: [
@@ -516,9 +521,13 @@ Extract tags ONLY from the metadata line at the top: "Tags: X, Y, Z" (with or wi
 Split on commas or hyphens. Do NOT include tags from "- **Tags**" placeholder lines.
 If no "Tags:" metadata line exists, or it is empty, return an EMPTY array. Do NOT invent or infer tags from content.
 
-## Thermomix Patterns (Spanish)
+## Step-Level Thermomix Parameters (Thermomix recipes only)
 
-Thermomix parameters appear inline in step text. Extract them:
+The thermomix_* step fields (thermomixTime, thermomixTemperature, thermomixTemperatureUnit, thermomixSpeed, thermomixIsBladeReversed, thermomixMode) are EXCLUSIVELY for steps executed inside a Thermomix machine.
+
+**Gate**: only populate any thermomix_* field when equipmentTags (extracted from the aside block) includes "thermomix". If equipmentTags does NOT include "thermomix", set EVERY thermomix_* field to null on EVERY step — even if the step text says "X min" or "X°C". A "Cook 8 minutes" step in an air-fryer or oven recipe is a kitchen timer, not a Thermomix run; route the duration to timerSeconds (see Step Timer below).
+
+When equipmentTags includes "thermomix", extract from inline step text:
 - Time:        "X seg" → X seconds | "X min" → X×60 seconds
 - Speed:       "vel X" where X is a number | "vel cuchara" → speed "spoon"
 - Speed range: "vel 4-8" → range from 4 to 8
@@ -552,14 +561,21 @@ Extract the following if present in aside blocks. Use null / [] / false as defau
 - maxHouseholdSizeSupported: "Porciones máximas: 6" or "Max servings: 6" → 6 (integer). Null if absent.
 - batchFriendly: "Batch cooking: Sí/No" or "Batch cooking: Yes/No" → true/false. Null if absent.
 
-## Thermomix Mode and Step Timers
+## Thermomix Mode (Thermomix recipes only)
 
-For each step, also set:
-- thermomixMode:
-  - "steaming" when the step uses the Varoma accessory (steam tray).
-  - "open_cooking" when the step explicitly indicates an open lid. Spanish: "sin tapa", "tapa abierta", "destapa", "destapado/a", "retira la tapa", "sin la tapa", "quita la tapa". English: "uncovered", "lid off", "remove the lid".
-  - null when uncertain or not specified — do NOT infer from absence of a "tapa" mention.
-- timerSeconds: duration in seconds for non-Thermomix timed actions only. "hornear 30 min" → 1800. "reposar 10 minutos" → 600. If this step already has thermomixTime set, set timerSeconds to null.
+When equipmentTags includes "thermomix", set thermomixMode per step:
+- "steaming" when the step uses the Varoma accessory (steam tray).
+- "open_cooking" when the step explicitly indicates an open lid. Spanish: "sin tapa", "tapa abierta", "destapa", "destapado/a", "retira la tapa", "sin la tapa", "quita la tapa". English: "uncovered", "lid off", "remove the lid".
+- null when uncertain or not specified — do NOT infer from absence of a "tapa" mention.
+
+When equipmentTags does NOT include "thermomix", thermomixMode is always null.
+
+## Step Timer (all recipes)
+
+For every step, regardless of equipmentTags:
+- timerSeconds: duration in seconds for any timed action in the step. "hornear 30 min" → 1800. "reposar 10 minutos" → 600. "Cook for 8 minutes" → 480. "Preheat for 5 minutes" → 300. If multiple durations appear in one step, use the primary cook/wait duration (not the doneness-temperature target).
+- If thermomixTime is set on this step (Thermomix recipe with inline params), set timerSeconds to null instead — Thermomix steps express their own duration via thermomixTime.
+- If no duration is mentioned, set timerSeconds to null.
 
 ## Ingredient Names
 
@@ -576,6 +592,12 @@ Plural names must be actual plurals: "bread crumb" → "bread crumbs", "tomato" 
 
 Use Title Case for English names: "Airtight Container", "Rolling Pin", "Baking Tray".
 Capitalize first letter for Spanish names: "Recipiente hermético", "Rodillo".
+
+Kitchen tools are items the cook uses to prepare food: pots, pans, utensils, appliances, mixing bowls, baskets, mallets, and also single-use kitchen supplies that don't become part of the dish ("parchment paper", "papel encerado", "papel aluminio", "plastic wrap", "kitchen towels").
+
+Aerosol/spray products ("cooking spray", "aceite en spray", "Pam", "olive oil spray") are INGREDIENTS, not tools. They get applied to the food itself (greasing, coating, finishing) and behave like oil — measure them in the ingredients list, not the tools list.
+
+When in doubt: if the item is APPLIED to or BECOMES PART OF the food, it's an ingredient. If it just HOLDS, SHAPES, or SEPARATES the food, it's a tool.
 
 ## Critical Rules
 
