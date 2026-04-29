@@ -337,23 +337,19 @@ Do not apply the YAML yourself — that is the human's call after reviewing the 
 
 **Default to sequential.** Parallel reviews via subagents are valuable only when chunking 5+ "easy" recipes (no fixture mismatches, no obvious orphan-link issues), and only with the cheap-prompt pattern below — naïve dispatch costs roughly 2× the tokens of sequential while saving ~50% wall-clock. Each subagent that reads the full snapshot (~600 KB), the full `RECIPE-REVIEW.md`, and the full `SKILL.md` pays ~100 k input tokens before it does any thinking. Five recipes dispatched naïvely costs ~500 k tokens of overhead vs ~50–70 k per recipe sequential — that's the ~50 % premium you should expect to avoid.
 
-**Cheap-prompt pattern (use this if parallelizing):**
+**Cheap-prompt pattern (the dispatcher's setup, not the subagent's).** When you (the main session) decide to parallelize, you do all five moves below *before* dispatching. The subagents inherit a small, self-contained prompt and never read the full snapshot or canonical files.
 
-1. **Pre-extract per-recipe data.** For each target recipe, write a single-recipe JSON to `/tmp/<slug>.json` from the snapshot (`snapshot.recipes[]` filtered to one entry). Subagents read ≤20 KB instead of the full snapshot file.
-2. **Inline the rubric rules.** Embed the deterministic auto-checks + judgment-call posture inline in the subagent prompt (~3 KB of distilled rules). Tell each subagent: "Do NOT read SKILL.md or RECIPE-REVIEW.md — all rules are below."
+1. **Pre-extract per-recipe data.** For each target recipe, write a single-recipe JSON to `/tmp/recipe-review-<slug>.json` from the snapshot (`snapshot.recipes[]` filtered to one entry, plus the `taxonomy` block). Subagents read ≤20 KB instead of the full ~600 KB snapshot file.
+2. **Inline the rubric rules.** Distill `RECIPE-REVIEW.md`'s deterministic auto-checks and judgment-call bars (planner role decision tree, exclusion-style diet-tag audit, `kid_friendly`/`one_pot`/`cooking_level` rubrics) into ~3 KB of explicit rules in the subagent prompt. **The inlined rules ARE the rubric for that subagent's task.** Tell the subagent: "Use only the rules below; SKILL.md and RECIPE-REVIEW.md are already distilled in this prompt — re-reading them is redundant and would re-introduce the ~100 k token overhead this dispatch pattern exists to avoid."
 3. **Inline the canonical slug list.** Compress `taxonomy.recipe_tags` into a categorized one-liner per category (~2 KB). Tell the subagent: "Use only the slugs listed; never invent a slug; if no listed slug fits, omit the category."
-4. **Inline user preferences as a checklist.** `kid_friendly` five-point bar, `one_pot` three-point bar, exclusion-style diet-tag audit, durable match keys (`ingredient_slug + display_order`, step `order`), no es-ES drift flagging (Mexico-first), `is_published` is admin-only, no judgment rationale in YAML comments. ~1 KB.
+4. **Inline user preferences as a checklist.** Durable match keys (`ingredient_slug + display_order`, step `order`), no es-ES drift flagging (Mexico-first), `is_published` is admin-only, no judgment rationale in YAML comments. ~1 KB. (The `kid_friendly`/`one_pot`/diet-tag bars are already in step 2 — don't duplicate.)
 5. **Cap the response format.** Three-bucket report + Considered-and-skipped bucket, under 400 words, no full diff dump. Tell the subagent: "Output the report only; the YAML write is a side effect, not the response."
 
 With those five moves, each subagent should land at ~30–40 k input tokens — parallel becomes net cheaper than sequential for batches of 5+ recipes.
 
-**Do not parallelize if:**
+**One hard exclusion:** if any of the recipes have existing YAML fixtures to refresh, do not parallelize them. Refresh-mode judgment (Step 5 guardrail) benefits from sequential conversation — a subagent that doesn't see the user's prior ratifications can't tell which body sections to discard, and stale-fixture detection is exactly the kind of call that goes wrong silently in parallel. Mix is fine: parallelize the new-YAML recipes, do refreshes sequentially in the same session.
 
-- **The recipes have existing YAML fixtures to refresh.** Refresh-mode judgment (Step 5 guardrail) benefits from sequential conversation; a subagent that doesn't see the user's prior ratifications can't tell which body sections to discard.
-- **You're early in a batch where the user is still calibrating preferences.** Push-back ("don't add `kid_friendly` to this") can't reach a parallel subagent mid-stream.
-- **You haven't ratified at least 3 sequential recipes in the same session.** The user's judgment hasn't been validated yet; a parallel batch could ship five copies of the same wrong call before anyone catches it.
-
-When in doubt, sequential. The token math only flips at scale (5+ easy recipes), and the loss of mid-stream calibration isn't recoverable without re-reviewing the parallel outputs.
+When in doubt, sequential. The token math only flips at scale (5+ easy recipes); below that, the cheap-prompt scaffolding overhead isn't worth it.
 
 ## Things this skill never does
 
