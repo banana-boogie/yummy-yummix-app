@@ -300,36 +300,48 @@ The applier ignores this section — it is YAML-only, surfaced by `--list-author
 
 ## Step 7 — Report
 
-Structure the report into **three explicit buckets** so the user can scan judgment changes separately from mechanical ones. Lead with the recipe identifier, then the buckets in this order:
+The report is a **triage**, not an exhaustive change log. The dry-run is the source of truth for every mechanical change — the report's job is to tell the user what to look at *before* running `--apply`. Lead with the recipe identifier, then the buckets in this order:
 
 ```
 Recipe: <name> (<id>)
 Snapshot: <created_at>  recipe.updated_at: <updated_at>
 Dry-run: <N> changes  stale_diff: <yes/no>
 
-▸ Will apply on --apply (mechanical / rubric-driven)
-  - <one line per dry-run section that changes — planner, tags, kitchen_tools, etc.>
+⚠ Risks — read or push back
+  - <every item that's structural, reversible-but-wrong-could-ship, or otherwise high-stakes>
+  - <e.g. "step 4 sauté params cleared (thermomix_speed null, was 4) — verify the structured field is right">
+  - <e.g. "Added diet:gluten_free promise — confirm no soy sauce / wheat-bouillon in description.es">
+  - <e.g. "Role flipped main → side, diverges from DB; ratify before apply">
+  - <e.g. "Discarded existing fixture body in refresh mode (3 sections diverged from DB)">
 
-▸ Judgment calls — please ratify or push back
-  - <one line per opinion-driven change, e.g. "Added diet:gluten_free + rewrote tip to GF crouton — push back if uncomfortable">
-  - <e.g. "Kept pairing role 'side' for White Rice with Vegetables">
-  - <e.g. "Renamed description from X to Y for clarity">
+▸ Routine judgment calls
+  - <one bullet per dry-run section that changed, summarizing the call — not enumerating every item>
+  - <e.g. "Tags: + cuisine, meal_type, occasion, practical (cuisine: mexican, meal_type: lunch+dinner, …)">
+  - <e.g. "Tips rewritten in en + es to fix usted-imperative voice (auto-check #20)">
+  - <e.g. "Pairings: kept role 'side' for White Rice with Vegetables (one-line reason)">
 
-▸ Considered and skipped — push back if you'd add
-  - <tag/decision deliberately omitted> — <one-line reason>
+▸ Skipped on purpose
+  - <only items where a reasonable reviewer might have added this AND been wrong to>
   - <e.g. "diet:vegetarian skipped — avocado mayo may contain egg, not in data">
   - <e.g. "kid_friendly skipped — adult flavor (mustard, vinegar bite)">
-  - <e.g. "pairings skipped — no plausible match for this dressing in current catalog">
 
-▸ Needs you (admin panel / SQL — schema can't fix)
-  - <one line per requires_authoring.reasons item, with a pointer to notes>
+▸ Admin SQL needed
+  - <count + pointer; do not re-state notes>
+  - <e.g. "2 items in requires_authoring.notes (orphan recipe_step_ingredients link, step_ingredient quantity drift)">
 
-Next step: review the judgment calls; if approved, run `deno task pipeline:apply-recipe-metadata --local --recipe <slug> --apply`.
+Next step: review risks, then run `deno task pipeline:apply-recipe-metadata --local --recipe <slug> --apply`.
 ```
 
-The **Judgment calls** bucket surfaces every change driven by reviewer opinion (tag additions/removals, tip rewrites, role re-decisions that flip the DB value, ES translations, pairing reasons). The **Considered and skipped** bucket is its symmetric counterpart: deliberate *omissions* the user can ratify or override. A scanning reviewer sees what you added but cannot push back on what you silently chose not to do — list the non-trivial omissions (tags you weighed and rejected, pairings you considered and dropped, role flips you considered and reverted) with a one-line reason each. Omit the bucket if there's nothing genuinely worth raising; do not pad it with low-stakes calls (e.g. "considered weeknight, recipe has no time data" — that's not a judgment call worth ratifying).
+**Bucket rules:**
 
-Both ratification buckets together close the loop: the user can override an addition (by reading Judgment calls) or request an addition (by reading Considered and skipped). The user uses these lists to spot reputation risks before apply. If a section is empty, omit the bucket header entirely; do not pad with "n/a". If the dry-run hit `stale_diff`, say so in the dry-run line and make the next step refresh/re-export instead of apply.
+- **⚠ Risks** — list every item that could ship as a user-visible defect, an irreversible-without-thought structural change, or a divergence from the existing DB state that needs explicit ratification. **No cap on count.** If 7 items genuinely deserve the ⚠ glyph, list 7. The triage gate is *severity*, not *count*: "would a careful reviewer want to know about this before `--apply`, in case it's wrong?" If yes → Risks. If no → Routine. Categories that always belong here when present: structural data changes (`step_overrides` clearing fields, `cleanup.delete_locales`), discarded fixture body in refresh mode, exclusion-style diet-tag adds (`vegan`/`vegetarian`/`gluten_free`/`pescatarian`), role flips that diverge from current DB, planner-field changes that diverge from DB, kitchen-tools `set:` that removes existing tools.
+- **▸ Routine judgment calls** — *summarize by section, not by item.* "Tags: + cuisine, meal_type, occasion, practical" is one bullet, not four. "Step text rewritten in en+es for usted→tú voice across steps 2-5" is one bullet, not eight. Reviewer opinion landed in the YAML; the user reads this bucket to ratify the *direction* of changes, not to re-read every line of the dry-run.
+- **▸ Skipped on purpose** — symmetric counterpart to Routine: *deliberate omissions* the user could plausibly want to override. Tighter bar than the others — only include items where a reasonable reviewer might have added this AND been wrong to. "Considered weeknight, recipe has no time data" is not a judgment call worth ratifying — drop it. "Considered breakfast, recipe is a mole" is obvious — drop it. Keep contested skips: tags weighed and rejected on close calls, pairings considered and dropped, role flips considered and reverted. **No cap on count, but every bullet must clear the contested-skip bar.**
+- **▸ Admin SQL needed** — pointer + count, not duplicate. `requires_authoring.notes` already carries the detail; the report just signals the count and what families of issue (orphan link, quantity drift, missing procedure, etc.) so the user knows what's queued for the admin worklist.
+
+**Drop the "Will apply on --apply" bucket entirely.** The dry-run already prints every mechanical change; restating it in the report burns attention without adding signal. The report exists to tell the user what to look at *that the dry-run alone won't catch*.
+
+If a bucket is empty, omit the header entirely — do not pad with "n/a". If the dry-run hit `stale_diff`, say so in the dry-run line and make the next step refresh/re-export instead of apply.
 
 Do not apply the YAML yourself — that is the human's call after reviewing the diff.
 
