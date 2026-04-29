@@ -55,6 +55,20 @@ When you read a recipe out of a snapshot, copy `recipe.updated_at` verbatim into
 
 **Surface the snapshot timestamp at the start of the review.** Before Step 1, print the snapshot's `generated_at` and the recipe's `updated_at` so the user can decide whether to re-export. Example: `Snapshot: 2026-04-29T02:10:00Z (recipe.updated_at: 2026-04-29T01:53:11Z)`. No live-DB roundtrip — the apply-time stale_diff guard is the safety net for the dangerous case.
 
+**When to re-export the snapshot.** The snapshot is review-input infrastructure; re-exporting defensively defeats its purpose (one export should serve a 21-recipe batch, not 21 round-trips dressed up as exports).
+
+Re-export **only** when one of these is true:
+
+1. **Apply just hit `stale_diff`** for a recipe you're working on — the apply-time guard fired, refresh is the documented response.
+2. **Starting a new batch** (e.g. opening a fresh review queue) — one export, then trust it through the batch.
+3. **The user explicitly asks for fresh state** (e.g. they just bulk-imported recipes outside this session).
+
+Do **not** re-export because:
+
+- The snapshot is N hours/days old. Snapshot age alone is meaningless — what matters is whether the recipes you're touching have changed.
+- You think a recipe might have been touched. The `stale_diff` guard is the right place to find out — it fires at apply time, costs nothing at review time, and tells you exactly which recipe drifted.
+- You want to "be safe." Defensive re-exports defeat the snapshot's purpose. Trust the snapshot; lean on `stale_diff`.
+
 `apply-recipe-metadata` itself never reads snapshots. Dry-run and apply still go through live Supabase — the snapshot is review-input only.
 
 ## Step 1 — Resolve the recipe
@@ -180,6 +194,8 @@ For each item in the **Judgment-call checks** section of `RECIPE-REVIEW.md`, rea
 
 **Exclusion-style diet tags must be audited against user-visible content.** Adding `vegan`, `vegetarian`, `gluten_free`, or `pescatarian` is a promise to the user. Before keeping or adding one of these tags, scan the description, `tips_and_tricks`, ingredient list, and step text for items that violate the promise (cheese mentioned in a vegan tip; bread mentioned in a gluten-free description; anchovies in a vegetarian dressing). If you find a contradiction: rewrite the content to surface a compliant alternative alongside the existing suggestion, or drop the tag. Never ship the contradiction — these tags are reputation-critical.
 
+**Opinion-laden occasion/practical tags get the same audit posture.** `kid_friendly` is not "kids will eat this" — `RECIPE-REVIEW.md` defines a five-point bar (heat, dominant flavors, texture, no alcohol-as-flavor, parent-serves-without-negotiating). `one_pot` is not "cooked in the Thermomix bowl" — it requires a complete meal in a single vessel. Same principle extends to `comfort_food`, `weeknight`, `quick_meal`, and any other slug whose meaning is set by the user's filter expectation rather than a hard data check. Each is a promise. If the reviewer's reason for adding it is "yeah, sort of" or "kids would eat it," skip the tag — diluting the filter for the parents and busy cooks who rely on it is a worse outcome than under-tagging. When in doubt, omit; the rubric never penalizes caution.
+
 ## Step 5 — Write the YAML
 
 Write the YAML to `yyx-server/data-pipeline/data/recipe-metadata/<slug>.yaml` where `<slug>` is the EN name slugified (lowercase, hyphen-separated, e.g. `Mongolian Beef` → `mongolian-beef.yaml`).
@@ -195,6 +211,8 @@ Required sections:
 **`planner` is the exception**: always include it with at least `role`, `meal_components`, and `is_complete_meal` (per Step 4's "re-decide planner_role from scratch" rule), even when your decision matches the current DB value. Re-asserting the same value is a zero-write idempotent op and makes the role decision visible in git history.
 
 For every other section, write only what changes. If a section's current state is already correct, omit it (idempotent dry-run will report zero writes for omitted sections).
+
+**YAML comments: mechanical only.** Reserve `#` comments for mechanical facts a future reader needs while looking at the file: what canonical name a `name_en` resolves to, why a match key uses `order` instead of `step_id`, what a `null` override clears, why a one-off slug deviates from the obvious choice. Do **not** write multi-paragraph rationale for tag additions, role re-decisions, description rewrites, or other judgment calls. That belongs in the Step 7 report's "Judgment calls" bucket — the report is what the user reads to ratify before apply; the YAML is what the apply pipeline reads, and `--dry-run` does not surface YAML comments. Duplicating rationale in both places stales fast and clutters the diff.
 
 Match-key rules:
 - `ingredient_updates`/`ingredient_removes`: prefer `existing_id` (the `id` from step 2's recipe_ingredients query). Fallback: `ingredient_slug` + `display_order`. Compute the slug exactly as the SQL helper does — the JS reproduction is in `data-pipeline/lib/recipe-metadata-fetch.ts:slugifyName()`. Never use names directly.
