@@ -296,6 +296,8 @@ requires_authoring:
 
 The applier ignores this section — it is YAML-only, surfaced by `--list-authoring`. Recipes flagged this way are NOT publishable until a human authors the missing pieces in the admin UI.
 
+**Draft notes deliberately — they ship to admin verbatim.** `requires_authoring.notes` is the reviewer's handoff to the human admin via the `--list-authoring` worklist. Stream-of-consciousness fragments ("ebdd811d-… wait, that's cilantro", "hmm, maybe?", "TODO check this") are not edits to be cleaned up later — they are the message. Write each note as a finished sentence the admin can act on without context from you. If you find yourself mid-thought, finish the thought before you commit the YAML.
+
 ## Step 7 — Report
 
 Structure the report into **three explicit buckets** so the user can scan judgment changes separately from mechanical ones. Lead with the recipe identifier, then the buckets in this order:
