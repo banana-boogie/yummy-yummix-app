@@ -1,0 +1,732 @@
+import { assert, assertEquals, assertThrows } from 'std/assert/mod.ts';
+import {
+  parseRecipeMetadataYaml,
+  RecipeMetadataValidationError,
+} from './recipe-metadata-schema.ts';
+
+const fixturePath = new URL(
+  '../data/recipe-metadata/mongolian-beef.yaml',
+  import.meta.url,
+).pathname;
+
+function loadFixture(): string {
+  return Deno.readTextFileSync(fixturePath);
+}
+
+Deno.test('parses the canonical Mongolian Beef fixture', () => {
+  // Smoke test: the canonical fixture parses cleanly with no warnings and
+  // exercises every section it currently uses. Section coverage drifts as
+  // the fixture evolves under real review work — assertions below only check
+  // what's present today; add new assertions when new sections land.
+  const { data, warnings } = parseRecipeMetadataYaml(loadFixture());
+  assertEquals(warnings.length, 0);
+  assertEquals(data.recipe_match.name_en, 'Mongolian Beef');
+  assertEquals(data.planner?.role, 'main');
+  assertEquals(data.planner?.cooking_level, 'intermediate');
+  assertEquals(data.tags?.cuisine, ['chinese']);
+  assert(
+    (data.kitchen_tools?.set.length ?? 0) > 0,
+    'expected kitchen_tools to have at least one entry',
+  );
+  assert(
+    (data.ingredient_updates?.length ?? 0) > 0,
+    'expected ingredient_updates to have at least one entry',
+  );
+});
+
+Deno.test('rejects planner.is_published — publishing is admin-only', () => {
+  // Reviewer YAMLs must never set is_published. The strict() planner
+  // schema rejects the unknown key, and the RPC migration drops it
+  // from the planner UPDATE — belt and suspenders.
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+planner:
+  role: main
+  is_published: true
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  const issue = err.issues.find(
+    (i) => i.path === 'planner' && i.message.includes('is_published'),
+  );
+  assert(issue, `expected an unrecognized-key issue for planner.is_published, got: ${JSON.stringify(err.issues, null, 2)}`);
+});
+
+Deno.test('rejects an unknown cooking_level and points at the YAML line', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+planner:
+  cooking_level: hard
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  const issue = err.issues.find((i) => i.path === 'planner.cooking_level');
+  assert(issue, 'expected an issue at planner.cooking_level');
+  assertEquals(issue.line, 9);
+});
+
+Deno.test('rejects a non-uuid recipe_match.id with line info', () => {
+  const yaml = `recipe_match:
+  id: 'not-a-uuid'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  const issue = err.issues.find((i) => i.path === 'recipe_match.id');
+  assert(issue, 'expected an issue at recipe_match.id');
+  assertEquals(issue.line, 2);
+});
+
+Deno.test('rejects an ingredient match missing both id and slug+order', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+ingredient_updates:
+  - match:
+      ingredient_slug: 'garlic'
+    quantity: 3
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  const issue = err.issues.find((i) => i.path.startsWith('ingredient_updates.0.match'));
+  assert(issue, 'expected a match issue');
+});
+
+Deno.test('accepts flat thermomix_speed_start/end and normalizes to nested range', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_overrides:
+  - match: { order: 3 }
+    thermomix_time: 60
+    thermomix_speed_start: 5
+    thermomix_speed_end: 10
+`;
+  const { data } = parseRecipeMetadataYaml(yaml);
+  const ov = data.step_overrides?.[0] as Record<string, unknown>;
+  assertEquals(ov.thermomix_speed_range, { start: 5, end: 10 });
+  assertEquals(ov.thermomix_speed_start, undefined);
+  assertEquals(ov.thermomix_speed_end, undefined);
+});
+
+Deno.test('rejects thermomix_speed_start without thermomix_speed_end', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_overrides:
+  - match: { order: 3 }
+    thermomix_speed_start: 5
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  const issue = err.issues.find((i) =>
+    i.message.includes('thermomix_speed_start and thermomix_speed_end must be set together')
+  );
+  assert(issue, `expected paired-fields issue, got: ${JSON.stringify(err.issues, null, 2)}`);
+});
+
+Deno.test('rejects mutually exclusive thermomix_speed and thermomix_speed_range', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_overrides:
+  - match: { order: 6 }
+    thermomix_speed: 2
+    thermomix_speed_range:
+      start: 4
+      end: 6
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  const issue = err.issues.find((i) => i.path === 'step_overrides.0');
+  assert(issue, 'expected mutually-exclusive issue at step_overrides.0');
+});
+
+Deno.test('rejects a malformed YAML document with parse error line info', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  assert(err.issues[0].message.startsWith('YAML parse error'));
+  assert(err.issues[0].line !== undefined);
+});
+
+Deno.test('rejects a missing required top-level section', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  const issue = err.issues.find((i) => i.path === 'review');
+  assert(issue, 'expected missing review issue');
+});
+
+Deno.test('rejects unknown top-level keys (strict schema)', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+mystery_section: {}
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  assert(
+    err.issues.some((i) => i.message.toLowerCase().includes('unrecognized')),
+    'expected unrecognized-key issue',
+  );
+});
+
+Deno.test('rejects an out-of-range thermomix_speed value', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_overrides:
+  - match: { order: 1 }
+    thermomix_speed: 11
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  assert(
+    err.issues.some((i) =>
+      i.path.includes('step_overrides.0.thermomix_speed') &&
+      i.message.toLowerCase().includes('invalid thermomix_speed')
+    ),
+    'expected schema rejection for thermomix_speed: 11',
+  );
+});
+
+Deno.test('rejects a non-half-step thermomix_speed (e.g. 2.25)', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_overrides:
+  - match: { order: 1 }
+    thermomix_speed: 2.25
+`;
+  assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+});
+
+Deno.test('rejects an out-of-range thermomix_temperature value', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_overrides:
+  - match: { order: 1 }
+    thermomix_temperature: 99
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  assert(
+    err.issues.some((i) =>
+      i.path.includes('thermomix_temperature') &&
+      i.message.toLowerCase().includes('invalid thermomix_temperature')
+    ),
+    'expected schema rejection for thermomix_temperature: 99',
+  );
+});
+
+Deno.test('accepts TM7-extended thermomix_temperature values (125 °C, 257 °F)', () => {
+  // Regression coverage for the TM7 extended enum values added in migration
+  // 20260428181507. Picks one Celsius and one Fahrenheit value to keep the
+  // schema and DB enum in lockstep on parse.
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_overrides:
+  - match: { order: 1 }
+    thermomix_temperature: 125
+    thermomix_temperature_unit: 'C'
+  - match: { order: 2 }
+    thermomix_temperature: 257
+    thermomix_temperature_unit: 'F'
+`;
+  const parsed = parseRecipeMetadataYaml(yaml);
+  assertEquals(parsed.data.step_overrides?.[0].thermomix_temperature, 125);
+  assertEquals(parsed.data.step_overrides?.[1].thermomix_temperature, 257);
+});
+
+Deno.test('accepts thermomix_speed: spoon and thermomix_temperature: Varoma', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_overrides:
+  - match: { order: 1 }
+    thermomix_speed: spoon
+    thermomix_temperature: Varoma
+`;
+  const { data } = parseRecipeMetadataYaml(yaml);
+  assertEquals(data.step_overrides?.[0].thermomix_speed, 'spoon');
+  assertEquals(data.step_overrides?.[0].thermomix_temperature, 'Varoma');
+});
+
+Deno.test('rejects tips_and_tricks with only en (forces no-drift en+es lockstep)', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+tips_and_tricks:
+  en: 'Serve hot.'
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  assert(
+    err.issues.some((i) => /both.*en.*es/i.test(i.message)),
+    `expected en+es lockstep error, got: ${JSON.stringify(err.issues)}`,
+  );
+});
+
+Deno.test('rejects name override with only es (forces no-drift en+es lockstep)', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+name:
+  es: 'Solo Español'
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  assert(
+    err.issues.some((i) => /both.*en.*es/i.test(i.message)),
+    `expected en+es lockstep error, got: ${JSON.stringify(err.issues)}`,
+  );
+});
+
+Deno.test('accepts description with both en and es', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+description:
+  en: 'A simple dish.'
+  es: 'Un platillo sencillo.'
+`;
+  const { data } = parseRecipeMetadataYaml(yaml);
+  assertEquals(data.description?.en, 'A simple dish.');
+  assertEquals(data.description?.es, 'Un platillo sencillo.');
+});
+
+// ============================================================
+// step_text_overrides
+// ============================================================
+
+Deno.test('step_text_overrides: accepts a single-locale instruction edit', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_text_overrides:
+  - match: { order: 3 }
+    translations:
+      es:
+        instruction: 'Agrega el pollo deshebrado y cocina hasta que quede cubierto.'
+`;
+  const { data } = parseRecipeMetadataYaml(yaml);
+  assertEquals(data.step_text_overrides?.length, 1);
+  assertEquals(data.step_text_overrides?.[0].match.order, 3);
+  assertEquals(
+    data.step_text_overrides?.[0].translations.es?.instruction,
+    'Agrega el pollo deshebrado y cocina hasta que quede cubierto.',
+  );
+  assertEquals(data.step_text_overrides?.[0].translations.en, undefined);
+});
+
+Deno.test('step_text_overrides: accepts both en and es with all three text fields', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_text_overrides:
+  - match: { order: 1 }
+    translations:
+      en:
+        instruction: 'Sauté the onion.'
+        recipe_section: 'Prep'
+        tip: 'Use a non-stick pan.'
+      es:
+        instruction: 'Saltea la cebolla.'
+        recipe_section: 'Preparación'
+        tip: 'Usa un sartén antiadherente.'
+`;
+  const { data } = parseRecipeMetadataYaml(yaml);
+  const ov = data.step_text_overrides?.[0];
+  assertEquals(ov?.translations.en?.instruction, 'Sauté the onion.');
+  assertEquals(ov?.translations.en?.recipe_section, 'Prep');
+  assertEquals(ov?.translations.en?.tip, 'Use a non-stick pan.');
+  assertEquals(ov?.translations.es?.instruction, 'Saltea la cebolla.');
+});
+
+Deno.test('step_text_overrides: rejects an empty translations block', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_text_overrides:
+  - match: { order: 1 }
+    translations: {}
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  assert(
+    err.issues.some((i) => /at least one of `en` or `es`/.test(i.message)),
+    `expected at-least-one-locale error, got: ${JSON.stringify(err.issues)}`,
+  );
+});
+
+Deno.test('step_text_overrides: rejects a locale block with no fields set', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_text_overrides:
+  - match: { order: 1 }
+    translations:
+      en: {}
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  assert(
+    err.issues.some((i) => /at least one of: instruction/.test(i.message)),
+    `expected per-locale required-field error, got: ${JSON.stringify(err.issues)}`,
+  );
+});
+
+Deno.test('step_text_overrides: rejects a missing match block', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_text_overrides:
+  - translations:
+      en:
+        instruction: 'Stir well.'
+`;
+  assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+});
+
+Deno.test('step_text_overrides: rejects an empty instruction string', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_text_overrides:
+  - match: { order: 1 }
+    translations:
+      en:
+        instruction: ''
+`;
+  // Empty instruction is a no-content edit; the schema requires min(1)
+  // because clearing the column should be a separate explicit operation
+  // (currently unsupported — reviewer flags via requires_authoring instead).
+  assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+});
+
+Deno.test('accepts dish_type and primary_ingredient tag categories', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+tags:
+  dish_type: [stew, taco]
+  primary_ingredient: [beef]
+`;
+  const { data } = parseRecipeMetadataYaml(yaml);
+  assertEquals(data.tags?.dish_type, ['stew', 'taco']);
+  assertEquals(data.tags?.primary_ingredient, ['beef']);
+});
+
+Deno.test('accepts step_ingredient_updates with order + ingredient_slug match', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_ingredient_updates:
+  - match:
+      order: 3
+      ingredient_slug: 'cornstarch'
+    quantity: 30
+    unit: 'g'
+`;
+  const { data } = parseRecipeMetadataYaml(yaml);
+  const upd = data.step_ingredient_updates?.[0];
+  assertEquals(upd?.match.order, 3);
+  assertEquals(upd?.match.ingredient_slug, 'cornstarch');
+  assertEquals(upd?.quantity, 30);
+  assertEquals(upd?.unit, 'g');
+});
+
+Deno.test('accepts step_ingredient_adds with step-only match + ingredient_slug at top level', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_ingredient_adds:
+  - match:
+      order: 5
+    ingredient_slug: 'cilantro'
+    quantity: 10
+    unit: 'g'
+    display_order: 4
+`;
+  const { data } = parseRecipeMetadataYaml(yaml);
+  const add = data.step_ingredient_adds?.[0];
+  assertEquals(add?.match.order, 5);
+  assertEquals(add?.ingredient_slug, 'cilantro');
+  assertEquals(add?.quantity, 10);
+  assertEquals(add?.display_order, 4);
+});
+
+Deno.test('accepts step_ingredient_removes with order + ingredient_slug', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_ingredient_removes:
+  - match:
+      order: 2
+      ingredient_slug: 'tomato_stock'
+`;
+  const { data } = parseRecipeMetadataYaml(yaml);
+  const rem = data.step_ingredient_removes?.[0];
+  assertEquals(rem?.match.order, 2);
+  assertEquals(rem?.match.ingredient_slug, 'tomato_stock');
+});
+
+Deno.test('rejects step_ingredient match missing both step_id and order', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_ingredient_updates:
+  - match:
+      ingredient_slug: 'cornstarch'
+    quantity: 30
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  const issue = err.issues.find((i) => i.path.startsWith('step_ingredient_updates.0.match'));
+  assert(issue, 'expected a match issue');
+});
+
+Deno.test('rejects step_ingredient_updates entry missing ingredient_slug', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_ingredient_updates:
+  - match:
+      order: 3
+    quantity: 30
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  const issue = err.issues.find((i) => i.path.startsWith('step_ingredient_updates.0.match'));
+  assert(issue, 'expected an ingredient_slug issue on the match');
+});
+
+Deno.test('rejects cleanup.delete_locales: [en] — RPC refuses to delete the base locale', () => {
+  // Mirror the RPC's refusal at parse time so reviewers don't get a clean
+  // dry-run for an apply that's guaranteed to fail.
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+cleanup:
+  delete_locales: ['en']
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  const issue = err.issues.find((i) => i.path.startsWith('cleanup.delete_locales'));
+  assert(issue, `expected an issue on cleanup.delete_locales; got: ${JSON.stringify(err.issues)}`);
+  assert(
+    issue.message.includes('base locale'),
+    `expected base-locale error message, got: ${issue.message}`,
+  );
+});
+
+Deno.test('accepts cleanup.delete_locales: [es-ES] — non-base regional locale is fine', () => {
+  // Sanity: only 'en' is refused; other locales pass.
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+cleanup:
+  delete_locales: ['es-ES']
+`;
+  const { data } = parseRecipeMetadataYaml(yaml);
+  assertEquals(data.cleanup?.delete_locales, ['es-ES']);
+});
+
+Deno.test('accepts step_ingredient_updates with quantity null (clears)', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_ingredient_updates:
+  - match:
+      order: 3
+      ingredient_slug: 'cornstarch'
+    quantity: null
+    unit: null
+`;
+  const { data } = parseRecipeMetadataYaml(yaml);
+  const upd = data.step_ingredient_updates?.[0];
+  assertEquals(upd?.quantity, null);
+  assertEquals(upd?.unit, null);
+});

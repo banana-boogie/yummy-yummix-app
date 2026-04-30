@@ -1,0 +1,102 @@
+recipe_match:
+  id: '3239cc54-4e79-4902-b8f7-d3716167bea4'
+  name_en: 'Macha Butter'
+  expected_recipe_updated_at: '2026-04-29T14:32:42.890929+00:00'
+
+review:
+  reviewed_by_label: 'claude-opus-4-7'
+  reviewed_at: '2026-04-29T04:30:00Z'
+
+planner:
+  role: pantry
+  meal_components: []
+  is_complete_meal: false
+  batch_friendly: true
+
+# DB has portions=10 (~70 g/serving) which is generous for a spicy compound
+# butter used as a condiment. ~700 g total yield ÷ ~30 g/serving (typical
+# 1-2 Tbsp dollop on bread, pasta, eggs, tacos) ≈ 23 portions.
+# Also fixing total_time: prep is ~15 min (destem 18 chiles, peel 8 garlic,
+# weigh ingredients) + ~11 min Thermomix cook = ~26 min total. DB had
+# total_time=10 which is shorter than the cook alone.
+timings:
+  prep_time: 15
+  total_time: 26
+  portions: 23
+
+description:
+  en: 'A Mexican-style salsa macha compound butter — three chiles (árbol, morita, guajillo) and garlic toasted in olive oil with mixed nuts, blended into unsalted butter in the Thermomix®. Spicy, smoky, deeply savory. Spread it on warm bread, fold it into pasta, melt it over grilled steak or roasted vegetables, or stir a spoonful into rice and eggs.'
+  es: 'Una mantequilla compuesta al estilo de la salsa macha mexicana — tres chiles (árbol, morita y guajillo) y ajo tostados en aceite de oliva con surtido de nueces, licuados con mantequilla sin sal en la Thermomix®. Picosa, ahumada y muy sabrosa. Úntala en pan caliente, intégrala a la pasta, derrítela sobre un bistec a la plancha o verduras asadas, o revuelve una cucharada en arroz o huevos.'
+
+tips_and_tricks:
+  en: 'Heat scales with chile load — start with half the árbol chiles (and seed them) for a milder version, then taste and add more. Toast the chiles, garlic, and nuts only until fragrant and lightly golden; pushing them to dark brown turns the butter bitter. Use shelled mixed nuts (peanut, almond, pecan, cashew all work) for a lighter color and cleaner flavor. The butter firms up cold — pull it out 10-15 minutes before serving so it spreads easily.'
+  es: 'Lo picante depende de cuántos chiles uses — empieza con la mitad de los chiles de árbol (y sin semillas) para una versión más suave, prueba y ajusta. Tuesta los chiles, el ajo y las nueces sólo hasta que estén aromáticos y dorados; si se queman, la mantequilla queda amarga. Usa un surtido de nueces sin cáscara (cacahuate, almendra, nuez pecana, marañón) para un color más claro y un sabor más limpio. La mantequilla se endurece al frío — sácala del refrigerador 10-15 minutos antes de servir para que unte fácil.'
+
+scaling_notes:
+  en: 'Yields ~700 g (about 23 servings of 30 g). Halves cleanly. Doubling exceeds the Thermomix® bowl''s comfortable capacity for the toast step — for more, run two batches. Stores 2-3 weeks in an airtight container in the fridge; freezes well for up to 3 months.'
+  es: 'Rinde ~700 g (alrededor de 23 porciones de 30 g). Se reduce a la mitad sin problema. Duplicar excede la capacidad cómoda del vaso de la Thermomix® para el paso de tostado — para más, prepárala en dos tandas. Se conserva 2-3 semanas en un recipiente hermético en el refrigerador; se congela bien hasta 3 meses.'
+
+# meal_type intentionally empty — pantry recipes don't require it (per rubric
+# auto-check #14: requiresMealType = role !== 'pantry').
+tags:
+  cuisine: [ mexican ]
+  meal_type: []
+  diet: [ vegetarian, gluten_free ]
+  dish_type: [ sauce ]
+  occasion: []
+  practical: [ pantry_staple, batch_cook, make_ahead, leftover_friendly, thermomix_basics, beginner_friendly ]
+  primary_ingredient: [ butter ]
+
+# DB tools list is just Refrigerator. Adding the Thermomix® itself, the
+# spatula (used in step 3 to scrape down), the kitchen scale (precise weights),
+# a hermetic container for storage, and keeping the refrigerator.
+kitchen_tools:
+  set:
+    - name_en: 'Thermomix®'
+    - name_en: 'Thermomix® spatula'
+    - name_en: 'Kitchen scale'
+    - name_en: 'Hermetic container'
+    - name_en: 'Refrigerator'
+
+# Step 3 (blend, speed 8) and step 5 (transfer to container) carry orphan
+# thermomix_temperature_unit='C' with no temperature value. Clearing both
+# so they don't render a stray unit in the cooking guide.
+step_overrides:
+  - match: { order: 3 }
+    thermomix_temperature_unit: null
+  - match: { order: 5 }
+    thermomix_temperature_unit: null
+
+# Step 3 es has a typo: "luego aja los restos" should be "luego baja los
+# restos" (the es-ES sibling already has it correct as "baja").
+step_text_overrides:
+  - match: { order: 3 }
+    translations:
+      es:
+        instruction: 'Licúa %thermomix% y luego baja los restos con la espátula.'
+
+requires_authoring:
+  reasons: [ step_ingredient_link_missing ]
+  notes: |
+    Step 4 ("Add the salt and the remaining 455 g of butter") links unsalted butter in
+    recipe_step_ingredients but is missing the salt link. The applier cannot mutate
+    recipe_step_ingredients — admin needs to add the salt link in the admin UI.
+
+    Ready to publish — recipe is already published, all rubric checks pass after this
+    YAML applies (planner role pantry set, descriptions/tips authored in en+es,
+    ingredient list complete, steps coherent). The missing salt step-ingredient link
+    above is a minor cleanup, not a publish blocker.
+applied:
+  - applied_at: 2026-04-29T14:32:43.025Z
+    applied_by: ian@local
+    pre_recipe_updated_at: 2026-04-17T22:20:59.249562+00:00
+    post_recipe_updated_at: 2026-04-29T14:32:42.890929+00:00
+    sections_changed:
+      - planner
+      - timings
+      - translations
+      - kitchen_tools
+      - step_overrides
+      - step_text
+      - tags
+    environment: local

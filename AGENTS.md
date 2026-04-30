@@ -909,6 +909,7 @@ Skills can be invoked by the user (`$review-pr 7`) or by Codex via its skill too
 | `$update-docs` | Syncs documentation after feature changes |
 | `$triage-review` | Triage code review findings — agree/disagree, classify as must-fix/skip/optional, produce handoff prompt |
 | `$pr-reading-guide` | Prose-style reading guide for a PR — explains must-read files so you can validate intent without reading code |
+| `$review-recipe` | Review a recipe against the 16-point rubric and emit a YAML for the recipe-metadata pipeline. Requires highest reasoning effort |
 | `$improve-codebase-architecture` | Find deepening opportunities — turn shallow modules into deep ones, informed by `CONTEXT.md` and `docs/decisions/`. Run periodically to fight entropy. |
 
 ---

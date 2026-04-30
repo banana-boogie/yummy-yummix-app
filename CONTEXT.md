@@ -25,6 +25,7 @@
 - **Thermomix-First** — Design rule: every recipe and recipe-generation prompt assumes a Thermomix is in the kitchen. Manual/stovetop instructions are secondary.
 - **Recipe Generation** vs **Recipe Modification** — Two distinct AI usage types. Generation creates a new recipe from a brief; modification transforms an existing recipe JSON (e.g. swap ingredient, scale portions).
 - **Portions** — Servings the recipe yields. Distinct from *meal-plan portions* (see below).
+- **Recipe Review Snapshot** — A local-first JSON export of review-critical recipe state (rows, translations, ingredients, steps, links, tools, pairings, tags) under `yyx-server/data-pipeline/data/recipe-review-snapshots/`. Produced by `pipeline:export-review-snapshot`, consumed by `/review-recipe` to avoid per-recipe Supabase round-trips. Review input only — `apply-recipe-metadata` always reads live Supabase, gated by the YAML's stale-diff guard.
 
 ## Meal Planning
 

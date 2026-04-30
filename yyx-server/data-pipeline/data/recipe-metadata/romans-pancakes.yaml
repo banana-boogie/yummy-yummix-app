@@ -1,0 +1,99 @@
+recipe_match:
+  id: "dc9e4355-ea3e-4ce8-8071-5b634d3021e2"
+  name_en: "Roman's Pancakes"
+  expected_recipe_updated_at: "2026-04-29T20:51:28.658115+00:00"
+
+review:
+  reviewed_by_label: "claude-opus-4-7"
+  reviewed_at: "2026-04-29T21:00:00Z"
+
+planner:
+  role: main
+  meal_components: [ protein ]
+  is_complete_meal: true
+
+description:
+  en: "Roman's high-protein pancakes — banana, eggs, ricotta, and a scoop of vanilla protein powder all blended in the Thermomix®, then cooked stovetop in a frying pan. Fluffy, lightly sweet, and substantial enough to carry breakfast on its own."
+  es: "Los hotcakes de Roman cargados de proteína — plátano, huevo, queso ricota y una medida de proteína de vainilla, todo licuado en la Thermomix® y cocinado en sartén. Esponjosos, ligeramente dulces y suficientemente nutritivos para sostener un desayuno completo."
+
+tips_and_tricks:
+  en: "For extra-fluffy pancakes, separate the egg whites and whip them to soft peaks before folding into the batter. Let the batter rest the full 10 minutes — the flour hydrates and the gluten relaxes, giving you a more even crumb. Cook over low-medium heat; high heat browns the outside before the center sets. Cooked pancakes freeze well — stack with parchment between each and reheat in a toaster or a dry pan."
+  es: "Para unos hotcakes más esponjosos, separa las claras y bátelas a punto de turrón antes de incorporarlas a la masa. Deja reposar la masa los 10 minutos completos — la harina hidrata y el gluten se relaja, lo que da una textura más pareja. Cocina a fuego medio-bajo; el fuego alto dora el exterior antes de que cuaje el centro. Los hotcakes cocidos se congelan bien — apílalos con papel encerado entre cada uno y recaliéntalos en el tostador o en una sartén seca."
+
+scaling_notes:
+  en: "Yields 8 servings. Halves cleanly. Doubles cleanly. Cooked pancakes keep 3 days in the fridge and freeze well for up to 2 months — reheat in an air fryer or a dry pan over low heat."
+  es: "Rinde 8 porciones. Se reduce a la mitad sin problema. Se duplica sin problema. Los hotcakes cocidos se conservan 3 días en el refrigerador y se congelan bien hasta 2 meses — recaliéntalos en una sartén seca a fuego bajo."
+
+# DB has only meal_type:[breakfast]. Adding diet (vegetarian — no meat/fish; eggs+ricotta
+# present so not vegan; flour present so not gluten_free), high_protein (eggs+ricotta+protein
+# powder by design), dish_type:main_dish, occasion:kid_friendly (mild sweet pancakes pass
+# the kid_friendly bar), and a practical set.
+tags:
+  meal_type: [ breakfast ]
+  diet: [ vegetarian, high_protein, low_carb ]
+  dish_type: [ main_dish ]
+  occasion: [ kid_friendly ]
+  practical: [ beginner_friendly, batch_cook, leftover_friendly ]
+
+# DB tools: Ice cream scoop, Measuring spoons, Thermomix® spatula, Frying pan.
+# Adding Thermomix® itself (used in steps 1+2) and Kitchen scale (precise weights —
+# 100 ml almond milk, 500 g ricotta, 35 g flour).
+kitchen_tools:
+  set:
+    - name_en: "Thermomix®"
+    - name_en: "Thermomix® spatula"
+    - name_en: "Kitchen scale"
+    - name_en: "Measuring spoons"
+    - name_en: "Ice cream scoop"
+    - name_en: "Frying pan"
+
+# Baking powder (display_order 7) ES recipe_section is 'Plato principal' while every
+# other ES ingredient is 'Principal'. Normalizing to 'Principal' so the admin renders
+# a single ingredient section.
+ingredient_updates:
+  - match: { ingredient_slug: baking_powder, display_order: 7 }
+    section_es: "Principal"
+
+step_text_overrides:
+  # Step 1: replace hard-coded "30 seconds / speed 4" / "30 segundos / velocidad 4"
+  # with %thermomix% so the cooking guide renders the structured fields. ES already
+  # uses tú voice (Agrega/Mezcla); preserving and tightening punctuation.
+  - match: { order: 1 }
+    translations:
+      en:
+        instruction: "Place the wet ingredients in the mixing bowl and mix %thermomix%."
+      es:
+        instruction: "Coloca los ingredientes líquidos en el vaso y mezcla %thermomix%."
+  # Step 2: %thermomix% swap; ES "Agregar/Mezclar" infinitive imperatives → tú voice
+  # (Añade/Mezcla) to match step 1 and the rest of the catalog.
+  - match: { order: 2 }
+    translations:
+      en:
+        instruction: "Add the dry ingredients and mix %thermomix%."
+      es:
+        instruction: "Añade los ingredientes secos y mezcla %thermomix%."
+  # Step 3 ES instruction is empty string in the DB — authoring the missing rest text.
+  - match: { order: 3 }
+    translations:
+      es:
+        instruction: "Deja reposar la masa durante 10 minutos."
+        tip: "El reposo permite que el gluten se relaje y la harina hidrate — hotcakes más esponjosos y parejos."
+  # Step 4: ES already tú voice and clean. Tightening EN to remove the trailing
+  # comma-splice and the redundant " | " separators (the cooking guide renders
+  # newlines natively).
+  - match: { order: 4 }
+    translations:
+      en:
+        instruction: "Use a ladle or ice cream scoop to portion the batter onto a frying pan. Cook over low-medium heat until the bottom is golden brown and bubbles begin to form on top. Flip and cook for a few more minutes until golden brown and cooked through."
+applied:
+  - applied_at: 2026-04-29T20:51:28.954Z
+    applied_by: ian@local
+    pre_recipe_updated_at: 2026-04-15T16:59:13.65183+00:00
+    post_recipe_updated_at: 2026-04-29T20:51:28.658115+00:00
+    sections_changed:
+      - translations
+      - ingredients
+      - kitchen_tools
+      - step_text
+      - tags
+    environment: local

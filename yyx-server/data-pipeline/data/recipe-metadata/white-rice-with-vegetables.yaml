@@ -1,0 +1,100 @@
+recipe_match:
+  id: 'ea6c12e6-e555-42fd-8fbf-92e737a3b989'
+  name_en: 'White Rice with Vegetables'
+  expected_recipe_updated_at: '2026-04-30T05:26:24.692401+00:00'
+
+review:
+  reviewed_by_label: 'claude-opus-4-7'
+  reviewed_at: '2026-04-29T05:00:00Z'
+
+planner:
+  role: side
+  meal_components: [ carb ]
+  is_complete_meal: false
+
+tips_and_tricks:
+  en: 'Rinse the rice well before adding it to the basket — clearer water means fluffier, less starchy grains. Salt is optional; taste the seasoned water before steaming and adjust. Stir the cilantro back into the rice at the end (or pull the sprig out) for the freshest flavor. Reheat with a splash of water in a covered pan over low heat to keep the grains tender.'
+  es: 'Enjuaga bien el arroz antes de agregarlo al cestillo — entre más clara salga el agua, más esponjado queda y menos almidón suelta. La sal es opcional; prueba el agua sazonada antes de cocer al vapor y ajusta. Al final, revuelve el cilantro con el arroz (o saca la rama) para un sabor más fresco. Recalienta con un chorrito de agua en una sartén tapada a fuego bajo para que los granos no se sequen.'
+
+scaling_notes:
+  en: 'Yields 6 servings as a side. Halves cleanly. Doubling exceeds the simmering basket''s capacity — for more, run two batches. Keeps 4 days in the fridge.'
+  es: 'Rinde 6 porciones como guarnición. Se reduce a la mitad sin problema. Duplicar excede la capacidad del cestillo — para más, prepara dos tandas. Se conserva 4 días en el refrigerador.'
+
+# Adding sibling-precedent set for Thermomix simmering-basket rice sides
+# (matches steamed-rice.yaml: vegan/vegetarian/gluten_free all hold — every
+# ingredient is plant-based, no wheat). Pescatarian deliberately skipped —
+# the tag identifies seafood dishes, not plant-only ones. Skipping
+# cuisine:mexican (generic plain-rice base). Skipping kid_friendly (cilantro
+# flavor + no kids-specific framing).
+tags:
+  meal_type: [ lunch, dinner ]
+  diet: [ vegetarian, vegan, gluten_free ]
+  dish_type: [ side_dish, rice_dish ]
+  primary_ingredient: [ rice ]
+  practical: [ thermomix_basics, beginner_friendly, batch_cook, make_ahead, leftover_friendly ]
+
+# DB tools list has 'Bowl', 'Thermomix®', 'Thermomix® spatula'. Dropping Bowl
+# (redundant with Thermomix®) and adding the simmering basket (the recipe
+# steams rice in it). No Kitchen scale — Thermomix has a built-in scale.
+kitchen_tools:
+  set:
+    - name_en: 'Thermomix®'
+    - name_en: 'Thermomix® simmering basket'
+    - name_en: 'Thermomix® spatula'
+
+# Step 2 salt drift: recipe-level row is `1 tsp` but step_ingredient row has
+# unit `tbsp`. Aligning to the recipe-level tsp (auto-check #21).
+step_ingredient_updates:
+  - match: { order: 2, ingredient_slug: salt }
+    unit: tsp
+
+step_text_overrides:
+  # Step 1: hard-coded "4 min/120°C/speed 1" → %thermomix% (the structured
+  # fields capture the sauté phase). The chop sub-phase (5 sec/speed 5) stays
+  # in text since the schema only stores one phase per step.
+  - match: { order: 1 }
+    translations:
+      en:
+        instruction: 'Put the onion, garlic cloves, and oil in the bowl, chop for 5 sec/speed 5, and then sauté %thermomix%.'
+      es:
+        instruction: 'Coloca la cebolla, los dientes de ajo y el aceite en el vaso, pica durante 5 segundos a velocidad 5 y luego sofríe %thermomix%.'
+  # Step 2: hard-coded "30 sec/speed 7" → %thermomix%.
+  - match: { order: 2 }
+    translations:
+      en:
+        instruction: 'Add water and salt, then blend %thermomix%.'
+      es:
+        instruction: 'Agrega agua y sal, luego licúa %thermomix%.'
+  # Step 3: (a) "colander/colador" → "simmering basket/cestillo" — the recipe
+  # uses the Thermomix® simmering basket inside the bowl with water below for
+  # steaming; "colander" is the wrong tool name. (b) ES "tazón" → "vaso" to
+  # match Thermomix terminology. (c) hard-coded "27 min/Varoma/speed 4"
+  # → %thermomix%.
+  - match: { order: 3 }
+    translations:
+      en:
+        instruction: 'Place the simmering basket inside the bowl, add the rice, frozen mixed vegetables, and cilantro to the basket, mix with the spatula, then cook %thermomix%.'
+      es:
+        instruction: 'Coloca el cestillo dentro del vaso, agrega el arroz, las verduras mixtas congeladas y el cilantro al cestillo, mezcla con la espátula, luego cocina %thermomix%.'
+  # Step 4: "colander/colador" → "simmering basket/cestillo" (same correctness
+  # fix as step 3). ES recipe_section "Plato principal" → "Principal" to match
+  # the other ES steps' section label.
+  - match: { order: 4 }
+    translations:
+      en:
+        instruction: 'Remove the simmering basket using the spatula notch, pour the rice into a casserole dish, fluff with the spatula, and serve hot.'
+      es:
+        instruction: 'Retira el cestillo utilizando la muesca de la espátula, vierte el arroz en una cazuela, esponja con la espátula y sirve caliente.'
+        recipe_section: 'Principal'
+applied:
+  - applied_at: 2026-04-30T05:26:24.828Z
+    applied_by: ian@local
+    pre_recipe_updated_at: 2026-04-29T04:26:13.713256+00:00
+    post_recipe_updated_at: 2026-04-30T05:26:24.692401+00:00
+    sections_changed:
+      - translations
+      - kitchen_tools
+      - step_text
+      - step_ingredients
+      - tags
+    environment: local

@@ -1,0 +1,114 @@
+recipe_match:
+  id: 'c376bc2c-e1fb-493a-9bcb-5d7746f2410e'
+  name_en: 'Tzatziki'
+  expected_recipe_updated_at: '2026-04-30T04:16:04.684706+00:00'
+
+review:
+  reviewed_by_label: 'claude-opus-4-7'
+  reviewed_at: '2026-04-29T22:30:00Z'
+
+planner:
+  role: condiment
+  meal_components: []
+  is_complete_meal: false
+  batch_friendly: true
+  max_household_size_supported: 8
+
+description:
+  en: "A creamy Greek yogurt and cucumber dip with garlic, dill, and a squeeze of lemon — fresh, tangy, and ready in 20 minutes. The Thermomix® chops the cucumber, mixes everything in one bowl, and the simmering basket doubles as a strainer. Serve as a dip with pita, a sauce for grilled meats, or a side for roasted vegetables."
+  es: 'Un dip cremoso de yogur griego y pepino con ajo, eneldo y un toque de limón — fresco, ácido y listo en 20 minutos. La Thermomix® pica el pepino, mezcla todo en un mismo vaso y el cestillo sirve para escurrir. Sírvelo como dip con pan pita, salsa para carnes a la parrilla o guarnición para verduras asadas.'
+
+tips_and_tricks:
+  en: 'Squeeze the cucumber thoroughly in step 2 — water trapped in the cucumber thins the dip. Let the tzatziki rest in the fridge for at least 1 hour before serving so the garlic and dill flavors meld. Serve with pita, grilled meats, falafel, or as a side for roasted vegetables.'
+  es: 'Exprime bien el pepino en el paso 2 — el agua del pepino aguada el dip. Deja reposar el tzatziki en el refrigerador al menos 1 hora antes de servir para que se integren los sabores del ajo y el eneldo. Sírvelo con pan pita, carnes a la parrilla, falafel o como guarnición para verduras asadas.'
+
+scaling_notes:
+  en: 'Yields 4 servings (~150 g each as a generous dip portion). Halves cleanly. Doubles cleanly. Keeps 3 days in the fridge in an airtight container; the dip thins slightly over time as cucumber releases water — drain off any liquid before serving.'
+  es: 'Rinde 4 porciones (~150 g cada una como porción generosa de dip). Se reduce a la mitad sin problema. Se duplica sin problema. Se conserva 3 días en el refrigerador en un recipiente hermético; el dip se aguada un poco con el tiempo conforme el pepino suelta agua — escurre el líquido antes de servir.'
+
+# DB has dish_type:[dip_dressing, appetizer], diet:[gluten_free]. Adding cuisine:greek
+# (iconic Greek dish), meal_type:[lunch, dinner] (companion to meals), diet:+vegetarian
+# (Greek yogurt + cucumber + herbs — no meat/fish), occasion (entertaining/party — classic
+# party dip), practical set anchored on thermomix_basics + make_ahead. NOT adding vegan
+# (Greek yogurt is dairy).
+tags:
+  cuisine: [ greek ]
+  meal_type: [ lunch, dinner ]
+  diet: [ vegetarian, gluten_free ]
+  occasion: [ entertaining, party ]
+  practical: [ thermomix_basics, beginner_friendly, leftover_friendly, make_ahead, batch_cook ]
+
+# DB tools: Refrigerator only. Adding Thermomix® (steps 1+3+4), Thermomix® simmering
+# basket (step 2 transfers to it for draining), Thermomix® spatula, Kitchen scale
+# (precise weights — 350 g cucumber + 350 g yogurt + 20 g oil + 20 g lemon juice).
+kitchen_tools:
+  set:
+    - name_en: 'Thermomix®'
+    - name_en: 'Thermomix® simmering basket'
+    - name_en: 'Thermomix® spatula'
+    - name_en: 'Kitchen scale'
+    - name_en: 'Refrigerator'
+
+step_text_overrides:
+  # Step 1: ES Spanglish "el bowl de tu Thermomix®" + grammar miss ("la sal el bowl"
+  # missing "en") + hard-coded params.
+  - match: { order: 1 }
+    translations:
+      en:
+        instruction: 'Place the cucumber and salt in the mixing bowl and chop %thermomix%.'
+      es:
+        instruction: 'Coloca el pepino y la sal en el vaso de la Thermomix® y pica %thermomix%.'
+  # Step 3: ES has confused redundancy ("al bowl... en un bol") + Spanglish + hard-coded
+  # params. Rewrite to canonical "en el vaso" + %thermomix%.
+  - match: { order: 3 }
+    translations:
+      en:
+        instruction: 'Place the garlic, dill, and olive oil in the mixing bowl and chop %thermomix%.'
+      es:
+        instruction: 'Coloca en el vaso el ajo, el eneldo y el aceite de oliva, y pica %thermomix%.'
+  # Step 4: schema doesn't support overriding thermomix_is_blade_reversed, so the
+  # reverse-blades cue stays hard-coded in text alongside %thermomix% which renders
+  # only the time and speed. ES "giro a la izquierda" preserved as the canonical phrasing.
+  - match: { order: 4 }
+    translations:
+      en:
+        instruction: 'Add the reserved cucumber, yogurt, lemon juice, and pepper, then mix %thermomix% with reverse blades.'
+      es:
+        instruction: 'Añade el pepino reservado, el yogur, el jugo de limón y la pimienta, y mezcla %thermomix% con giro a la izquierda.'
+  # Step 5: clear the placeholder "(🙋🏽‍♀️ tip)" emoji + author a real instruction.
+  - match: { order: 5 }
+    translations:
+      en:
+        instruction: 'Adjust seasoning to taste, transfer to a serving bowl, and refrigerate for at least 1 hour before serving.'
+      es:
+        instruction: 'Rectifica la sazón al gusto, transfiere a un tazón y refrigera al menos 1 hora antes de servir.'
+
+requires_authoring:
+  reasons: [ step_ingredient_quantity_drift ]
+  notes: |
+    Step 3 Garlic step_ingredient unit drift: step row = 2 piece, recipe row = 2 clove.
+    The applier cannot mutate recipe_step_ingredients; admin needs to update the step
+    row's measurement_unit_id from 'piece' to 'clove' in SQL.
+
+    SQL pattern:
+      UPDATE public.recipe_step_ingredients rsi
+         SET measurement_unit_id = 'clove'
+        FROM public.recipe_steps rs, public.ingredient_translations it
+       WHERE rsi.recipe_step_id = rs.id
+         AND rsi.ingredient_id = it.ingredient_id
+         AND it.locale = 'en'
+         AND rs.recipe_id = 'c376bc2c-e1fb-493a-9bcb-5d7746f2410e'
+         AND rs."order" = 3
+         AND it.name = 'Garlic';
+applied:
+  - applied_at: 2026-04-30T04:16:04.953Z
+    applied_by: ian@local
+    pre_recipe_updated_at: 2026-04-17T22:20:05.812496+00:00
+    post_recipe_updated_at: 2026-04-30T04:16:04.684706+00:00
+    sections_changed:
+      - planner
+      - translations
+      - kitchen_tools
+      - step_text
+      - tags
+    environment: local

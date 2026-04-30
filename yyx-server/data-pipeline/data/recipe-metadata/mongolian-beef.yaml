@@ -1,0 +1,110 @@
+recipe_match:
+  id: 'e8786e29-0aae-4b5d-bbc7-9c18c8b37978'
+  name_en: 'Mongolian Beef'
+  expected_recipe_updated_at: '2026-04-29T17:43:21.485905+00:00'
+
+review:
+  reviewed_by_label: 'claude-opus-4-7'
+  reviewed_at: '2026-04-29T17:00:00Z'
+
+planner:
+  role: main
+  meal_components: [ protein ]
+  is_complete_meal: false
+  cooking_level: intermediate
+  leftovers_friendly: true
+  batch_friendly: false
+  max_household_size_supported: 8
+
+scaling_notes:
+  en: 'Yields 4 servings. Doubles cleanly to 8 — sauté in two Thermomix® batches so the beef sears instead of stewing. Keeps 3 days in the fridge; reheat with a splash of water in a covered pan over low heat.'
+  es: 'Rinde 4 porciones. Se duplica bien a 8 — saltea en dos tandas en la Thermomix® para que la carne se selle en vez de cocerse en su jugo. Se conserva 3 días en el refrigerador; recalienta con un chorrito de agua en una sartén tapada a fuego bajo.'
+
+# DB tags: cuisine:[chinese], meal_type:[lunch,dinner], primary_ingredient:[beef].
+# Adding dish_type:[main_dish] (no stir_fry slug exists) and practical tags.
+tags:
+  cuisine: [ chinese ]
+  meal_type: [ lunch, dinner ]
+  diet: []
+  dish_type: [ main_dish ]
+  primary_ingredient: [ beef ]
+  practical: [ thermomix_basics, leftover_friendly, make_ahead ]
+
+# DB tools: Thermomix® + Thermomix® spatula. Adding Bowl (steps 1, 2, 6 use an
+# external bowl) and Kitchen scale (precise weights for the marinade).
+kitchen_tools:
+  set:
+    - name_en: 'Thermomix®'
+    - name_en: 'Thermomix® spatula'
+    - name_en: 'Bowl'
+    - name_en: 'Kitchen scale'
+
+# Sake (display_order 5) carries notes "rice wine, optional" but optional=false.
+# Setting optional=true so the UI flags it correctly.
+ingredient_updates:
+  - match:
+      ingredient_slug: sake
+      display_order: 5
+    optional: true
+
+step_text_overrides:
+  # Step 1 EN: "beef loin" → "beef flank" (recipe ingredient is Falda de res /
+  # Beef flank). ES: "filete rebanado" implies sirloin; switching to "falda
+  # rebanada" + tú voice (Coloque/reserve → Coloca/reserva).
+  - match: { order: 1 }
+    translations:
+      en:
+        instruction: 'Place the sliced beef flank in a bowl and set aside.'
+      es:
+        instruction: 'Coloca la falda de res rebanada en un tazón y reserva.'
+  # Step 2: replace hard-coded "5 seconds at speed 10" / "5 seg. / vel. 10"
+  # with %thermomix% so the cooking guide renders the structured fields. ES
+  # also: usted → tú (Coloque/Licúe/Transfiera/marine → Coloca/Licúa/
+  # Transfiere/marina), "fécula de maiz" typo → "maicena" (matches Mexican
+  # ingredient name), preserve idiomatic "salsa de soya" / "aceite de ajonjolí".
+  - match: { order: 2 }
+    translations:
+      en:
+        instruction: 'Place the cornstarch, soy sauce, water, sake, oyster sauce, white pepper, sesame oil, and sugar in the mixing bowl and blend %thermomix%. Transfer to the bowl with the beef and marinate for at least 1 hour.'
+      es:
+        instruction: 'Coloca en el vaso la maicena, la salsa de soya, el agua, el sake, la salsa de ostión, la pimienta, el aceite de ajonjolí y el azúcar, licúa %thermomix%. Transfiere al tazón de la carne y marina al menos 1 hora.'
+  # Step 3: same %thermomix% swap + tú voice (Coloque/Pique/Baje → Coloca/
+  # Pica/Baja).
+  - match: { order: 3 }
+    translations:
+      en:
+        instruction: 'Place the garlic, ginger, and oil in the mixing bowl and chop %thermomix%. Scrape down the sides of the bowl with the spatula.'
+      es:
+        instruction: 'Coloca en el vaso el ajo, el jengibre y el aceite, pica %thermomix%. Baja los restos de las paredes del vaso con la espátula.'
+  # Step 4: %thermomix% swap + tú voice (Añada/cocine → Añade/cocina).
+  - match: { order: 4 }
+    translations:
+      en:
+        instruction: 'Add the marinated beef and cook %thermomix%.'
+      es:
+        instruction: 'Añade la carne marinada y cocina %thermomix%.'
+  # Step 5: %thermomix% swap + tú voice + missing terminal period in es.
+  - match: { order: 5 }
+    translations:
+      en:
+        instruction: 'Add the spring onion and cook %thermomix%.'
+      es:
+        instruction: 'Añade la cebolla cambray y cocina %thermomix%.'
+  # Step 6: tú voice (Transfiera/sirva → Transfiere/sirve).
+  - match: { order: 6 }
+    translations:
+      es:
+        instruction: 'Transfiere a un tazón y sirve acompañado de arroz al vapor.'
+applied:
+  - applied_at: 2026-04-29T17:43:21.664Z
+    applied_by: ian@local
+    pre_recipe_updated_at: 2026-04-28T13:21:18.327255+00:00
+    post_recipe_updated_at: 2026-04-29T17:43:21.485905+00:00
+    sections_changed:
+      - planner
+      - translations
+      - ingredients
+      - kitchen_tools
+      - step_text
+      - tags
+    environment: local

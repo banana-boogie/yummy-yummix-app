@@ -76,3 +76,8 @@ apple-jwt.txt
 coverage/
 .claude/settings.local.json
 yyx-server/data-pipeline/missing-images.json
+
+# Recipe review snapshots — generated locally, can be large, may capture
+# unpublished/draft content. Keep the directory + a .gitkeep so paths exist.
+yyx-server/data-pipeline/data/recipe-review-snapshots/*
+!yyx-server/data-pipeline/data/recipe-review-snapshots/.gitkeep

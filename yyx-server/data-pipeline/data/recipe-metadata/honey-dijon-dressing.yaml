@@ -1,0 +1,38 @@
+recipe_match:
+  id: '3dd00e3f-7e49-45bc-8730-988599e8ef5e'
+  name_en: 'Honey Dijon Dressing'
+  expected_recipe_updated_at: '2026-04-29T06:30:48.046323+00:00'
+
+review:
+  reviewed_by_label: 'claude-opus-4-7'
+  reviewed_at: '2026-04-29T07:00:00Z'
+
+planner:
+  role: condiment
+  alternate_planner_roles: []
+  meal_components: []
+  is_complete_meal: false
+  equipment_tags: [ thermomix ]
+  cooking_level: beginner
+  leftovers_friendly: true
+  batch_friendly: true
+
+scaling_notes:
+  en: 'Recipe yields ~350 g (about 10 servings of 35 g). Halves and doubles cleanly. The dressing will separate during storage — give it a quick shake before each use.'
+  es: 'La receta rinde ~350 g (alrededor de 10 porciones de 35 g). Se duplica y se reduce a la mitad sin problema. El aderezo se separa al guardarse — agítalo antes de cada uso.'
+
+# Step 1 has thermomix_temperature_unit='C' with no temperature value (it's a
+# pure mix step, no heat). Clearing the orphan unit.
+step_overrides:
+  - match: { order: 1 }
+    thermomix_temperature_unit: null
+applied:
+  - applied_at: 2026-04-29T06:30:48.322Z
+    applied_by: ian@local
+    pre_recipe_updated_at: 2026-04-28T18:48:15.699567+00:00
+    post_recipe_updated_at: 2026-04-29T06:30:48.046323+00:00
+    sections_changed:
+      - planner
+      - translations
+      - step_overrides
+    environment: local

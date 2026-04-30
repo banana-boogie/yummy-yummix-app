@@ -1,0 +1,138 @@
+recipe_match:
+  id: 'ed593a73-f851-4ae6-99d7-67575b3679d6'
+  name_en: 'Picadillo Tostadas'
+  expected_recipe_updated_at: '2026-04-29T20:15:27.852895+00:00'
+
+review:
+  reviewed_by_label: 'claude-opus-4-7'
+  reviewed_at: '2026-04-29T18:00:00Z'
+
+planner:
+  role: main
+  meal_components: [ protein, carb, veg ]
+  is_complete_meal: true
+  cooking_level: intermediate
+  leftovers_friendly: true
+  batch_friendly: false
+  max_household_size_supported: 6
+
+scaling_notes:
+  en: 'Yields 6 servings (3 tostadas each). Halves cleanly. Doubling exceeds the Thermomix® bowl''s capacity for the 1 kg ground-beef batch — for more, run two batches and combine in a stovetop pan to keep warm. Picadillo keeps 4 days in the fridge and freezes well for up to 3 months; store tostadas separately in an airtight container.'
+  es: 'Rinde 6 porciones (3 tostadas cada una). Se reduce a la mitad sin problema. Duplicar excede la capacidad del vaso de la Thermomix® para el lote de 1 kg de carne molida — para más, prepara dos tandas y combínalas en una sartén para mantener caliente. El picadillo se conserva 4 días en el refrigerador y se congela bien hasta 3 meses; guarda las tostadas por separado en un recipiente hermético.'
+
+# DB tags are missing cuisine and meal_type entirely (rubric requires
+# meal_type when role=main). Keeping dish_type:main_dish + primary_ingredient:beef.
+tags:
+  cuisine: [ mexican ]
+  meal_type: [ lunch, dinner ]
+  diet: []
+  dish_type: [ main_dish ]
+  primary_ingredient: [ beef ]
+  occasion: [ comfort_food, weeknight, budget_friendly ]
+  practical: [ leftover_friendly, make_ahead, batch_cook ]
+
+# DB tools: Thermomix®, Thermomix® Varoma, Thermomix® spatula. Adding
+# Mixing Bowl (step 6 transfers contents to mixing bowl) and Kitchen scale
+# (precise weights — 200 g, 850 g, 1000 g).
+kitchen_tools:
+  set:
+    - name_en: 'Thermomix®'
+    - name_en: 'Thermomix® Varoma'
+    - name_en: 'Thermomix® spatula'
+    - name_en: 'Mixing Bowl'
+    - name_en: 'Kitchen scale'
+
+# 9 ingredients have section_en = "Main Course" or "Main course"; the
+# remaining 6 use "Main". Splits the admin ingredient list into 3 visual
+# sections. Normalizing all to "Main" (project-wide canonical).
+ingredient_updates:
+  - match: { ingredient_slug: raisin, display_order: 4 }
+    section_en: 'Main'
+  - match: { ingredient_slug: tomato, display_order: 5 }
+    section_en: 'Main'
+  - match: { ingredient_slug: olive_oil, display_order: 6 }
+    section_en: 'Main'
+  - match: { ingredient_slug: garlic, display_order: 8 }
+    section_en: 'Main'
+  - match: { ingredient_slug: ground_beef, display_order: 9 }
+    section_en: 'Main'
+  - match: { ingredient_slug: salt, display_order: 10 }
+    section_en: 'Main'
+  - match: { ingredient_slug: black_pepper, display_order: 12 }
+    section_en: 'Main'
+  - match: { ingredient_slug: tostada, display_order: 13 }
+    section_en: 'Main'
+  - match: { ingredient_slug: lettuce, display_order: 14 }
+    section_en: 'Main'
+
+step_overrides:
+  # Steps 4 and 5 had identical sauté params (480s/120°C/spoon) — interpreting
+  # step 4 as the chop and step 5 as the sole sauté. Clearing step 4's
+  # structured Thermomix fields so the cooking guide doesn't show
+  # contradictory params; chop params (5s/speed 5) stay hard-coded in step 4
+  # text since they're not in the structured fields and authoring intent on
+  # the chop's structured representation is uncertain.
+  - match: { order: 4 }
+    thermomix_time: null
+    thermomix_speed: null
+    thermomix_temperature: null
+    thermomix_temperature_unit: null
+
+step_text_overrides:
+  - match: { order: 1 }
+    translations:
+      en:
+        instruction: 'Place the cheese in the bowl, grate %thermomix%, remove from the bowl and set aside until serving time.'
+      es:
+        instruction: 'Coloca el queso en el vaso, ralla %thermomix%, saca del vaso y reserva hasta la hora de servir.'
+  - match: { order: 2 }
+    translations:
+      en:
+        instruction: 'Place the potatoes and carrots in the bowl, chop %thermomix%. Remove from the bowl and set aside in the Varoma dish along with the raisins.'
+      es:
+        instruction: 'Coloca las papas y las zanahorias en el vaso, pica %thermomix%, saca del vaso y reserva en el recipiente Varoma junto con las pasitas.'
+  - match: { order: 3 }
+    translations:
+      en:
+        instruction: 'Place the tomato in the bowl and blend %thermomix%. Remove from the bowl and set aside. Rinse the bowl.'
+      es:
+        instruction: 'Coloca en el vaso el jitomate, licúa %thermomix%, saca del vaso y reserva. Enjuaga el vaso.'
+  # Step 4: chop only (the sauté is now wholly in step 5 — see step_overrides).
+  - match: { order: 4 }
+    translations:
+      en:
+        instruction: 'Place the oil, onion, and garlic in the bowl and chop for 5 seconds at speed 5.'
+      es:
+        instruction: 'Coloca en el vaso el aceite, la cebolla y el ajo y pica 5 seg. / vel. 5.'
+  # Step 5: relocated "without the measuring cup" instruction from step 4
+  # (it applies to the sauté, not the chop).
+  - match: { order: 5 }
+    translations:
+      en:
+        instruction: 'Sauté %thermomix% without placing the measuring cup on top.'
+      es:
+        instruction: 'Sofríe %thermomix% sin colocar el cubilete.'
+  - match: { order: 6 }
+    translations:
+      en:
+        instruction: 'Add the ground beef, salt, reserved tomato, thyme, and pepper. Place the Varoma in position and cook %thermomix%. Carefully remove the Varoma, transfer the contents of the bowl to a mixing bowl, add the cooked vegetables from the Varoma, and mix very well with a spatula.'
+      es:
+        instruction: 'Añade la carne molida, la sal, el jitomate reservado, el tomillo y la pimienta, coloca el Varoma en su posición y cocina %thermomix%. Retira cuidadosamente el Varoma, transfiere el contenido del vaso a un tazón, añade las verduras cocidas del Varoma y mezcla muy bien con la espátula.'
+  - match: { order: 7 }
+    translations:
+      es:
+        instruction: 'Sirve caliente o frío con tostadas de maíz, lechuga, crema y el queso rallado.'
+applied:
+  - applied_at: 2026-04-29T20:15:28.105Z
+    applied_by: ian@local
+    pre_recipe_updated_at: 2026-04-24T18:53:08.952479+00:00
+    post_recipe_updated_at: 2026-04-29T20:15:27.852895+00:00
+    sections_changed:
+      - planner
+      - translations
+      - ingredients
+      - kitchen_tools
+      - step_overrides
+      - step_text
+      - tags
+    environment: local

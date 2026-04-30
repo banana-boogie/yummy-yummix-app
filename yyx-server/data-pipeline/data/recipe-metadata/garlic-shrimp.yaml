@@ -1,0 +1,69 @@
+recipe_match:
+  id: '1df8c9b4-e8c8-480d-8d22-90735243e0ad'
+  name_en: 'Garlic Shrimp'
+  expected_recipe_updated_at: '2026-04-29T06:27:24.099323+00:00'
+
+review:
+  reviewed_by_label: 'claude-opus-4-7'
+  reviewed_at: '2026-04-29T06:30:00Z'
+
+planner:
+  role: main
+  alternate_planner_roles: []
+  meal_components: [ protein ]
+  is_complete_meal: false
+  equipment_tags: [ thermomix ]
+  cooking_level: intermediate
+  leftovers_friendly: false
+  batch_friendly: false
+  max_household_size_supported: 4
+
+scaling_notes:
+  en: 'Recipe is sized to a single Varoma load (15 large shrimp). For 8 portions, run two cycles back-to-back rather than overcrowding — packed shrimp steam unevenly and turn rubbery.'
+  es: 'La receta está pensada para una sola tanda en el Varoma (15 camarones grandes). Para 8 porciones, repite la cocción en dos tandas en vez de saturar el Varoma — los camarones apretados se cuecen disparejos y se ponen chiclosos.'
+
+tags:
+  cuisine: [ mexican ]
+  diet: [ pescatarian, low_carb ]
+  occasion: [ weeknight ]
+  practical: [ quick ]
+
+pairings:
+  set:
+    - target_id: '9efe6751-3081-426d-836c-1a650cc5c24e'
+      target_name_en: 'Steamed Rice'
+      role: side
+      reason: 'Soaks up the garlic-butter sauce — the classic accompaniment.'
+
+# Steps 5 and 7 carry orphan thermomix_temperature_unit='C' with no
+# thermomix_temperature value (and no other Thermomix params on step 7).
+# Step 5 is a manual stacking step; step 7 is "serve". Clearing.
+step_overrides:
+  - match: { order: 5 }
+    thermomix_temperature_unit: null
+  - match: { order: 7 }
+    thermomix_temperature_unit: null
+
+# Salt's es recipe_section is "Plato principal"; rest of the recipe uses
+# "Principal" in es. Aligning.
+ingredient_updates:
+  - match:
+      ingredient_slug: salt
+      display_order: 6
+    section_es: 'Principal'
+
+requires_authoring:
+  reasons: []
+  notes: ''
+applied:
+  - applied_at: 2026-04-29T06:27:24.393Z
+    applied_by: ian@local
+    pre_recipe_updated_at: 2026-04-28T13:44:11.817875+00:00
+    post_recipe_updated_at: 2026-04-29T06:27:24.099323+00:00
+    sections_changed:
+      - planner
+      - translations
+      - ingredients
+      - step_overrides
+      - tags
+    environment: local

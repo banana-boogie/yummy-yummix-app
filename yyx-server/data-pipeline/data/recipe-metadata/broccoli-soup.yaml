@@ -1,0 +1,127 @@
+recipe_match:
+  id: "eaaa1574-6476-45fc-93e9-8636bc869be8"
+  name_en: "Broccoli Soup"
+  expected_recipe_updated_at: "2026-04-29T03:55:23.283543+00:00"
+
+review:
+  reviewed_by_label: "claude-opus-4-7"
+  reviewed_at: "2026-04-29T02:15:00Z"
+
+# Re-decided from scratch. A cream of broccoli + potato soup with no protein
+# is a vegetable side, not a complete meal. `[veg]` matches; raising
+# batch_friendly true and setting max_household_size_supported to 4 (DB has
+# both as null today, but soup batches and freezes well and the recipe
+# already yields 4 portions). cooking_level beginner — entirely Thermomix-
+# automated.
+planner:
+  role: side
+  alternate_planner_roles: []
+  meal_components: [ veg ]
+  is_complete_meal: false
+  equipment_tags: [ thermomix ]
+  cooking_level: beginner
+  leftovers_friendly: true
+  batch_friendly: true
+  max_household_size_supported: 4
+
+# Description is null in the live DB for all locales — adding a punchy
+# one-line description so the recipe reads as a finished dish on the
+# browse / planner cards. Lockstep en + es per schema.
+description:
+  en: "A creamy, velvety broccoli and potato soup made entirely in the Thermomix®. A naturally vegetarian comfort soup, ready in under an hour."
+  es: "Una sopa cremosa y aterciopelada de brócoli y papa, hecha completamente en la Thermomix®. Una sopa reconfortante naturalmente vegetariana, lista en menos de una hora."
+
+# Minor wording polish to live tips: "in order to" → "to", remove
+# duplicated cheese mention in EN. The croutons line stays as-is; the
+# gluten_free tag is dropped below in `cleanup`, so the recipe makes no
+# GF promise and the croutons suggestion no longer contradicts anything.
+tips_and_tricks:
+  en: |-
+    - You can replace the butter with oil to make this soup vegan.
+    - You can save some broccoli florets to decorate your dish when serving.
+    - You can make your own vegetable stock paste in your Thermomix®.
+    - Serve with croutons, feta cheese, or your favourite cheese!
+  es: |-
+    - Puedes reemplazar la mantequilla por aceite para hacer esta sopa vegana.
+    - Puedes reservar algunos floretes de brócoli para decorar el plato al servir.
+    - Puedes hacer tu propio concentrado de caldo de verduras en tu Thermomix®.
+    - Acompaña tu sopa con crutones, queso feta o tu queso favorito.
+
+# scaling_notes is null in DB. Adding a short note so users with larger
+# households get explicit guidance rather than guessing whether the
+# Thermomix bowl can hold a doubled batch.
+scaling_notes:
+  en: "Doubles cleanly to 8 servings on TM6/TM7; for larger groups, split into two cooks since the Thermomix® bowl maxes out around 2 L of liquid."
+  es: "Se duplica fácilmente a 8 porciones en una TM6/TM7; para grupos más grandes, divide en dos tandas, ya que el vaso de la Thermomix® tiene un máximo de unos 2 L de líquido."
+
+# Currently diet[vegetarian, gluten_free] + dish_type[soup]. dish_type is
+# left untouched; diet is reset to drop gluten_free — even though the
+# recipe ingredients are naturally GF, the tip suggesting croutons is the
+# kind of contradiction RECIPE-REVIEW.md flags as reputation-critical, and
+# rewriting tips to "gluten-free croutons" reads forced. Cleaner to make
+# no GF promise. `vegetarian` stays (no animal flesh; cheese garnish is
+# vegetarian).
+#
+# Adding the missing categories so the recipe is reachable from
+# meal_type, occasion, practical, and primary_ingredient filters. Slugs
+# verified against recipe_tags so no typos surface.
+tags:
+  diet: [ vegetarian ]
+  primary_ingredient: [ vegetables ]
+  meal_type: [ lunch, dinner ]
+  occasion: [ comfort_food, weeknight ]
+  practical: [ thermomix_basics, leftover_friendly, beginner_friendly ]
+
+# kitchen_tools is empty in the DB even though every step uses the
+# Thermomix and steps 1 + 3 explicitly call for the spatula. Setting both
+# so the recipe surfaces correctly in equipment-aware filters and the
+# tool-prep checklist. Canonical names verified in
+# kitchen_tool_translations (DB stores 'Thermomix' WITHOUT ® for the main
+# unit — RECIPE-REVIEW.md's example with ® is stale).
+kitchen_tools:
+  set:
+    - name_en: "Thermomix®"
+    - name_en: "Thermomix® spatula"
+
+# Step 5 is a blend with no heat (speed_range 4-8 only), but the live row
+# carries thermomix_temperature_unit='C' with no thermomix_temperature
+# value — orphan unit metadata from import. Clearing. Using step `order`
+# (durable across re-imports) instead of step_id (which was rotated when
+# this recipe was re-imported on 2026-04-29 03:43Z).
+step_overrides:
+  - match:
+      order: 5
+    thermomix_temperature_unit: null
+
+# Onion notes_en has the typo "in cuarters" (should be "in quarters").
+# Using ingredient_slug + display_order so the match survives re-imports
+# that rotate recipe_ingredients.id (the recipe was re-imported on
+# 2026-04-29 03:43Z and every existing_id changed).
+ingredient_updates:
+  - match:
+      ingredient_slug: onion
+      display_order: 2
+    notes_en: "in quarters"
+
+# Items the YAML schema cannot fix — handed to admin authoring.
+requires_authoring:
+  reasons: [ global_ingredient_name_typo, questionable_pairing_role ]
+  notes: |
+    Global ingredient_translations.name typo (affects every recipe using broccoli, not just this one):
+      - Broccoli's es row name is "Brocóli" (incorrect — accent on the wrong syllable). Correct Spanish is "Brócoli" (esdrújula, accent on the first 'o'). The plural_name is already correct as "Brócoli". The es-ES row is correct. Fix: update ingredient_translations.name for ingredient_id 3caa301c-340e-4787-9a1d-ed069837898b at locale='es' from "Brocóli" to "Brócoli". Schema scope is per-recipe so this YAML can't touch it; this is a one-line SQL fix or an admin panel edit.
+
+    Pairing role review:
+      - Current pairing target is "White Rice with Vegetables" with role="base". For a side soup → side rice pairing, role="base" reads as "rice is the base of a bowl built around this soup", which is unusual. More natural pairings for a vegetable cream soup are: a bread/crouton recipe (role="side") or a protein main (role="main"). Recommendation: human review whether to (a) drop this pairing, (b) replace with a main like Chicken Tinga, or (c) re-role to "side" if the intent was "soup + rice as twin sides at a Mexican-style meal".
+applied:
+  - applied_at: 2026-04-29T03:53:14.804Z
+    applied_by: ian@local
+    pre_recipe_updated_at: 2026-04-29T03:43:04.875456+00:00
+    post_recipe_updated_at: 2026-04-29T03:53:14.577024+00:00
+    sections_changed:
+      - planner
+      - translations
+      - ingredients
+      - kitchen_tools
+      - step_overrides
+      - tags
+    environment: local
