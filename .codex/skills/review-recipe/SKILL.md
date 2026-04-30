@@ -248,7 +248,16 @@ For every other section, write only what changes. If a section's current state i
 
 Match-key rules:
 - `ingredient_updates`/`ingredient_removes`: prefer durable `ingredient_slug` + `display_order` because `recipe_ingredients.id` values can rotate on re-import. Compute the slug exactly as the SQL helper does — the JS reproduction is in `data-pipeline/lib/recipe-metadata-fetch.ts:slugifyName()`. Use `existing_id` only when a slug is unavailable or the row cannot be disambiguated by slug + display order. Never use names directly.
-- `step_overrides`: prefer `order` because `recipe_steps.id` values can rotate on re-import. Use `step_id` only when order is unavailable or ambiguous. Edits Thermomix structured fields only (time, speed, temperature, mode, blade direction, timer). Speed ramps are written as flat `thermomix_speed_start` / `thermomix_speed_end` (matching the DB columns); these are mutually exclusive with the single `thermomix_speed`. Example for a 5→10 ramp over 60s:
+- `step_overrides`: prefer `order` because `recipe_steps.id` values can rotate on re-import. Use `step_id` only when order is unavailable or ambiguous. Edits Thermomix structured fields only — text edits live in `step_text_overrides`. **Supported YAML field names** (these are the *only* keys accepted; DB column names like `thermomix_is_blade_reversed` are rejected by `.strict()` parsing):
+  - `thermomix_time` — int seconds; e.g. `60`
+  - `thermomix_speed` — single speed: int 0-10 or `'spoon'`
+  - `thermomix_speed_start` + `thermomix_speed_end` — speed ramp (flat form, matches DB columns); mutually exclusive with the single `thermomix_speed`
+  - `thermomix_temperature` — number; degrees in the unit set by `thermomix_temperature_unit`
+  - `thermomix_temperature_unit` — `'C'` or `'F'` or `'Varoma'`
+  - `thermomix_mode` — string (e.g. `'kneading'`)
+  - `thermomix_blade_reverse` — boolean (note: YAML key is `_reverse`, DB column is `thermomix_is_blade_reversed` — use the YAML key)
+  - `non_thermomix_timer_seconds` — int seconds for non-Thermomix steps
+  Example for a 5→10 ramp over 60s with reverse blades:
   ```yaml
   step_overrides:
     - match: { order: 3 }
@@ -256,6 +265,7 @@ Match-key rules:
       thermomix_speed: null
       thermomix_speed_start: 5
       thermomix_speed_end: 10
+      thermomix_blade_reverse: true
   ```
 - `step_text_overrides`: same match key rules as `step_overrides` (prefer `order`). Edits per-locale text on `recipe_step_translations` — `instruction`, `recipe_section`, and `tip`. Each entry's `translations` block must contain at least one of `en` / `es`, and each present locale block must set at least one of the three text fields. Omitted fields stay untouched. Use this for fixable text issues — typos, grammar, voice fixes (usted→tú, gendered noun agreement) — instead of routing them to `requires_authoring.notes`. Example:
   ```yaml
