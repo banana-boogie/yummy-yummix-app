@@ -370,7 +370,7 @@ Dry-run: <N> changes  stale_diff: <yes/no>
 
 ▸ Admin SQL needed
   - <count + pointer; do not re-state notes>
-  - <e.g. "2 items in requires_authoring.notes (orphan recipe_step_ingredients link, step_ingredient quantity drift)">
+  - <e.g. "2 items in requires_authoring.notes (ambiguous ingredient identity needs human judgment, step references missing procedure)">
 
 Next step: review risks, then run `deno task pipeline:apply-recipe-metadata --local --recipe <slug> --apply`.
 ```
@@ -382,7 +382,7 @@ Next step: review risks, then run `deno task pipeline:apply-recipe-metadata --lo
 - **⚠ Risks** — list every item that could ship as a user-visible defect, an irreversible-without-thought structural change, or a divergence from the existing DB state that needs explicit ratification. **No cap on count.** If 7 items genuinely deserve the ⚠ glyph, list 7. The triage gate is *severity*, not *count*: "would a careful reviewer want to know about this before `--apply`, in case it's wrong?" If yes → Risks. If no → Routine. Categories that always belong here when present: structural data changes (`step_overrides` clearing fields, `cleanup.delete_locales`), discarded fixture body in refresh mode, exclusion-style diet-tag adds (`vegan`/`vegetarian`/`gluten_free`/`pescatarian`), role flips that diverge from current DB, planner-field changes that diverge from DB, kitchen-tools `set:` that removes existing tools.
 - **▸ Routine judgment calls** — *summarize by section, not by item.* "Tags: + cuisine, meal_type, occasion, practical" is one bullet, not four. "Step text rewritten in en+es for usted→tú voice across steps 2-5" is one bullet, not eight. Reviewer opinion landed in the YAML; the user reads this bucket to ratify the *direction* of changes, not to re-read every line of the dry-run.
 - **▸ Skipped on purpose** — symmetric counterpart to Routine: *deliberate omissions* the user could plausibly want to override. Tighter bar than the others — only include items where a reasonable reviewer might have added this AND been wrong to. "Considered weeknight, recipe has no time data" is not a judgment call worth ratifying — drop it. "Considered breakfast, recipe is a mole" is obvious — drop it. Keep contested skips: tags weighed and rejected on close calls, pairings considered and dropped, role flips considered and reverted. **No cap on count, but every bullet must clear the contested-skip bar.**
-- **▸ Admin SQL needed** — pointer + count, not duplicate. `requires_authoring.notes` already carries the detail; the report just signals the count and what families of issue (orphan link, quantity drift, missing procedure, etc.) so the user knows what's queued for the admin worklist.
+- **▸ Admin SQL needed** — pointer + count, not duplicate. `requires_authoring.notes` already carries the detail; the report just signals the count and what families of issue (ambiguous ingredient identity, missing procedure, contradictory step text, etc.) so the user knows what's queued for the admin worklist. Mechanical link-table fixes do **not** belong here — those go in `step_ingredient_adds` / `_updates` / `_removes` and ride the standard apply path.
 
 **Drop the "Will apply on --apply" bucket entirely.** The dry-run already prints every mechanical change; restating it in the report burns attention without adding signal. The report exists to tell the user what to look at *that the dry-run alone won't catch*.
 

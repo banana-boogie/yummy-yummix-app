@@ -23,6 +23,15 @@
 -- - step_ingredient_removes: drop an existing link. Match by
 --   (step_id|order) + ingredient_slug. Idempotent: an absent link no-ops.
 --
+-- Duplicate-match guard: the schema only enforces uniqueness on
+-- (recipe_step_id, display_order), not on (recipe_step_id, ingredient_id),
+-- so a step can legitimately hold two links to the same ingredient at
+-- different display_orders. The (step, ingredient_slug) match key is
+-- ambiguous in that case. Both _updates and _removes count first and
+-- raise when 2+ rows would match — silent multi-row mutation is the
+-- failure mode this guard prevents. Resolution is admin-side: dedupe by
+-- display_order, then re-run the YAML.
+--
 -- Forward-only CREATE OR REPLACE; functionally identical to the previous
 -- migration (drop_is_published) except the three new branches are inserted
 -- between `step_text_overrides` and `tags`, and the counts jsonb gains
@@ -812,41 +821,52 @@ BEGIN
           v_match_slug;
       END IF;
 
-      UPDATE public.recipe_step_ingredients rsi
-         SET quantity = CASE
-               WHEN v_section ? 'quantity' THEN (v_section->>'quantity')::numeric
-               ELSE rsi.quantity
-             END,
-             measurement_unit_id = CASE
-               WHEN v_section ? 'unit' THEN NULLIF(v_section->>'unit', '')
-               ELSE rsi.measurement_unit_id
-             END
-       WHERE rsi.recipe_step_id = v_step_id
-         AND rsi.ingredient_id = v_ingredient_id
-         AND (
-           (v_section ? 'quantity'
-             AND (v_section->>'quantity')::numeric IS DISTINCT FROM rsi.quantity)
-           OR (v_section ? 'unit'
-             AND NULLIF(v_section->>'unit','') IS DISTINCT FROM rsi.measurement_unit_id)
-         );
+      -- The DB enforces uniqueness on (recipe_step_id, display_order) but not
+      -- on (recipe_step_id, ingredient_id), so a step can legitimately have
+      -- duplicate links to the same ingredient. Count first; if 2+ rows match,
+      -- a (step, ingredient) update would silently mutate every link. Refuse
+      -- and direct the admin to dedupe by display_order first.
       DECLARE
-        v_n int;
+        v_match_count int;
+        v_n           int;
       BEGIN
+        SELECT COUNT(*) INTO v_match_count
+          FROM public.recipe_step_ingredients
+          WHERE recipe_step_id = v_step_id AND ingredient_id = v_ingredient_id;
+
+        IF v_match_count > 1 THEN
+          RAISE EXCEPTION
+            'step_ingredient_updates: % rows match step % + ingredient_slug=% — duplicate links exist for this (step, ingredient); admin must dedupe by display_order before YAML can target this row',
+            v_match_count, v_step_id, v_match_slug;
+        END IF;
+
+        IF v_match_count = 0 THEN
+          RAISE EXCEPTION
+            'step_ingredient_updates: no link row for step % + ingredient_slug=% (use step_ingredient_adds to create it)',
+            v_step_id, v_match_slug;
+        END IF;
+
+        UPDATE public.recipe_step_ingredients rsi
+           SET quantity = CASE
+                 WHEN v_section ? 'quantity' THEN (v_section->>'quantity')::numeric
+                 ELSE rsi.quantity
+               END,
+               measurement_unit_id = CASE
+                 WHEN v_section ? 'unit' THEN NULLIF(v_section->>'unit', '')
+                 ELSE rsi.measurement_unit_id
+               END
+         WHERE rsi.recipe_step_id = v_step_id
+           AND rsi.ingredient_id = v_ingredient_id
+           AND (
+             (v_section ? 'quantity'
+               AND (v_section->>'quantity')::numeric IS DISTINCT FROM rsi.quantity)
+             OR (v_section ? 'unit'
+               AND NULLIF(v_section->>'unit','') IS DISTINCT FROM rsi.measurement_unit_id)
+           );
         GET DIAGNOSTICS v_n = ROW_COUNT;
         IF v_n > 0 THEN
           v_step_ing_updates := v_step_ing_updates + 1;
           v_changed := true;
-        ELSE
-          -- Verify the link existed at all — if not, it's a structural mismatch
-          -- the reviewer should know about (use step_ingredient_adds instead).
-          IF NOT EXISTS (
-            SELECT 1 FROM public.recipe_step_ingredients
-              WHERE recipe_step_id = v_step_id AND ingredient_id = v_ingredient_id
-          ) THEN
-            RAISE EXCEPTION
-              'step_ingredient_updates: no link row for step % + ingredient_slug=% (use step_ingredient_adds to create it)',
-              v_step_id, v_match_slug;
-          END IF;
         END IF;
       END;
     END LOOP;
@@ -971,6 +991,23 @@ BEGIN
        LIMIT 1;
 
       IF v_ingredient_id IS NULL THEN CONTINUE; END IF;
+
+      -- Same uniqueness gap as updates — refuse if 2+ rows would match the
+      -- (step, ingredient) pair so a YAML remove can never silently delete
+      -- multiple link rows.
+      DECLARE
+        v_match_count int;
+      BEGIN
+        SELECT COUNT(*) INTO v_match_count
+          FROM public.recipe_step_ingredients
+          WHERE recipe_step_id = v_step_id AND ingredient_id = v_ingredient_id;
+
+        IF v_match_count > 1 THEN
+          RAISE EXCEPTION
+            'step_ingredient_removes: % rows match step % + ingredient_slug=% — duplicate links exist for this (step, ingredient); admin must dedupe by display_order before YAML can target this row',
+            v_match_count, v_step_id, v_match_slug;
+        END IF;
+      END;
 
       DELETE FROM public.recipe_step_ingredients
        WHERE recipe_step_id = v_step_id

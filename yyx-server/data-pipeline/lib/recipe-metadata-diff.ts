@@ -383,7 +383,23 @@ export function computeRecipeMetadataDiff(
         });
         continue;
       }
-      const link = step.step_ingredients.find((si) => si.slug === upd.match.ingredient_slug);
+      const matches = step.step_ingredients.filter(
+        (si) => si.slug === upd.match.ingredient_slug,
+      );
+      // The DB only enforces uniqueness on (recipe_step_id, display_order), not
+      // on (recipe_step_id, ingredient_id), so a step can legitimately have
+      // duplicate links to the same ingredient. The (step, ingredient) match
+      // key is ambiguous in that case; the RPC raises and so do we.
+      if (matches.length > 1) {
+        changes.push({
+          path: `step_ingredient_updates`,
+          before: upd.match,
+          after:
+            `⚠ ${matches.length} step-ingredient links match (step, ingredient_slug) — apply will raise; admin must dedupe by display_order first`,
+        });
+        continue;
+      }
+      const link = matches[0];
       if (!link) {
         changes.push({
           path: `step_ingredient_updates`,
@@ -424,6 +440,15 @@ export function computeRecipeMetadataDiff(
 
   if (desired.step_ingredient_adds) {
     const changes: DiffEntry[] = [];
+    // Same-YAML bootstrap: a `step_ingredient_adds` entry can reference a
+    // recipe-level row that this YAML also creates via `ingredient_adds`. The
+    // RPC processes `ingredient_adds` before `step_ingredient_adds`, so the
+    // recipe-level row is present by apply time. Mirror that ordering at
+    // dry-run by counting `desired.ingredient_adds` slugs as satisfying the
+    // existence check.
+    const desiredAddedSlugs = new Set(
+      (desired.ingredient_adds ?? []).map((ia) => ia.ingredient_slug),
+    );
     for (const add of desired.step_ingredient_adds) {
       const step = findStep(current.steps, add.match);
       if (!step) {
@@ -438,11 +463,10 @@ export function computeRecipeMetadataDiff(
       // skip emitting the add. The RPC's IF EXISTS guard will likewise no-op.
       if (step.step_ingredients.some((si) => si.slug === add.ingredient_slug)) continue;
       // Orphan-link prevention: warn early if no recipe-level row exists for
-      // this ingredient. The RPC will hard-fail at apply, but the dry-run is
-      // the right place to catch it before the user runs --apply.
+      // this ingredient — *unless* the same YAML adds it via ingredient_adds.
       const recipeLevelExists = current.ingredients.some(
         (i) => i.slug === add.ingredient_slug,
-      );
+      ) || desiredAddedSlugs.has(add.ingredient_slug);
       changes.push({
         path: `step_ingredient_adds[order=${step.order},${add.ingredient_slug}]`,
         before: null,
@@ -462,7 +486,21 @@ export function computeRecipeMetadataDiff(
         order: rem.match.order,
       });
       if (!step) continue; // idempotent — step gone or never existed
-      const link = step.step_ingredients.find((si) => si.slug === rem.match.ingredient_slug);
+      const matches = step.step_ingredients.filter(
+        (si) => si.slug === rem.match.ingredient_slug,
+      );
+      if (matches.length > 1) {
+        // Same uniqueness gap as updates — refuse rather than silently
+        // delete every link with this slug.
+        changes.push({
+          path: `step_ingredient_removes`,
+          before: rem.match,
+          after:
+            `⚠ ${matches.length} step-ingredient links match (step, ingredient_slug) — apply will raise; admin must dedupe by display_order first`,
+        });
+        continue;
+      }
+      const link = matches[0];
       if (!link) continue; // idempotent — link already absent
       changes.push({
         path: `step_ingredient_removes[order=${step.order},${rem.match.ingredient_slug}]`,
