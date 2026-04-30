@@ -27,6 +27,11 @@ Deno.test('imageManifestToCsv escapes quoted values', () => {
   assertStringIncludes(csv, '"recipes"');
 });
 
+Deno.test('createImageManifestItem uses correct bucket for kitchen_tool', () => {
+  const item = createImageManifestItem('kitchen_tool', 'kt-1', 'Chef Knife', 'Cuchillo');
+  assertEquals(item.storageBucket, 'kitchen-tools');
+});
+
 Deno.test('imageManifestToMarkdown renders table rows', () => {
   const item = createImageManifestItem('kitchen_tool', 'u-1', 'Chef Knife', 'Cuchillo');
   const md = imageManifestToMarkdown([item]);

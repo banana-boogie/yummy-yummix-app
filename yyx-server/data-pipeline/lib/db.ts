@@ -261,6 +261,14 @@ export interface RecipeInsertData {
   is_published: boolean;
   tips_and_tricks_en?: string;
   tips_and_tricks_es?: string;
+  planner_role?: string | null;
+  equipment_tags?: string[];
+  meal_components?: string[];
+  is_complete_meal?: boolean;
+  cooking_level?: string | null;
+  leftovers_friendly?: boolean | null;
+  max_household_size_supported?: number | null;
+  batch_friendly?: boolean | null;
 }
 
 export interface RecipeIngredientInsert {
@@ -290,6 +298,8 @@ export interface RecipeStepInsert {
   thermomix_temperature: number | string | null;
   thermomix_temperature_unit: string | null;
   thermomix_is_blade_reversed: boolean | null;
+  thermomix_mode: string | null;
+  timer_seconds: number | null;
   recipe_section_en: string;
   recipe_section_es: string;
   tip_en: string;
@@ -319,6 +329,14 @@ export async function createRecipe(
       total_time: recipe.total_time,
       portions: recipe.portions,
       is_published: recipe.is_published,
+      planner_role: recipe.planner_role ?? null,
+      equipment_tags: recipe.equipment_tags ?? [],
+      meal_components: recipe.meal_components ?? [],
+      is_complete_meal: recipe.is_complete_meal ?? false,
+      cooking_level: recipe.cooking_level ?? null,
+      leftovers_friendly: recipe.leftovers_friendly ?? null,
+      max_household_size_supported: recipe.max_household_size_supported ?? null,
+      batch_friendly: recipe.batch_friendly ?? null,
     })
     .select('id')
     .single();
@@ -396,6 +414,8 @@ export async function insertRecipeSteps(
     thermomix_temperature: s.thermomix_temperature,
     thermomix_temperature_unit: s.thermomix_temperature_unit,
     thermomix_is_blade_reversed: s.thermomix_is_blade_reversed,
+    thermomix_mode: s.thermomix_mode,
+    timer_seconds: s.timer_seconds,
   }));
 
   const { data: inserted, error } = await supabase
@@ -584,6 +604,9 @@ export async function upsertIngredientNutrition(
     protein: number;
     fat: number;
     carbohydrates: number;
+    fiber?: number | null;
+    sugar?: number | null;
+    sodium?: number | null;
     source: string;
   },
 ): Promise<void> {
@@ -595,6 +618,9 @@ export async function upsertIngredientNutrition(
       protein: data.protein,
       fat: data.fat,
       carbohydrates: data.carbohydrates,
+      fiber: data.fiber ?? null,
+      sugar: data.sugar ?? null,
+      sodium: data.sodium ?? null,
       source: data.source,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'ingredient_id' });
