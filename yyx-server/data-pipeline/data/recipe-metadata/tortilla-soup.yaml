@@ -1,57 +1,124 @@
-# Tortilla Soup — reference fixture.
-#
-# Body fields are reviewer-authored starting points. Re-run the Reviewer
-# (`/review-recipe Tortilla Soup`) before applying to refresh
-# expected_recipe_updated_at against the current DB row.
-
 recipe_match:
   id: '186cb167-2f85-470a-aa78-085921b331e3'
   name_en: 'Tortilla Soup'
-  expected_recipe_updated_at: '2026-04-24T18:45:39.624486Z'
+  expected_recipe_updated_at: '2026-04-24T18:45:39.624486+00:00'
 
 review:
   reviewed_by_label: 'claude-opus-4-7'
-  reviewed_at: '2026-04-24T14:05:00.000Z'
+  reviewed_at: '2026-04-29T22:00:00Z'
 
 planner:
   role: main
-  alternate_planner_roles: []
-  meal_components: [protein, veg]
-  is_complete_meal: true        # soup-as-meal with toppings
-  equipment_tags: [thermomix]
+  meal_components: [ protein, carb, veg ]
+  is_complete_meal: true
   cooking_level: intermediate
   leftovers_friendly: true
   batch_friendly: true
-  max_household_size_supported: 8
+  max_household_size_supported: 6
 
-timings:
-  prep_time: 20
-  total_time: 50
-  portions: 6
-
-tags:
-  cuisine: [mexican]
-  meal_type: [lunch, dinner]
-  diet: []
-  occasion: [comfort_food, sunday_family, weeknight]
-  practical: [one_pot, freezer_friendly, leftover_friendly, batch_cook]
-
+# DB description (EN+ES) and EN tips are well-authored — preserved. Only edits:
+# (1) drop "one-pot meal" / "una sola olla" claim — recipe uses the Thermomix bowl
+# AND a separate frying pan in step 1, so it's not actually one pot. (2) ES tips
+# usted voice → tú. (3) author scaling_notes (NULL in DB).
 description:
-  en: 'Smoky chicken and tomato broth with crisp tortilla strips, avocado, and queso fresco. The Thermomix handles the broth start-to-finish; toppings are quick assembly.'
-  es: 'Caldo ahumado de pollo y jitomate con tiras de tortilla crujiente, aguacate y queso fresco. La Thermomix se encarga del caldo de principio a fin; los acompañamientos se arman rápido.'
+  en: 'A soul-warming Mexican classic — silky tomato-chile broth from the Thermomix®, topped with crispy tortilla strips fried separately, creamy avocado, fresh panela cheese, crunchy chicharrón, and a swirl of sour cream. Comfort with every spoonful.'
+  es: 'Un clásico mexicano que reconforta el alma — caldo sedoso de jitomate y chile hecho en la Thermomix®, coronado con tiras crujientes de tortilla fritas aparte, aguacate cremoso, queso panela fresco, chicharrón crocante y un toque de crema. Sabor reconfortante en cada cucharada.'
 
 tips_and_tricks:
-  en: 'Char the tomatoes and onion under the broiler before adding to the Thermomix — the difference is huge. Toppings are not optional — they are what makes this a meal, not just a soup.'
-  es: 'Asa los jitomates y la cebolla bajo el broiler antes de agregarlos a la Thermomix — el sabor cambia enormemente. Los acompañamientos no son opcionales — son lo que hace que esto sea una comida, no solo una sopa.'
+  en: 'Fry the tortilla strips just before serving — they lose their crunch quickly in the broth. For deeper flavor, lightly char the tomatoes on a comal before blending. Set up the toppings in small bowls so everyone can build their own bowl at the table.'
+  es: 'Fríe las tiras de tortilla justo antes de servir — pierden lo crujiente rápido en el caldo. Para un sabor más profundo, asa ligeramente los jitomates en un comal antes de licuarlos. Coloca los acompañamientos en tazones pequeños para que cada quien arme su sopa en la mesa.'
 
 scaling_notes:
-  en: 'Doubles to 12 portions in two Thermomix batches. Freezes well without toppings; add toppings only when serving.'
-  es: 'Se duplica a 12 porciones en dos tandas en la Thermomix. Se congela bien sin acompañamientos; agrégalos solo al servir.'
+  en: "Yields 6 servings. Halves cleanly. Doubling exceeds the Thermomix® bowl's capacity for the simmer step — for more, run two batches. The broth keeps 4 days in the fridge and freezes well for up to 2 months without the toppings; fry tortillas and slice avocado fresh when serving."
+  es: 'Rinde 6 porciones. Se reduce a la mitad sin problema. Duplicar excede la capacidad del vaso de la Thermomix® en el paso de cocción — para más, prepáralo en dos tandas. El caldo se conserva 4 días en el refrigerador y se congela bien hasta 2 meses sin los acompañamientos; fríe las tortillas y rebana el aguacate al momento de servir.'
 
+# DB has only dish_type:[soup]. Adding cuisine, meal_type, dish_type:+main_dish,
+# occasion, practical. Deliberately NOT adding diet:vegetarian (chicharrón = pork)
+# nor practical:one_pot (uses Thermomix + separate frying pan).
+tags:
+  cuisine: [ mexican ]
+  meal_type: [ lunch, dinner ]
+  dish_type: [ soup, main_dish ]
+  occasion: [ comfort_food, sunday_family, weeknight ]
+  practical: [ leftover_friendly, batch_cook, make_ahead ]
+
+# DB tools: Thermomix®, Frying pan, Slotted spoon, Thermomix® spatula.
+# Adding Kitchen scale (220 g/30 g oil split, 750 g tomato, 600 g water — precise weights)
+# and Paper towels (step 1 drains tortilla strips on absorbent paper).
 kitchen_tools:
   set:
-    - name_en: 'Thermomix'
+    - name_en: 'Thermomix®'
+    - name_en: 'Thermomix® spatula'
+    - name_en: 'Frying pan'
+    - name_en: 'Slotted spoon'
+    - name_en: 'Kitchen scale'
+    - name_en: 'Paper towels'
+
+step_text_overrides:
+  # Step 1: ES usted voice (Coloque/fría/reserve) → tú (Coloca/fríe/reserva).
+  # No structured Thermomix fields (manual stovetop fry); leave the literal weight.
+  - match: { order: 1 }
+    translations:
+      en:
+        instruction: 'Heat 220 g of oil in a frying pan over medium heat, fry the pasilla chilies until lightly golden, then fry the tortilla strips. Drain on paper towels and set aside.'
+      es:
+        instruction: 'Calienta 220 g de aceite en un sartén a fuego medio, fríe los chiles pasilla hasta que estén ligeramente dorados y luego las tiras de tortilla. Escurre sobre papel absorbente y reserva.'
+  # Step 2: structured fields represent the sauté only (10 min / 120°C / speed 1);
+  # the chop (5 sec / speed 5) stays hard-coded in the text since the structured
+  # record can't carry both ops. Replace only the sauté params with %thermomix%.
+  # ES usted (Coloque/pique/sofría) → tú (Coloca/pica/sofríe).
+  - match: { order: 2 }
+    translations:
+      en:
+        instruction: 'Place the garlic, onion, tomato, 30 g of oil, and salt in the mixing bowl, chop for 5 seconds at speed 5, then sauté %thermomix%.'
+      es:
+        instruction: 'Coloca en el vaso los dientes de ajo, la cebolla, el jitomate, 30 g de aceite y la sal, pica 5 seg. / vel. 5 y sofríe %thermomix%.'
+  # Step 3: structured fields don't support a speed ramp (no speed_start/end on
+  # step_overrides), so the "speed 5-10" stays hard-coded in text. Just fix ES
+  # usted (Añada/licue) → tú (Añade/licúa).
+  - match: { order: 3 }
+    translations:
+      en:
+        instruction: 'Add the water and blend for 1 minute, gradually increasing the speed from 5 to 10.'
+      es:
+        instruction: 'Añade el agua y licúa 1 min., aumentando progresivamente la velocidad de 5 a 10.'
+  # Step 4: %thermomix% swap. ES usted (Añada/cocine/Sirva) → tú (Añade/cocina/Sirve).
+  # Cilantro/coriander naming: EN canonical = "cilantro" (Mexico-first, matches
+  # ingredient name).
+  - match: { order: 4 }
+    translations:
+      en:
+        instruction: 'Add the green chili and cilantro and cook %thermomix%. Serve the soup with the fried tortilla strips, pasilla chili, panela cheese, sour cream, pork crackling, and avocado.'
+      es:
+        instruction: 'Añade el chile verde y el cilantro y cocina %thermomix%. Sirve la sopa con las tiras de tortilla fritas, el chile pasilla, el queso panela, la crema, el chicharrón y el aguacate.'
 
 requires_authoring:
-  reasons: []
-  notes: ''
+  reasons: [ step_ingredient_link_missing, step_ingredient_quantity_drift ]
+  notes: |
+    The YAML applier cannot mutate recipe_step_ingredients. Admin needs to fix the
+    following step-link rows in SQL after the YAML applies:
+
+    Missing links (step 1 — fries pasilla chilies and tortilla strips, but only Oil
+    is currently linked):
+    - Step 1: link Pasilla chili (5 g) and Corn tortilla (8 unit) to step 1.
+
+    Quantity / unit drifts between recipe_step_ingredients and recipe_ingredients:
+    - Step 2 Fine salt: step row = 2 tsp, recipe row = 2 g. Update step row unit to g.
+    - Step 4 Cilantro:  step row = 1 sprig, recipe row = 10 g. Update step row to 10 g.
+    - Step 4 Pasilla chili: linked again with 1 unit; recipe row is 5 g. Either drop
+      the step-4 link (pasilla is consumed in step 1; step 4 only references it as
+      a topping in the serve text) or update to 5 g.
+    - Step 4 Corn tortilla: same pattern — already fried in step 1; the step-4 link
+      to 8 unit duplicates step 1. Drop the step-4 link.
+
+    Missing serve-line link:
+    - Step 4 Sour cream: step text serves with sour cream but no step_ingredient
+      row. If serve-line ingredients should be linked here, add Sour cream (80 g);
+      otherwise the panela / avocado / chicharrón links should also be reconsidered
+      for consistency (they are currently linked to step 4 even though step 4 only
+      references them in the serve sentence).
+
+    Recommended cleanup posture: keep step-4 step_ingredients to the items actually
+    cooked in step 4 (Green chili, Cilantro), and drop the topping links (Pasilla
+    chili, Corn tortilla, Panela cheese, Pork crackling, Avocado). The toppings
+    are recipe-level ingredients, not step-cooked ingredients.

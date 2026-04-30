@@ -1,0 +1,90 @@
+recipe_match:
+  id: '8ef6695c-852b-4471-98e8-71ad417e7185'
+  name_en: 'Mexican Rice'
+  expected_recipe_updated_at: '2026-04-29T16:29:30.717674+00:00'
+
+review:
+  reviewed_by_label: 'claude-opus-4-7'
+  reviewed_at: '2026-04-29T15:00:00Z'
+
+planner:
+  role: side
+  meal_components: [ carb ]
+  is_complete_meal: false
+  leftovers_friendly: true
+
+description:
+  en: 'Classic Mexican red rice (arroz rojo) cooked entirely in the Thermomix® — long-grain rice simmers in a tomato, onion, and garlic broth while frozen carrots and peas steam in the simmering basket above. A sprig of cilantro perfumes the pot. A weeknight side that pairs with everything from grilled chicken to picadillo to tacos.'
+  es: 'Arroz rojo mexicano hecho por completo en la Thermomix® — el arroz se cocina en un caldillo de jitomate, cebolla y ajo mientras la zanahoria y los chícharos congelados se cuecen al vapor en el cestillo. Una rama de cilantro perfuma el vaso. Una guarnición de diario que combina con todo, desde pollo asado hasta picadillo o tacos.'
+
+tips_and_tricks:
+  en: 'Rinse the rice well in step 1 — clearer water = fluffier grains. Use ripe, deeply red tomatoes for the broth; pale tomatoes give pale rice. Pull the cilantro sprig out before serving, or chop and stir it back in for a fresher flavor. Taste before serving and adjust salt — bouillon brands vary in saltiness. Reheat with a splash of water in a covered pan over low heat to keep the grains tender.'
+  es: 'Enjuaga bien el arroz en el primer paso — entre más clara salga el agua, más esponjado queda. Usa jitomates rojos y maduros para el caldillo; los jitomates pálidos dan un arroz pálido. Saca la rama de cilantro antes de servir, o pícala y revuélvela para un sabor más fresco. Prueba antes de servir y ajusta la sal — los cubos de consomé varían en sazón. Recalienta con un chorrito de agua en una sartén tapada a fuego bajo para que los granos no se sequen.'
+
+scaling_notes:
+  en: 'Yields 6 servings. Halves cleanly. Doubling exceeds the Thermomix® bowl''s capacity for the simmer step — for more, run two batches. Keeps 4-5 days in the fridge; freeze leftovers for up to 2 months.'
+  es: 'Rinde 6 porciones. Se reduce a la mitad sin problema. Duplicar excede la capacidad del vaso de la Thermomix® en el paso de cocción — para más, prepáralo en dos tandas. Se conserva 4-5 días en el refrigerador; congela las sobras hasta por 2 meses.'
+
+# DB has only diet:[vegetarian], cuisine:[mexican], dish_type:[side_dish].
+# Dropping vegetarian — recipe contains chicken bouillon, contradicts the
+# user-facing promise of the diet:vegetarian filter.
+tags:
+  cuisine: [ mexican ]
+  meal_type: [ lunch, dinner ]
+  diet: []
+  dish_type: [ side_dish, rice_dish ]
+  primary_ingredient: [ rice ]
+  practical: [ thermomix_basics, beginner_friendly, batch_cook, make_ahead, leftover_friendly ]
+
+# DB tools list is empty. Adding the Thermomix® itself, the simmering basket
+# (cestillo, used in steps 1 and 4), the spatula (used in steps 3 and 5),
+# and a kitchen scale (rice 250 g and water 1000 g need precise weights).
+kitchen_tools:
+  set:
+    - name_en: 'Thermomix®'
+    - name_en: 'Thermomix® simmering basket'
+    - name_en: 'Thermomix® spatula'
+    - name_en: 'Kitchen scale'
+
+# Cilantro (display_order 8) is in the recipe with quantity=1 but
+# measurement_unit=null. The step ingredient row for step 4 already uses
+# 'sprig'. Setting the recipe-row unit to match.
+ingredient_updates:
+  - match:
+      ingredient_slug: cilantro
+      display_order: 8
+    unit: sprig
+
+step_text_overrides:
+  # Step 1 es typo: "enjuagua" → "enjuaga" (es-ES is already correct).
+  - match: { order: 1 }
+    translations:
+      es:
+        instruction: 'Pesa el arroz en el cestillo, enjuaga bien y reserva.'
+  # Step 2 en wrongly says "tomato stock" — the ingredient is "Chicken bouillon"
+  # (consomé de pollo) and the es text says "los cubos de caldo".
+  - match: { order: 2 }
+    translations:
+      en:
+        instruction: 'Place the onion, tomato, garlic clove, chicken bouillon cubes, and oil in the mixing bowl, and blend %thermomix%.'
+  # Step 4 es has hard-coded "cocina|**28 min. / 100 °C / vel. 4**" instead of
+  # the %thermomix% placeholder. Replacing so the cooking guide renders the
+  # parameters from the structured fields (1680 s / 100 °C / speed 4) instead
+  # of duplicating them in the text.
+  - match: { order: 4 }
+    translations:
+      es:
+        instruction: 'Añade el agua, coloca el cestillo dentro del vaso, añade al cestillo la mezcla de verduras congeladas y la rama de cilantro, cocina %thermomix%.'
+
+applied:
+  - applied_at: 2026-04-29T16:29:30.935Z
+    applied_by: ian@local
+    pre_recipe_updated_at: 2026-04-28T22:25:02.59788+00:00
+    post_recipe_updated_at: 2026-04-29T16:29:30.717674+00:00
+    sections_changed:
+      - translations
+      - ingredients
+      - kitchen_tools
+      - step_text
+      - tags
+    environment: local
