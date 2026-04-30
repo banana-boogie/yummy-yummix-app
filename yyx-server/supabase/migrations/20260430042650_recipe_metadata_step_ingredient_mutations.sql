@@ -778,9 +778,11 @@ BEGIN
   --
   -- Match: (step_id | order) + ingredient_slug. Resolve step_id from
   -- recipe_steps; resolve ingredient_id from ingredients via slugified
-  -- name_en (same helper used by ingredient_updates). The (step,
-  -- ingredient) pair is the unique identity for a link row — schema
-  -- enforces uniqueness via (recipe_step_id, ingredient_id).
+  -- name_en (same helper used by ingredient_updates). DB uniqueness is on
+  -- (recipe_step_id, display_order); (step, ingredient_slug) is normally
+  -- a unique target but can be ambiguous when a step legitimately holds
+  -- multiple links to the same ingredient at different display_orders.
+  -- The duplicate-match guard below counts first and raises in that case.
   --
   -- Each YAML field is optional; passing `null` explicitly clears the
   -- column. IS DISTINCT FROM gating means an unchanged YAML produces
@@ -882,9 +884,12 @@ BEGIN
   -- mode this section exists to prevent. Hard-fail with a message
   -- pointing the reviewer at ingredient_adds.
   --
-  -- Idempotent: an existing link for the same (step, ingredient) pair
-  -- silently no-ops (the schema enforces uniqueness by recipe_step_id +
-  -- ingredient_id).
+  -- Idempotent: when an existing link already covers the same (step,
+  -- ingredient) pair, the IF EXISTS guard skips the insert. DB uniqueness
+  -- is on (recipe_step_id, display_order), not (recipe_step_id,
+  -- ingredient_id) — duplicate same-ingredient links at different
+  -- display_orders are legal data and the IF EXISTS guard treats them as
+  -- "already covered" without trying to add another.
   -- ------------------------------------------------------------
   IF payload ? 'step_ingredient_adds' THEN
     FOR v_section IN SELECT * FROM jsonb_array_elements(payload->'step_ingredient_adds') LOOP

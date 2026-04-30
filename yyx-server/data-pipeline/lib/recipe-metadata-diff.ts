@@ -440,15 +440,24 @@ export function computeRecipeMetadataDiff(
 
   if (desired.step_ingredient_adds) {
     const changes: DiffEntry[] = [];
-    // Same-YAML bootstrap: a `step_ingredient_adds` entry can reference a
-    // recipe-level row that this YAML also creates via `ingredient_adds`. The
-    // RPC processes `ingredient_adds` before `step_ingredient_adds`, so the
-    // recipe-level row is present by apply time. Mirror that ordering at
-    // dry-run by counting `desired.ingredient_adds` slugs as satisfying the
-    // existence check.
-    const desiredAddedSlugs = new Set(
-      (desired.ingredient_adds ?? []).map((ia) => ia.ingredient_slug),
-    );
+    // Same-YAML effective-set bootstrap: the RPC applies sections in this
+    // order — ingredient_adds → ingredient_removes → step_ingredient_adds —
+    // so the dry-run's recipe-level existence check must mirror that
+    // sequence. Build an effective set: current ∪ desired.ingredient_adds −
+    // desired.ingredient_removes (matched by slug). A YAML that removes the
+    // only recipe-level row for a slug AND adds a step-level link to that
+    // same slug would dry-run-clean against `current.ingredients` alone but
+    // RAISE at apply time on the orphan-link guard — this catches it.
+    const effectiveSlugs = new Set<string>(current.ingredients.map((i) => i.slug));
+    for (const ia of desired.ingredient_adds ?? []) {
+      effectiveSlugs.add(ia.ingredient_slug);
+    }
+    for (const ir of desired.ingredient_removes ?? []) {
+      // Removes match by `existing_id` OR `ingredient_slug + display_order`.
+      // Either form: drop the matched row's slug from the effective set.
+      const matched = matchIngredient(ir.match, current.ingredients);
+      if (matched) effectiveSlugs.delete(matched.slug);
+    }
     for (const add of desired.step_ingredient_adds) {
       const step = findStep(current.steps, add.match);
       if (!step) {
@@ -462,11 +471,10 @@ export function computeRecipeMetadataDiff(
       // Idempotent: if a link already exists for this (step, ingredient_slug),
       // skip emitting the add. The RPC's IF EXISTS guard will likewise no-op.
       if (step.step_ingredients.some((si) => si.slug === add.ingredient_slug)) continue;
-      // Orphan-link prevention: warn early if no recipe-level row exists for
-      // this ingredient — *unless* the same YAML adds it via ingredient_adds.
-      const recipeLevelExists = current.ingredients.some(
-        (i) => i.slug === add.ingredient_slug,
-      ) || desiredAddedSlugs.has(add.ingredient_slug);
+      // Orphan-link prevention: warn when no recipe-level row will exist by
+      // the time step_ingredient_adds runs (effectiveSlugs reflects the post-
+      // ingredient_adds + post-ingredient_removes state).
+      const recipeLevelExists = effectiveSlugs.has(add.ingredient_slug);
       changes.push({
         path: `step_ingredient_adds[order=${step.order},${add.ingredient_slug}]`,
         before: null,

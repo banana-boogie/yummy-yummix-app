@@ -831,6 +831,35 @@ Deno.test('step_ingredient_adds: same-YAML ingredient_adds satisfies recipe-leve
   assert(typeof sec.changes[0].after === 'object', `expected structured after, got: ${sec.changes[0].after}`);
 });
 
+Deno.test('step_ingredient_adds: warns when ingredient_removes drops the only recipe-level row in the same YAML', () => {
+  // RPC order: ingredient_removes runs before step_ingredient_adds, so a
+  // YAML that removes the only recipe-level row for a slug AND adds a step-
+  // level link to that same slug would orphan at apply time. Dry-run must
+  // catch this — passing through `current` alone would falsely look clean.
+  const current = withSteps(
+    [makeStepWithLink(2, { slug: 'water' })],
+    [{ slug: 'cilantro', display_order: 4 }],
+  );
+  const desired = makeDesiredWithStepIng({
+    ingredient_removes: [
+      { match: { ingredient_slug: 'cilantro', display_order: 4 } },
+    ],
+    step_ingredient_adds: [
+      {
+        match: { order: 2 },
+        ingredient_slug: 'cilantro',
+        quantity: 10,
+        unit: 'g',
+        display_order: 1,
+      },
+    ],
+  });
+  const sec = siSection(computeRecipeMetadataDiff(desired, current), 'step_ingredient_adds');
+  assert(sec);
+  assertEquals(sec.changes.length, 1);
+  assert(String(sec.changes[0].after).includes('NO recipe-level ingredient'));
+});
+
 Deno.test('step_ingredient_adds: warns on orphan (no recipe-level + no ingredient_adds)', () => {
   const current = withSteps([makeStepWithLink(2, { slug: 'water' })]);
   const desired = makeDesiredWithStepIng({
