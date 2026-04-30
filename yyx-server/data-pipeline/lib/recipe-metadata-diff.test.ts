@@ -289,6 +289,7 @@ function makeStep(opts: {
       recipe_section: t.recipe_section ?? null,
       tip: t.tip ?? null,
     })),
+    step_ingredients: [],
   };
 }
 

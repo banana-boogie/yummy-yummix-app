@@ -367,6 +367,112 @@ export function computeRecipeMetadataDiff(
     sections.push({ section: 'step_overrides', changes });
   }
 
+  // -- step_ingredient_updates (per (step, ingredient) pair) --
+  if (desired.step_ingredient_updates) {
+    const changes: DiffEntry[] = [];
+    for (const upd of desired.step_ingredient_updates) {
+      const step = findStep(current.steps, {
+        step_id: upd.match.step_id,
+        order: upd.match.order,
+      });
+      if (!step) {
+        changes.push({
+          path: `step_ingredient_updates`,
+          before: upd.match,
+          after: '⚠ NO STEP MATCH IN DB — apply will raise',
+        });
+        continue;
+      }
+      const link = step.step_ingredients.find((si) => si.slug === upd.match.ingredient_slug);
+      if (!link) {
+        changes.push({
+          path: `step_ingredient_updates`,
+          before: upd.match,
+          after: '⚠ NO STEP-INGREDIENT LINK IN DB — apply will raise',
+        });
+        continue;
+      }
+      const before: Record<string, unknown> = {};
+      const after: Record<string, unknown> = {};
+      if (upd.unit !== undefined) {
+        const desiredUnit = upd.unit ?? null;
+        const currentUnit = link.measurement_unit_id ?? null;
+        if (desiredUnit !== currentUnit) {
+          before.unit = currentUnit;
+          after.unit = desiredUnit;
+        }
+      }
+      if (upd.quantity !== undefined) {
+        const desiredQty = upd.quantity === null ? null : Number(upd.quantity);
+        const currentQty = link.quantity === null ? null : Number(link.quantity);
+        if (desiredQty !== currentQty) {
+          before.quantity = currentQty;
+          after.quantity = desiredQty;
+        }
+      }
+      if (Object.keys(after).length > 0) {
+        changes.push({
+          path:
+            `step_ingredient_updates[order=${step.order},${upd.match.ingredient_slug}]`,
+          before,
+          after,
+        });
+      }
+    }
+    sections.push({ section: 'step_ingredient_updates', changes });
+  }
+
+  if (desired.step_ingredient_adds) {
+    const changes: DiffEntry[] = [];
+    for (const add of desired.step_ingredient_adds) {
+      const step = findStep(current.steps, add.match);
+      if (!step) {
+        changes.push({
+          path: `step_ingredient_adds`,
+          before: add.match,
+          after: '⚠ NO STEP MATCH IN DB — apply will raise',
+        });
+        continue;
+      }
+      // Idempotent: if a link already exists for this (step, ingredient_slug),
+      // skip emitting the add. The RPC's IF EXISTS guard will likewise no-op.
+      if (step.step_ingredients.some((si) => si.slug === add.ingredient_slug)) continue;
+      // Orphan-link prevention: warn early if no recipe-level row exists for
+      // this ingredient. The RPC will hard-fail at apply, but the dry-run is
+      // the right place to catch it before the user runs --apply.
+      const recipeLevelExists = current.ingredients.some(
+        (i) => i.slug === add.ingredient_slug,
+      );
+      changes.push({
+        path: `step_ingredient_adds[order=${step.order},${add.ingredient_slug}]`,
+        before: null,
+        after: recipeLevelExists
+          ? { quantity: add.quantity, unit: add.unit ?? null, display_order: add.display_order }
+          : '⚠ NO recipe-level ingredient — apply will raise (add it via ingredient_adds first)',
+      });
+    }
+    sections.push({ section: 'step_ingredient_adds', changes });
+  }
+
+  if (desired.step_ingredient_removes) {
+    const changes: DiffEntry[] = [];
+    for (const rem of desired.step_ingredient_removes) {
+      const step = findStep(current.steps, {
+        step_id: rem.match.step_id,
+        order: rem.match.order,
+      });
+      if (!step) continue; // idempotent — step gone or never existed
+      const link = step.step_ingredients.find((si) => si.slug === rem.match.ingredient_slug);
+      if (!link) continue; // idempotent — link already absent
+      changes.push({
+        path: `step_ingredient_removes[order=${step.order},${rem.match.ingredient_slug}]`,
+        before: { quantity: link.quantity, unit: link.measurement_unit_id },
+        after: null,
+      });
+    }
+    sections.push({ section: 'step_ingredient_removes', changes });
+  }
+
   // -- step_text_overrides (per-row, per-locale, per-field) --
   if (desired.step_text_overrides) {
     const changes: DiffEntry[] = [];

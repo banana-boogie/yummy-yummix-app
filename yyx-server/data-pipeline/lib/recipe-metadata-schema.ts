@@ -485,6 +485,42 @@ const stepTextOverrideSchema = z
   })
   .strict();
 
+// Match key for step-ingredient mutations (the recipe_step_ingredients link
+// table). Match by step (step_id or order) + ingredient_slug — the (step,
+// ingredient) pair is the unique identity for a link row. recipe_ingredient_id
+// is auto-derived at apply time from the recipe-level row, not user-supplied.
+const stepIngredientMatchSchema = z
+  .object({
+    step_id: uuidSchema.optional(),
+    order: z.number().int().positive().optional(),
+    ingredient_slug: slugSchema,
+  })
+  .strict()
+  .refine(
+    (v) => v.step_id !== undefined || v.order !== undefined,
+    'step_ingredient match requires step_id or order',
+  );
+
+const stepIngredientUpdateSchema = z.object({
+  match: stepIngredientMatchSchema,
+  unit: z.string().min(1).nullable().optional(),
+  quantity: z.number().nonnegative().nullable().optional(),
+}).strict();
+
+// Adds use the step-only match — the ingredient being added is identified by
+// `ingredient_slug` at the entry's top level (same shape as ingredientAddSchema).
+const stepIngredientAddSchema = z.object({
+  match: stepMatchSchema,
+  ingredient_slug: slugSchema,
+  quantity: z.number().nonnegative(),
+  unit: z.string().min(1).nullable().optional(),
+  display_order: z.number().int().nonnegative(),
+}).strict();
+
+const stepIngredientRemoveSchema = z.object({
+  match: stepIngredientMatchSchema,
+}).strict();
+
 const cleanupSchema = z.object({
   delete_locales: z.array(localeSchema),
 }).strict();
@@ -529,6 +565,9 @@ export const recipeMetadataSchema = z.object({
   pairings: pairingsSchema.optional(),
   step_overrides: z.array(stepOverrideSchema).optional(),
   step_text_overrides: z.array(stepTextOverrideSchema).optional(),
+  step_ingredient_updates: z.array(stepIngredientUpdateSchema).optional(),
+  step_ingredient_adds: z.array(stepIngredientAddSchema).optional(),
+  step_ingredient_removes: z.array(stepIngredientRemoveSchema).optional(),
   cleanup: cleanupSchema.optional(),
   requires_authoring: requiresAuthoringSchema.optional(),
   applied: z.array(appliedEntrySchema).optional(),

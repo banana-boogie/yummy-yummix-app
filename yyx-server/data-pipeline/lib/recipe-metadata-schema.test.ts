@@ -551,3 +551,132 @@ tags:
   assertEquals(data.tags?.dish_type, ['stew', 'taco']);
   assertEquals(data.tags?.primary_ingredient, ['beef']);
 });
+
+Deno.test('accepts step_ingredient_updates with order + ingredient_slug match', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_ingredient_updates:
+  - match:
+      order: 3
+      ingredient_slug: 'cornstarch'
+    quantity: 30
+    unit: 'g'
+`;
+  const { data } = parseRecipeMetadataYaml(yaml);
+  const upd = data.step_ingredient_updates?.[0];
+  assertEquals(upd?.match.order, 3);
+  assertEquals(upd?.match.ingredient_slug, 'cornstarch');
+  assertEquals(upd?.quantity, 30);
+  assertEquals(upd?.unit, 'g');
+});
+
+Deno.test('accepts step_ingredient_adds with step-only match + ingredient_slug at top level', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_ingredient_adds:
+  - match:
+      order: 5
+    ingredient_slug: 'cilantro'
+    quantity: 10
+    unit: 'g'
+    display_order: 4
+`;
+  const { data } = parseRecipeMetadataYaml(yaml);
+  const add = data.step_ingredient_adds?.[0];
+  assertEquals(add?.match.order, 5);
+  assertEquals(add?.ingredient_slug, 'cilantro');
+  assertEquals(add?.quantity, 10);
+  assertEquals(add?.display_order, 4);
+});
+
+Deno.test('accepts step_ingredient_removes with order + ingredient_slug', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_ingredient_removes:
+  - match:
+      order: 2
+      ingredient_slug: 'tomato_stock'
+`;
+  const { data } = parseRecipeMetadataYaml(yaml);
+  const rem = data.step_ingredient_removes?.[0];
+  assertEquals(rem?.match.order, 2);
+  assertEquals(rem?.match.ingredient_slug, 'tomato_stock');
+});
+
+Deno.test('rejects step_ingredient match missing both step_id and order', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_ingredient_updates:
+  - match:
+      ingredient_slug: 'cornstarch'
+    quantity: 30
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  const issue = err.issues.find((i) => i.path.startsWith('step_ingredient_updates.0.match'));
+  assert(issue, 'expected a match issue');
+});
+
+Deno.test('rejects step_ingredient_updates entry missing ingredient_slug', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_ingredient_updates:
+  - match:
+      order: 3
+    quantity: 30
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  const issue = err.issues.find((i) => i.path.startsWith('step_ingredient_updates.0.match'));
+  assert(issue, 'expected an ingredient_slug issue on the match');
+});
+
+Deno.test('accepts step_ingredient_updates with quantity null (clears)', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_ingredient_updates:
+  - match:
+      order: 3
+      ingredient_slug: 'cornstarch'
+    quantity: null
+    unit: null
+`;
+  const { data } = parseRecipeMetadataYaml(yaml);
+  const upd = data.step_ingredient_updates?.[0];
+  assertEquals(upd?.quantity, null);
+  assertEquals(upd?.unit, null);
+});

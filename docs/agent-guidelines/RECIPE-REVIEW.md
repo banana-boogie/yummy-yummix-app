@@ -71,7 +71,27 @@ Snapshots are written to `yyx-server/data-pipeline/data/recipe-review-snapshots/
   - A `recipe_step_ingredients.ingredient_id` whose ingredient is not present in `recipe_ingredients` for the same recipe is an orphan link. Flag it; the step is claiming to use an ingredient the recipe does not list.
   - A `recipe_step_ingredients` row that names an ingredient not mentioned, added, handled, or clearly implied by the step text is suspect. Phrases like "all remaining ingredients" or "the reserved sauce" can justify the link; otherwise flag it.
   - For step **instruction / recipe_section / tip text** that is wrong but fixable (typos, voice fixes — usted→tú, gendered noun agreement, mistranslations that have a clean rewrite), use `step_text_overrides` (per-locale upsert into `recipe_step_translations`). `step_overrides` is for structured Thermomix fields only — it does not edit text.
-  - The YAML applier does **not** mutate `recipe_step_ingredients` (the relationship table). If the relationship row itself is wrong (orphan link, missing link, wrong ingredient referenced), record it in `requires_authoring.notes` for admin cleanup. Reserve `requires_authoring.notes` for these structural cases — text-fixable issues belong in `step_text_overrides`.
+  - **Link-table mutations are now YAML-driven.** The applier supports `step_ingredient_adds` (insert a missing link), `step_ingredient_removes` (drop an orphan or wrong link), and `step_ingredient_updates` (edit quantity/unit on a link — see auto-check #21 for the drift case). Match key is `(step_id | order) + ingredient_slug`. Use these sections for the link-table fixes auto-check #12 surfaces. Worked example for the missing-link case ("Add zucchini and water" but no link rows for the step):
+    ```yaml
+    step_ingredient_adds:
+      - match: { order: 2 }
+        ingredient_slug: zucchini
+        quantity: 400
+        unit: g
+        display_order: 1
+      - match: { order: 2 }
+        ingredient_slug: water
+        quantity: 200
+        unit: g
+        display_order: 2
+    ```
+    For an orphan link (step references an ingredient that should be removed):
+    ```yaml
+    step_ingredient_removes:
+      - match: { order: 4, ingredient_slug: cilantro }
+    ```
+  - **Orphan-link prevention.** `step_ingredient_adds` requires the recipe-level `recipe_ingredients` row to exist; the RPC hard-fails otherwise with a message pointing at `ingredient_adds`. If the recipe genuinely doesn't have the ingredient at the recipe level, add it via `ingredient_adds` first in the same YAML — both sections apply transactionally so the new recipe-level row exists by the time the link insert runs.
+  - **`requires_authoring.notes` only for genuinely-unfixable cases.** When the right fix needs human judgment (the step text contradicts itself, the ingredient identity is ambiguous, the linking would require fabricating an ingredient that isn't in the catalog), route to `requires_authoring.notes`. Mechanical link adds/removes/updates belong in YAML.
 13. **Non-complete-meal mains without pairings.** `planner_role = 'main'`, `is_complete_meal = false`, and no outgoing rows in `recipe_pairings`.
 14. **Implausible quantities.** Sugar < 5 g in a sweet sauce, salt > 10 g per kg of meat, raisins > 80 g in a savory dish, etc. Use cuisine context.
 15. **Non-pantry recipes without `meal_type` tag.** Admin form enforces `requiresMealType = recipe.plannerRole !== 'pantry'` (see `MealPlanningForm.tsx`). A non-pantry recipe with no `meal_type` tag is unplannable.
@@ -83,24 +103,61 @@ Snapshots are written to `yyx-server/data-pipeline/data/recipe-review-snapshots/
     - **Usted-imperative cooking actions** (replace with the tú form): `Coloque` → `Coloca`, `Añada` → `Añade`, `Agregue` → `Agrega`, `Licúe` → `Licúa`, `Pique` → `Pica`, `Baje` → `Baja`, `Cocine` → `Cocina`, `Transfiera` → `Transfiere`, `Sirva` → `Sirve`, `Enjuague` → `Enjuaga`, `Mezcle` → `Mezcla`, `Retire` → `Retira`, `Vierta` → `Vierte`, `Mueva` → `Mueve`, `Pruebe` → `Prueba`, `Sazone` → `Sazona`, `Caliente` → `Calienta`, `Hierva` → `Hierve`, `Saltee` → `Saltea`, `Fría` → `Fríe`, `Hornee` → `Hornea`, `Ase` → `Asa`, `Cueza` → `Cuece`, `Reduzca` → `Reduce`, `Tape` → `Tapa`, `Destape` → `Destapa`, `Voltee` → `Voltea`, `Corte` → `Corta`, `Trocee` → `Trocea`, `Pele` → `Pela`, `Lave` → `Lava`, `Escurra` → `Escurre`, `Cuele` → `Cuela`, `Bata` → `Bate`, `Revuelva` → `Revuelve`, `Incorpore` → `Incorpora`, `Espolvoree` → `Espolvorea`, `Decore` → `Decora`, `Acompañe` → `Acompaña`, `Reserve` → `Reserva`, `Deje` → `Deja`, `Use` → `Usa`, `Tome` → `Toma`, `Coja` → `Coge`/`Toma`, `Ponga` → `Pon`, `Quite` → `Quita`, `Cubra` → `Cubre`, `Llene` → `Llena`, `Vacíe` → `Vacía`, `Apague` → `Apaga`, `Encienda` → `Enciende`.
     - **Reflexives / negations:** `Asegúrese` → `Asegúrate`, `Permita` → `Permite`, `Proceda` → `Procede`, `Continúe` → `Continúa`, `Espere` → `Espera`, `No coloque` → `No coloques`, `No añada` → `No añadas`, `No deje` → `No dejes`, etc.
     - **Spanglish nouns** (English kitchen vocabulary slipped into ES instructions — replace with the canonical Spanish equivalent): `bowl` → `vaso` (for the Thermomix mixing vessel) or `tazón` / `recipiente` (for a generic mixing bowl), `mixer` → `batidora`, `blender` → `licuadora`, `cup` → `taza`, `spoon` → `cuchara`, `knife` → `cuchillo`, `plate` → `plato`, `pot` → `olla`, `pan` → `sartén` / `cacerola`, `whisk` → `batidor`, `microwave` → `microondas`, `oven` → `horno`, `stove` → `estufa`, `fridge` → `refrigerador`, `freezer` → `congelador`, `rack` → `rejilla`, `tray` → `bandeja` / `charola`, `liner` → `forro`, `lid` → `tapa`, `timer` → `temporizador`. Worked example: `el bowl de tu Thermomix®` → `el vaso de tu Thermomix®` (the Thermomix's mixing vessel is canonically `vaso`). Brand glyphs (`Thermomix®`, `Thermomix® Varoma`) are *not* Spanglish — they stay as-is.
-21. **Step-ingredient quantity / unit drift.** When `recipe_step_ingredients.recipe_ingredient_id` is non-null, the row carries its own `quantity` and `measurement_unit_id` — those should match the recipe-level `recipe_ingredients` row for the same ingredient (within rounding for unit conversions). Mismatch is almost always import drift (e.g. recipe-level cornstarch 30 g, step-level says 20 g). Walk every step ingredient against its recipe-level counterpart; flag any mismatch in `requires_authoring.notes` — the YAML applier cannot mutate `recipe_step_ingredients` (link table, same constraint as auto-check #12), so this routes to admin cleanup. The data is in the snapshot under `recipe.steps[].step_ingredients[]` joined to `recipe.ingredients[]`; no extra query needed.
+21. **Step-ingredient quantity / unit drift.** When `recipe_step_ingredients.recipe_ingredient_id` is non-null, the row carries its own `quantity` and `measurement_unit_id` — those should match the recipe-level `recipe_ingredients` row for the same ingredient (within rounding for unit conversions). Mismatch is almost always import drift (e.g. recipe-level cornstarch 30 g, step-level says 20 g). Walk every step ingredient against its recipe-level counterpart; for every drift, emit a `step_ingredient_updates` entry with the recipe-level value as the target. The data is in the snapshot under `recipe.steps[].step_ingredients[]` joined to `recipe.ingredients[]`; no extra query needed.
 
-    **Include the SQL UPDATE template per drift in `requires_authoring.notes`.** The admin panel for ingredient editing is unreliable; admins are running these fixes via SQL Editor. Write one statement per drift, scoped by `recipe_id` + step `"order"` + ingredient `name` (locale `'en'`) so the admin can copy-paste each line without ambiguity:
+    Worked example — recipe-level cornstarch is 30 g; step 3 link row says 20 g:
 
-    ```sql
-    -- Step <N> (<Ingredient Name>): step quantity = <step_qty> <unit>, recipe quantity = <recipe_qty> <unit>
-    UPDATE public.recipe_step_ingredients rsi
-       SET quantity = <recipe_qty>
-      FROM public.recipe_steps rs, public.ingredient_translations it
-     WHERE rsi.recipe_step_id = rs.id
-       AND rsi.ingredient_id = it.ingredient_id
-       AND it.locale = 'en'
-       AND rs.recipe_id = '<recipe-uuid>'
-       AND rs."order" = <N>
-       AND it.name = '<Ingredient Name>';
+    ```yaml
+    step_ingredient_updates:
+      - match: { order: 3, ingredient_slug: cornstarch }
+        quantity: 30
+        unit: g
     ```
 
-    For unit drift, also set `measurement_unit_id` in the same `SET` clause. Apply the same pattern to auto-check #12's link-table issues (orphan link → `DELETE`; missing link → `INSERT`); reviewers were leaving prose-only notes that admins still had to translate to SQL.
+    Pass `null` to clear a column explicitly (rare). Match by `(step_id | order) + ingredient_slug`; the (step, ingredient) pair is the unique link identity. The applier uses `IS DISTINCT FROM` gating so an unchanged YAML produces zero writes.
+
+    **Route to `requires_authoring.notes` only when the link itself is wrong** (orphan link to an ingredient absent from the recipe, or the step references the wrong ingredient entirely). Those structural cases need `step_ingredient_adds` / `_removes` (auto-check #12) — quantity/unit drift on an existing-and-correct link belongs in `step_ingredient_updates`.
+22. **Redundant ingredient variants — qualifier-prefix consolidation candidates.** The catalog has accumulated near-duplicate ingredients that share a canonical base but differ only in a presentation/grade qualifier (`kosher salt`, `fine salt`, `fine sea salt`, `sea salt`, `flaky salt`, `table salt`, `iodized salt` — all really just `salt`). For most home-cooking purposes the qualifier is irrelevant; storing it as a separate ingredient row fragments search, shopping-list grouping, translations, and nutrition data without buying anything in return. The bulk consolidation is tracked in `product-kitchen/repeat-what-works/plans/deferred/ingredient-variant-consolidation.md` — this auto-check is the per-recipe surfacing pass that feeds it.
+
+    **Closed-vocab variant families.** Detect when a recipe's ingredients (`ingredient_translations.name` joined to `recipe_ingredients`) match a non-canonical member of one of these families:
+
+    - `salt`: `kosher salt`, `fine salt`, `fine sea salt`, `sea salt`, `flaky salt`, `flaky sea salt`, `table salt`, `iodized salt`, `coarse salt` (and ES variants `sal kosher`, `sal fina`, `sal de mar`, `sal en hojuelas`, `sal gruesa`, `sal de mesa`, `sal yodada`).
+    - `sugar` (white): `granulated sugar`, `white sugar`, `caster sugar`, `fine sugar`, `superfine sugar` (and ES `azúcar granulada`, `azúcar blanca`, `azúcar refinada`, `azúcar fina`).
+    - `flour` (wheat): `all-purpose flour`, `plain flour`, `all purpose flour`, `AP flour` (and ES `harina común`, `harina simple`, `harina todo uso`).
+    - `black pepper`: `ground black pepper`, `cracked black pepper`, `freshly ground black pepper` (and ES `pimienta negra molida`, `pimienta negra recién molida`).
+    - `vegetable oil` (neutral): `canola oil`, `neutral oil`, `corn oil` (and ES `aceite de canola`, `aceite neutro`, `aceite de maíz`) — only collapse when the recipe genuinely doesn't care which neutral oil; flavored oils stay separate.
+
+    **Hard exceptions — never collapse these.** The qualifier carries recipe-relevant meaning; treat them as distinct ingredients:
+
+    - `unsalted butter` vs `salted butter` — the salt content changes the recipe.
+    - `tamari` vs `soy sauce` — gluten-free promise differs (tamari is the GF variant).
+    - `dark brown sugar` vs `light brown sugar` vs (white) `sugar` — molasses content shifts moisture and flavor.
+    - `bread flour` / `cake flour` / `whole wheat flour` vs `all-purpose flour` — gluten content differs.
+    - `Maldon` / `flaky sea salt` **on a finishing/garnish line** — texture is the point. Keep when the step text or `recipe_section` makes the finishing-salt role explicit; consolidate when the variant is just measured into a sauté.
+    - `extra-virgin olive oil` vs `olive oil` — flavor and smoke point differ; do not collapse into `vegetable oil`.
+
+    **Disposition: flag, do not auto-fix in the YAML.** This auto-check feeds the deferred bulk-consolidation plan; per-recipe surgery via `ingredient_removes` + `ingredient_adds` would fragment the catalog-level decision and risks orphaning `recipe_step_ingredients` links. Record each candidate in `requires_authoring.notes` with the SQL UPDATE template the admin can apply directly when the consolidation lands. Scope the swap by `recipe_id` + the variant ingredient's slug so the admin can copy-paste each line:
+
+    ```sql
+    -- Recipe ingredient (<Variant Name> → canonical <Base>): move qualifier to ingredient note
+    UPDATE public.recipe_ingredients ri
+       SET ingredient_id = (SELECT id FROM public.ingredients WHERE slug = '<canonical-slug>')
+      FROM public.ingredients src
+     WHERE ri.ingredient_id = src.id
+       AND src.slug = '<variant-slug>'
+       AND ri.recipe_id = '<recipe-uuid>';
+
+    -- Optional: preserve the qualifier as a per-locale note on the ingredient row
+    UPDATE public.recipe_ingredient_translations rit
+       SET notes = COALESCE(NULLIF(rit.notes, ''), '<qualifier note>')
+      FROM public.recipe_ingredients ri
+     WHERE rit.recipe_ingredient_id = ri.id
+       AND ri.recipe_id = '<recipe-uuid>'
+       AND ri.ingredient_id = (SELECT id FROM public.ingredients WHERE slug = '<canonical-slug>')
+       AND rit.locale IN ('en', 'es');
+    ```
+
+    Use `<qualifier note>` only when the qualifier carries information worth preserving for the cook (e.g. "kosher" on a brine where coarse texture is conventional); for routine swaps (table/fine/sea salt → salt) drop the note entirely. Do not include the SQL when the canonical row does not yet exist in `public.ingredients` — flag the family in plain prose so the deferred-plan owner can decide whether to seed the canonical row first.
 
 ### Judgment-call checks (require Claude's reasoning)
 

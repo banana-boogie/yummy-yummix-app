@@ -101,6 +101,13 @@ export interface StepSnapshot {
    * the apply will overwrite.
    */
   translations: StepTextSnapshot[];
+  /**
+   * Link-table rows from `recipe_step_ingredients` for this step. Required for
+   * the `step_ingredient_updates` / `_adds` / `_removes` diff so the dry-run
+   * can show quantity/unit deltas and predict idempotent (already-present /
+   * already-absent) operations.
+   */
+  step_ingredients: StepIngredientLinkSnapshot[];
 }
 
 export interface StepTextSnapshot {
@@ -108,6 +115,18 @@ export interface StepTextSnapshot {
   instruction: string | null;
   recipe_section: string | null;
   tip: string | null;
+}
+
+export interface StepIngredientLinkSnapshot {
+  id: string;
+  ingredient_id: string;
+  /** Stable slug derived from name_en — what the YAML's `ingredient_slug` matches against. */
+  slug: string;
+  display_order: number;
+  quantity: number | null;
+  measurement_unit_id: string | null;
+  /** Recipe-level row this link points back to (nullable for orphan links). */
+  recipe_ingredient_id: string | null;
 }
 
 export interface KitchenToolSnapshot {
@@ -347,13 +366,27 @@ async function fetchSteps(
       'id, order, thermomix_time, thermomix_speed, thermomix_speed_start, ' +
         'thermomix_speed_end, thermomix_temperature, thermomix_temperature_unit, ' +
         'thermomix_mode, thermomix_is_blade_reversed, timer_seconds, ' +
-        'translations:recipe_step_translations(locale, instruction, recipe_section, tip)',
+        'translations:recipe_step_translations(locale, instruction, recipe_section, tip), ' +
+        'step_ingredients:recipe_step_ingredients(' +
+        'id, ingredient_id, recipe_ingredient_id, display_order, quantity, ' +
+        'measurement_unit_id, ' +
+        'ingredient:ingredients(translations:ingredient_translations(locale, name)))',
     )
     .eq('recipe_id', recipeId)
     .order('order', { ascending: true });
   if (error) throw new Error(`fetch recipe_steps: ${error.message}`);
-  type Row = Omit<StepSnapshot, 'translations'> & {
+  type StepIngRow = {
+    id: string;
+    ingredient_id: string;
+    recipe_ingredient_id: string | null;
+    display_order: number;
+    quantity: number | null;
+    measurement_unit_id: string | null;
+    ingredient: { translations: { locale: string; name: string }[] } | null;
+  };
+  type Row = Omit<StepSnapshot, 'translations' | 'step_ingredients'> & {
     translations: StepTextSnapshot[] | null;
+    step_ingredients: StepIngRow[] | null;
   };
   return (((data ?? []) as unknown) as Row[]).map((s) => ({
     ...s,
@@ -363,6 +396,18 @@ async function fetchSteps(
       recipe_section: t.recipe_section ?? null,
       tip: t.tip ?? null,
     })),
+    step_ingredients: (s.step_ingredients ?? []).map((si) => {
+      const enName = si.ingredient?.translations?.find((t) => t.locale === 'en')?.name ?? '';
+      return {
+        id: si.id,
+        ingredient_id: si.ingredient_id,
+        slug: slugifyName(enName),
+        display_order: si.display_order,
+        quantity: si.quantity,
+        measurement_unit_id: si.measurement_unit_id,
+        recipe_ingredient_id: si.recipe_ingredient_id,
+      };
+    }),
   }));
 }
 

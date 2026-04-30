@@ -49,6 +49,9 @@ function zeroCounts(): ApplyRpcCounts {
     pairings_removed: 0,
     step_overrides: 0,
     step_text_overrides: 0,
+    step_ingredient_updates: 0,
+    step_ingredient_adds: 0,
+    step_ingredient_removes: 0,
     tags_added: 0,
     tags_removed: 0,
   };
@@ -94,6 +97,9 @@ Deno.test('sectionsFromCounts: full count surface produces canonical order', () 
     pairings_removed: 0,
     step_overrides: 1,
     step_text_overrides: 1,
+    step_ingredient_updates: 1,
+    step_ingredient_adds: 0,
+    step_ingredient_removes: 0,
     tags_added: 1,
     tags_removed: 0,
   };
@@ -107,6 +113,7 @@ Deno.test('sectionsFromCounts: full count surface produces canonical order', () 
     'pairings',
     'step_overrides',
     'step_text',
+    'step_ingredients',
     'tags',
   ]);
 });

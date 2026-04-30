@@ -11,7 +11,7 @@ Read [docs/agent-guidelines/RECIPE-REVIEW.md](../../docs/agent-guidelines/RECIPE
 
 ## Preflight — reasoning effort
 
-**Default to medium effort.** Bulk imports of human-authored recipes (the common case) don't benefit from high reasoning — the work is mostly mechanical mapping (auto-checks 1-21), closed-vocabulary tag selection, voice rewrites against a known list, and planner-role decisions that plateau by medium. The model's reasoning depth doesn't change its world-knowledge of whether soy sauce contains wheat, whether a Mexican mole needs chocolate, or whether a dish is well-balanced; those come from training data, not effort tier. High effort costs ~3-5x tokens for marginal gain on most recipes.
+**Default to medium effort.** Bulk imports of human-authored recipes (the common case) don't benefit from high reasoning — the work is mostly mechanical mapping (auto-checks 1-22), closed-vocabulary tag selection, voice rewrites against a known list, and planner-role decisions that plateau by medium. The model's reasoning depth doesn't change its world-knowledge of whether soy sauce contains wheat, whether a Mexican mole needs chocolate, or whether a dish is well-balanced; those come from training data, not effort tier. High effort costs ~3-5x tokens for marginal gain on most recipes.
 
 **Escalate to high effort only when one of these is genuinely true:**
 
@@ -189,13 +189,14 @@ SELECT rt.slug, rt.categories
 
 Walk every item in the **Deterministic auto-checks** section of `RECIPE-REVIEW.md`. For each positive hit, note what the YAML needs to express.
 
-For check #11 (`step ingredient link mismatches`): compare the step text, `recipe_step_ingredients`, and recipe-level `recipe_ingredients`.
+For check #12 (`step ingredient link mismatches`): compare the step text, `recipe_step_ingredients`, and recipe-level `recipe_ingredients`.
 
-- If the step text directly adds or handles an ingredient and the link is missing, flag the missing link.
-- If `recipe_step_ingredients.recipe_ingredient_id` is null from the Step 2 query, flag it as an orphan link: the step claims to use an ingredient absent from this recipe's ingredient list.
-- If a linked step ingredient is not mentioned, handled, or clearly implied by the instruction (for example "all remaining ingredients" can be valid), flag it as suspect.
+- If the step text directly adds or handles an ingredient and the link is missing, write a `step_ingredient_adds` entry (match by `(order, ingredient_slug)`; the recipe-level `recipe_ingredients` row must exist or the apply will hard-fail — pair with `ingredient_adds` in the same YAML if needed).
+- If `recipe_step_ingredients.recipe_ingredient_id` is null from the Step 2 query, the step claims to use an ingredient absent from this recipe's list. Decide which side is right: if the ingredient genuinely belongs on the recipe, `ingredient_adds` it and pair with `step_ingredient_adds`; if the link is wrong, `step_ingredient_removes` it.
+- If a linked step ingredient is not mentioned, handled, or clearly implied by the instruction (for example "all remaining ingredients" can be valid), drop it via `step_ingredient_removes`.
+- For check #21 (`step-ingredient quantity / unit drift`), write a `step_ingredient_updates` entry with the recipe-level value as the target.
 - For step **instruction / recipe_section / tip text** edits (typos, grammar, voice fixes — usted→tú, gendered noun agreement, etc.), use `step_text_overrides` (per-locale, schema described in Step 5). `step_overrides` is for structured Thermomix fields only (time, speed, temperature, mode); it does not edit text.
-- The YAML applier cannot currently mutate `recipe_step_ingredients` (the relationship table linking steps to ingredients). If the relationship row itself is wrong (orphan link, missing link), record it in `requires_authoring.notes` for admin cleanup. Reserve `requires_authoring.notes` for these structural cases — text-fixable issues belong in `step_text_overrides`.
+- Reserve `requires_authoring.notes` for genuinely-unfixable structural cases — the step contradicts itself, the ingredient identity is ambiguous, or fixing would require fabricating content. Mechanical link adds/removes/updates belong in YAML, not `requires_authoring`.
 
 For check #16 (`no_steps`) and #17 (`few_ingredients`): **stop fixing those sections** and add the trigger to `requires_authoring.reasons`. Never fabricate steps or ingredients.
 
@@ -263,6 +264,23 @@ Match-key rules:
       translations:
         es:
           instruction: 'Coloca los muslos con la piel hacia abajo en el cesto.'
+  ```
+- `step_ingredient_updates` / `step_ingredient_adds` / `step_ingredient_removes`: mutate the `recipe_step_ingredients` link table. Match key is `(step_id | order) + ingredient_slug` (prefer `order`); `_adds` use the step-only match and put `ingredient_slug` at the entry's top level, parallel to `ingredient_adds`. Use these for the link-table fixes auto-checks #12 (orphan / missing / wrong link) and #21 (quantity/unit drift) surface — replaces the prior SQL handoff via `requires_authoring.notes`. `_adds` requires the recipe-level `recipe_ingredients` row to exist; pair with `ingredient_adds` in the same YAML if you need to bootstrap a missing recipe-level row first (both apply transactionally). Examples:
+  ```yaml
+  step_ingredient_updates:
+    - match: { order: 3, ingredient_slug: cornstarch }
+      quantity: 30
+      unit: g
+
+  step_ingredient_adds:
+    - match: { order: 2 }
+      ingredient_slug: zucchini
+      quantity: 400
+      unit: g
+      display_order: 1
+
+  step_ingredient_removes:
+    - match: { order: 4, ingredient_slug: cilantro }
   ```
 - `kitchen_tools` and `pairings`: declarative `set:` blocks list the full desired state.
 
