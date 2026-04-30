@@ -125,8 +125,6 @@ export interface StepIngredientLinkSnapshot {
   display_order: number;
   quantity: number | null;
   measurement_unit_id: string | null;
-  /** Recipe-level row this link points back to (nullable for orphan links). */
-  recipe_ingredient_id: string | null;
 }
 
 export interface KitchenToolSnapshot {
@@ -368,8 +366,7 @@ async function fetchSteps(
         'thermomix_mode, thermomix_is_blade_reversed, timer_seconds, ' +
         'translations:recipe_step_translations(locale, instruction, recipe_section, tip), ' +
         'step_ingredients:recipe_step_ingredients(' +
-        'id, ingredient_id, recipe_ingredient_id, display_order, quantity, ' +
-        'measurement_unit_id, ' +
+        'id, ingredient_id, display_order, quantity, measurement_unit_id, ' +
         'ingredient:ingredients(translations:ingredient_translations(locale, name)))',
     )
     .eq('recipe_id', recipeId)
@@ -378,7 +375,6 @@ async function fetchSteps(
   type StepIngRow = {
     id: string;
     ingredient_id: string;
-    recipe_ingredient_id: string | null;
     display_order: number;
     quantity: number | null;
     measurement_unit_id: string | null;
@@ -405,7 +401,6 @@ async function fetchSteps(
         display_order: si.display_order,
         quantity: si.quantity,
         measurement_unit_id: si.measurement_unit_id,
-        recipe_ingredient_id: si.recipe_ingredient_id,
       };
     }),
   }));

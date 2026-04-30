@@ -608,7 +608,6 @@ function makeStepWithLink(
         display_order: link.display_order ?? 1,
         quantity: link.quantity ?? null,
         measurement_unit_id: link.unit ?? null,
-        recipe_ingredient_id: `recipe-ing-${link.slug}`,
       },
     ],
   };
@@ -735,7 +734,6 @@ Deno.test('step_ingredient_updates: warns on duplicate (step, ingredient_slug) m
             display_order: 1,
             quantity: 2,
             measurement_unit_id: 'g',
-            recipe_ingredient_id: 'recipe-ing-salt',
           },
           {
             id: 'link-3-salt-b',
@@ -744,7 +742,6 @@ Deno.test('step_ingredient_updates: warns on duplicate (step, ingredient_slug) m
             display_order: 5,
             quantity: 3,
             measurement_unit_id: 'g',
-            recipe_ingredient_id: 'recipe-ing-salt',
           },
         ],
       },
@@ -933,7 +930,6 @@ Deno.test('step_ingredient_removes: warns on duplicate (step, ingredient_slug) m
             display_order: 1,
             quantity: 5,
             measurement_unit_id: 'g',
-            recipe_ingredient_id: 'recipe-ing-cilantro',
           },
           {
             id: 'link-4-cilantro-b',
@@ -942,7 +938,6 @@ Deno.test('step_ingredient_removes: warns on duplicate (step, ingredient_slug) m
             display_order: 2,
             quantity: 3,
             measurement_unit_id: 'g',
-            recipe_ingredient_id: 'recipe-ing-cilantro',
           },
         ],
       },
