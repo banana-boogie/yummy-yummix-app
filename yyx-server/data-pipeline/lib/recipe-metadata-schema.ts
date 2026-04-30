@@ -376,8 +376,13 @@ const stepMatchSchema = z
     'match requires step_id or order',
   );
 
-// Speed override — exactly one of single (`thermomix_speed`) or range
-// (`thermomix_speed_range`) may be set; both null/absent means clear.
+// Speed override — exactly one of single (`thermomix_speed`) or range may be
+// set; both null/absent means clear. The range can be expressed two ways:
+//   - flat (preferred, matches DB columns): `thermomix_speed_start` +
+//     `thermomix_speed_end`
+//   - nested (legacy alias): `thermomix_speed_range: { start, end }`
+// Flat input is normalized to the nested form by `.transform()` below so the
+// diff and RPC layers see a single canonical shape.
 const stepOverrideSchema = z
   .object({
     match: stepMatchSchema,
@@ -391,6 +396,8 @@ const stepOverrideSchema = z
       .strict()
       .nullable()
       .optional(),
+    thermomix_speed_start: speedValueSchema.nullable().optional(),
+    thermomix_speed_end: speedValueSchema.nullable().optional(),
     thermomix_temperature: temperatureValueSchema.nullable().optional(),
     thermomix_temperature_unit: z.enum(THERMOMIX_TEMPERATURE_UNITS).nullable().optional(),
     thermomix_mode: z.string().nullable().optional(),
@@ -405,7 +412,44 @@ const stepOverrideSchema = z
         v.thermomix_speed_range !== undefined &&
         v.thermomix_speed_range !== null),
     'thermomix_speed and thermomix_speed_range are mutually exclusive',
-  );
+  )
+  .refine(
+    (v) =>
+      (v.thermomix_speed_start === undefined) === (v.thermomix_speed_end === undefined),
+    'thermomix_speed_start and thermomix_speed_end must be set together',
+  )
+  .refine(
+    (v) =>
+      !(
+        v.thermomix_speed_start !== undefined &&
+        v.thermomix_speed_range !== undefined
+      ),
+    'thermomix_speed_start/end and thermomix_speed_range are mutually exclusive — pick one shape',
+  )
+  .refine(
+    (v) =>
+      !(
+        v.thermomix_speed !== undefined &&
+        v.thermomix_speed !== null &&
+        v.thermomix_speed_start !== undefined &&
+        v.thermomix_speed_start !== null
+      ),
+    'thermomix_speed and thermomix_speed_start/end are mutually exclusive',
+  )
+  .transform((v) => {
+    if (v.thermomix_speed_start === undefined) return v;
+    const { thermomix_speed_start, thermomix_speed_end, ...rest } = v;
+    if (thermomix_speed_start === null || thermomix_speed_end === null) {
+      return { ...rest, thermomix_speed_range: null };
+    }
+    return {
+      ...rest,
+      thermomix_speed_range: {
+        start: thermomix_speed_start,
+        end: thermomix_speed_end!,
+      },
+    };
+  });
 
 // Per-locale text fields the reviewer is allowed to mutate via step_text_overrides.
 // Mirrors the recipe_step_translations columns. At least one field must be set

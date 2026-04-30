@@ -109,6 +109,49 @@ ingredient_updates:
   assert(issue, 'expected a match issue');
 });
 
+Deno.test('accepts flat thermomix_speed_start/end and normalizes to nested range', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_overrides:
+  - match: { order: 3 }
+    thermomix_time: 60
+    thermomix_speed_start: 5
+    thermomix_speed_end: 10
+`;
+  const { data } = parseRecipeMetadataYaml(yaml);
+  const ov = data.step_overrides?.[0] as Record<string, unknown>;
+  assertEquals(ov.thermomix_speed_range, { start: 5, end: 10 });
+  assertEquals(ov.thermomix_speed_start, undefined);
+  assertEquals(ov.thermomix_speed_end, undefined);
+});
+
+Deno.test('rejects thermomix_speed_start without thermomix_speed_end', () => {
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+step_overrides:
+  - match: { order: 3 }
+    thermomix_speed_start: 5
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  const issue = err.issues.find((i) =>
+    i.message.includes('thermomix_speed_start and thermomix_speed_end must be set together')
+  );
+  assert(issue, `expected paired-fields issue, got: ${JSON.stringify(err.issues, null, 2)}`);
+});
+
 Deno.test('rejects mutually exclusive thermomix_speed and thermomix_speed_range', () => {
   const yaml = `recipe_match:
   id: '11111111-1111-1111-1111-111111111111'
