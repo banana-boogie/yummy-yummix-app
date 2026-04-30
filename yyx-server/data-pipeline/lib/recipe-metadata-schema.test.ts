@@ -660,6 +660,47 @@ step_ingredient_updates:
   assert(issue, 'expected an ingredient_slug issue on the match');
 });
 
+Deno.test('rejects cleanup.delete_locales: [en] — RPC refuses to delete the base locale', () => {
+  // Mirror the RPC's refusal at parse time so reviewers don't get a clean
+  // dry-run for an apply that's guaranteed to fail.
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+cleanup:
+  delete_locales: ['en']
+`;
+  const err = assertThrows(
+    () => parseRecipeMetadataYaml(yaml),
+    RecipeMetadataValidationError,
+  );
+  const issue = err.issues.find((i) => i.path.startsWith('cleanup.delete_locales'));
+  assert(issue, `expected an issue on cleanup.delete_locales; got: ${JSON.stringify(err.issues)}`);
+  assert(
+    issue.message.includes('base locale'),
+    `expected base-locale error message, got: ${issue.message}`,
+  );
+});
+
+Deno.test('accepts cleanup.delete_locales: [es-ES] — non-base regional locale is fine', () => {
+  // Sanity: only 'en' is refused; other locales pass.
+  const yaml = `recipe_match:
+  id: '11111111-1111-1111-1111-111111111111'
+  name_en: 'X'
+  expected_recipe_updated_at: '2026-04-24T14:02:17.000Z'
+review:
+  reviewed_by_label: 'claude'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+cleanup:
+  delete_locales: ['es-ES']
+`;
+  const { data } = parseRecipeMetadataYaml(yaml);
+  assertEquals(data.cleanup?.delete_locales, ['es-ES']);
+});
+
 Deno.test('accepts step_ingredient_updates with quantity null (clears)', () => {
   const yaml = `recipe_match:
   id: '11111111-1111-1111-1111-111111111111'

@@ -360,6 +360,26 @@ export function computeRecipeMetadataDiff(
           after.thermomix_speed_range = ov.thermomix_speed_range;
         }
       }
+      // RPC semantics: any `thermomix_speed` key in the payload (even null,
+      // even matching the current value) clears `thermomix_speed_start` /
+      // `_end` on the row (see migration 20260430050451 line ~595-615 — the
+      // `WHEN v_section ? 'thermomix_speed' THEN NULL` branch on the start/end
+      // CASE expressions). Without this guard, a YAML that writes
+      // `thermomix_speed: null` against a row with a populated range produces
+      // zero diff, the CLI skips apply on `total_changes === 0`, and the range
+      // never gets cleared. Detect the implicit clear here so the dry-run
+      // surfaces it and `--apply` actually runs.
+      if (
+        'thermomix_speed' in (ov as Record<string, unknown>) &&
+        ov.thermomix_speed_range === undefined &&
+        (target.thermomix_speed_start !== null || target.thermomix_speed_end !== null)
+      ) {
+        before.thermomix_speed_range = {
+          start: target.thermomix_speed_start,
+          end: target.thermomix_speed_end,
+        };
+        after.thermomix_speed_range = null;
+      }
       if (Object.keys(after).length > 0) {
         changes.push({ path: `step_overrides[order=${target.order}]`, before, after });
       }

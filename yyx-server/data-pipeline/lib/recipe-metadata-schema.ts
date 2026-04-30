@@ -521,8 +521,17 @@ const stepIngredientRemoveSchema = z.object({
   match: stepIngredientMatchSchema,
 }).strict();
 
+// `cleanup.delete_locales` cannot include 'en' — the RPC refuses to delete the
+// base locale because it would orphan the recipe. Reject at parse time so the
+// YAML never reaches a dry-run that looks clean but is guaranteed to fail at
+// apply.
+const cleanupLocaleSchema = localeSchema.refine(
+  (s) => s !== 'en',
+  'cannot delete base locale "en" — the apply RPC refuses to orphan recipes',
+);
+
 const cleanupSchema = z.object({
-  delete_locales: z.array(localeSchema),
+  delete_locales: z.array(cleanupLocaleSchema),
 }).strict();
 
 // requires_authoring is YAML-only triage — not persisted to the DB.

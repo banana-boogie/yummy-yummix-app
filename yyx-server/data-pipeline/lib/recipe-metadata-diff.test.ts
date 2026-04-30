@@ -297,6 +297,100 @@ function stepTextSection(diff: ReturnType<typeof computeRecipeMetadataDiff>) {
   return diff.sections.find((s) => s.section === 'step_text_overrides');
 }
 
+function stepOverridesSection(diff: ReturnType<typeof computeRecipeMetadataDiff>) {
+  return diff.sections.find((s) => s.section === 'step_overrides');
+}
+
+Deno.test('step_overrides diff: thermomix_speed:null implicitly clears a populated range', () => {
+  // RPC semantics: any thermomix_speed key in the payload clears
+  // thermomix_speed_start/end. Without surfacing this in the dry-run, a YAML
+  // that says `thermomix_speed: null` against a row with a populated range
+  // produces zero diff → CLI skips apply on total_changes===0 → range never
+  // clears → user thinks it worked.
+  const current: CurrentRecipeState = {
+    ...makeCurrent(),
+    steps: [
+      {
+        ...makeStep({ order: 3 }),
+        thermomix_speed: null,
+        thermomix_speed_start: 4,
+        thermomix_speed_end: 8,
+      },
+    ],
+  };
+  const desired: RecipeMetadata = {
+    ...makeDesired(),
+    step_overrides: [
+      {
+        match: { order: 3 },
+        thermomix_speed: null,
+      },
+    ],
+  };
+  const sec = stepOverridesSection(computeRecipeMetadataDiff(desired, current));
+  assert(sec, 'expected step_overrides section');
+  assertEquals(sec.changes.length, 1, `expected one change, got: ${JSON.stringify(sec.changes)}`);
+  const after = sec.changes[0].after as Record<string, unknown>;
+  assertEquals(after.thermomix_speed_range, null);
+  const before = sec.changes[0].before as Record<string, unknown>;
+  assertEquals(before.thermomix_speed_range, { start: 4, end: 8 });
+});
+
+Deno.test('step_overrides diff: thermomix_speed=value also clears range when one was populated', () => {
+  // Same RPC behavior even when the new speed is non-null — setting a single
+  // speed cancels the range.
+  const current: CurrentRecipeState = {
+    ...makeCurrent(),
+    steps: [
+      {
+        ...makeStep({ order: 3 }),
+        thermomix_speed: null,
+        thermomix_speed_start: 4,
+        thermomix_speed_end: 8,
+      },
+    ],
+  };
+  const desired: RecipeMetadata = {
+    ...makeDesired(),
+    step_overrides: [
+      {
+        match: { order: 3 },
+        thermomix_speed: 6,
+      },
+    ],
+  };
+  const sec = stepOverridesSection(computeRecipeMetadataDiff(desired, current));
+  assert(sec);
+  assertEquals(sec.changes.length, 1);
+  const after = sec.changes[0].after as Record<string, unknown>;
+  // Both effects surface: speed set + range cleared.
+  assertEquals(after.thermomix_speed, 6);
+  assertEquals(after.thermomix_speed_range, null);
+});
+
+Deno.test('step_overrides diff: thermomix_speed:null on a row with no range is a no-op', () => {
+  // Negative case: when the row has no range to clear, writing thermomix_speed:null
+  // produces no diff (current is null, desired is null, range columns are null).
+  const current: CurrentRecipeState = {
+    ...makeCurrent(),
+    steps: [
+      {
+        ...makeStep({ order: 3 }),
+        thermomix_speed: null,
+        thermomix_speed_start: null,
+        thermomix_speed_end: null,
+      },
+    ],
+  };
+  const desired: RecipeMetadata = {
+    ...makeDesired(),
+    step_overrides: [{ match: { order: 3 }, thermomix_speed: null }],
+  };
+  const sec = stepOverridesSection(computeRecipeMetadataDiff(desired, current));
+  assert(sec);
+  assertEquals(sec.changes.length, 0);
+});
+
 Deno.test('step_text_overrides diff: emits one entry per locale+field that differs', () => {
   const desired: RecipeMetadata = {
     ...makeDesired(),
