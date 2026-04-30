@@ -1,65 +1,62 @@
 recipe_match:
   id: 'd1cad0e8-3295-4da1-ba4a-e2a789c6b9ee'
   name_en: 'Zucchini Soup'
-  expected_recipe_updated_at: '2026-04-28T19:45:51.538062+00:00'
+  expected_recipe_updated_at: '2026-04-30T05:24:50.749541+00:00'
 
 review:
   reviewed_by_label: 'claude-opus-4-7'
-  reviewed_at: '2026-04-28T18:55:36.000Z'
+  reviewed_at: '2026-04-29T16:00:00Z'
 
 planner:
-  # Re-decided from scratch per the rubric. Zucchini Soup is mostly water
-  # + zucchini + spinach + aromatics — it's a vegetable-only side soup,
-  # not a complete meal. The optional feta/crouton garnish in tips_and_tricks
-  # could push it toward a light lunch, but the recipe-as-stored is a side.
-  # `[veg]` is the only component contributed; no protein, no carb. Keeping
-  # the existing role/components but re-asserting explicitly so the
-  # decision is visible.
   role: side
-  meal_components: [veg]
+  meal_components: [ veg ]
   is_complete_meal: false
-  leftovers_friendly: true
-  batch_friendly: true
 
-# Sum of structured Thermomix step durations is ~28 min. Adding ~10 min of
-# real prep (washing zucchini, peeling garlic, handling spinach) + ~7 min of
-# pour/scrape/serve buffer puts a realistic total at ~45 min. The DB's
-# previous 20/90 split was unsupported by the step times.
-timings:
-  prep_time: 10
-  total_time: 45
-
-description:
-  en: 'A creamy zucchini and spinach soup made entirely in the Thermomix. Light, vegetable-forward, and easy to prep.'
-  es: 'Una sopa cremosa de calabacita y espinaca preparada totalmente en la Thermomix. Ligera, llena de vegetales y fácil de preparar.'
-
-# Rewritten so the cheese suggestion no longer contradicts the `vegan`
-# diet tag — the original "Serve with feta" implied a non-vegan default.
-# Now both options are explicit and the vegan path is first-class.
-tips_and_tricks:
-  en: 'Serve with croutons. Top with feta or your favourite cheese for a non-vegan version, or with toasted pumpkin seeds for a fully plant-based finish.'
-  es: 'Acompaña con crutones. Agrega queso feta o el que prefieras si no es vegano, o semillas de calabaza tostadas para una versión 100% vegetal.'
-
-# Per-category set replacement. Categories not listed here (`dish_type` already
-# = ['soup'], unchanged) are preserved as-is.
+# Drop `quick` (45 min total is not a quick-meal promise) and `one_pot`
+# (rubric requires a complete meal; this is is_complete_meal=false). Drop
+# `mexican` cuisine — a creamy zucchini-spinach soup is not distinctively
+# Mexican. Diet tags retained as-is (user-ratified gluten_free despite the
+# crouton tip).
 tags:
-  cuisine: [mexican]
-  meal_type: [lunch, dinner]
-  diet: [gluten_free, healthy, vegetarian, vegan]
-  primary_ingredient: [vegetables]
-  # `make_ahead` dropped — soup doesn't require advance prep, just reheats
-  # well. `leftover_friendly` already covers that. `quick` added now that
-  # timings reflect ~45 min total.
-  practical: [quick, leftover_friendly, thermomix_basics, one_pot]
+  cuisine: []
+  practical: [ leftover_friendly, thermomix_basics ]
 
-# Recipe currently has zero rows in recipe_kitchen_tools despite
-# equipment_tags=['thermomix']. Adding Thermomix as the kitchen tool.
-kitchen_tools:
-  set:
-    - name_en: 'Thermomix'
+# Step 7 hard-codes Thermomix params in prose ("**1 min.** ... **vel. 4-8**")
+# and EN uses a stray `|` separator with Spanish-style numerics. Structured
+# fields are already populated (60s, speed_start 4 → speed_end 8); replace
+# the hard-coded text with the `%thermomix%` placeholder so the renderer
+# handles it. Auto-check #10.
+step_text_overrides:
+  - match: { order: 7 }
+    translations:
+      en:
+        instruction: 'Add a creamy touch to your soup by blending %thermomix%'
+      es:
+        instruction: 'Dale un toque cremosito a tu sopa licuando %thermomix%'
 
-# requires_authoring intentionally omitted — every concern from the initial
-# review pass is now resolved in this YAML or by the pipeline itself. Notes:
-#   - timings updated to reflect actual step durations.
-#   - vegan added now that the cheese is confirmed optional.
-#   - make_ahead removed (leftover_friendly captures the reheat behavior).
+# Step 5 instruction says "Add the water, salt and pepper" but the
+# recipe_step_ingredients link table is missing pepper. Recipe-level pepper
+# is at display_order 7, 5 g, optional=true. Auto-check #12.
+step_ingredient_adds:
+  - match: { order: 5 }
+    ingredient_slug: black_pepper
+    quantity: 5
+    unit: g
+    display_order: 3
+
+# Step 5 salt link drifts: link row says 3 tsp, recipe-level says 5 g. Snap
+# the link back to the recipe-level value. Auto-check #21.
+step_ingredient_updates:
+  - match: { order: 5, ingredient_slug: salt }
+    quantity: 5
+    unit: g
+applied:
+  - applied_at: 2026-04-30T05:24:51.122Z
+    applied_by: ian@local
+    pre_recipe_updated_at: 2026-04-28T19:45:51.538062+00:00
+    post_recipe_updated_at: 2026-04-30T05:24:50.749541+00:00
+    sections_changed:
+      - step_text
+      - step_ingredients
+      - tags
+    environment: local
