@@ -1,7 +1,7 @@
 recipe_match:
   id: '186cb167-2f85-470a-aa78-085921b331e3'
   name_en: 'Tortilla Soup'
-  expected_recipe_updated_at: '2026-04-24T18:45:39.624486+00:00'
+  expected_recipe_updated_at: '2026-04-30T02:14:39.988305+00:00'
 
 review:
   reviewed_by_label: 'claude-opus-4-7'
@@ -91,34 +91,15 @@ step_text_overrides:
         instruction: 'Add the green chili and cilantro and cook %thermomix%. Serve the soup with the fried tortilla strips, pasilla chili, panela cheese, sour cream, pork crackling, and avocado.'
       es:
         instruction: 'Añade el chile verde y el cilantro y cocina %thermomix%. Sirve la sopa con las tiras de tortilla fritas, el chile pasilla, el queso panela, la crema, el chicharrón y el aguacate.'
-
-requires_authoring:
-  reasons: [ step_ingredient_link_missing, step_ingredient_quantity_drift ]
-  notes: |
-    The YAML applier cannot mutate recipe_step_ingredients. Admin needs to fix the
-    following step-link rows in SQL after the YAML applies:
-
-    Missing links (step 1 — fries pasilla chilies and tortilla strips, but only Oil
-    is currently linked):
-    - Step 1: link Pasilla chili (5 g) and Corn tortilla (8 unit) to step 1.
-
-    Quantity / unit drifts between recipe_step_ingredients and recipe_ingredients:
-    - Step 2 Fine salt: step row = 2 tsp, recipe row = 2 g. Update step row unit to g.
-    - Step 4 Cilantro:  step row = 1 sprig, recipe row = 10 g. Update step row to 10 g.
-    - Step 4 Pasilla chili: linked again with 1 unit; recipe row is 5 g. Either drop
-      the step-4 link (pasilla is consumed in step 1; step 4 only references it as
-      a topping in the serve text) or update to 5 g.
-    - Step 4 Corn tortilla: same pattern — already fried in step 1; the step-4 link
-      to 8 unit duplicates step 1. Drop the step-4 link.
-
-    Missing serve-line link:
-    - Step 4 Sour cream: step text serves with sour cream but no step_ingredient
-      row. If serve-line ingredients should be linked here, add Sour cream (80 g);
-      otherwise the panela / avocado / chicharrón links should also be reconsidered
-      for consistency (they are currently linked to step 4 even though step 4 only
-      references them in the serve sentence).
-
-    Recommended cleanup posture: keep step-4 step_ingredients to the items actually
-    cooked in step 4 (Green chili, Cilantro), and drop the topping links (Pasilla
-    chili, Corn tortilla, Panela cheese, Pork crackling, Avocado). The toppings
-    are recipe-level ingredients, not step-cooked ingredients.
+applied:
+  - applied_at: 2026-04-30T02:14:40.299Z
+    applied_by: ian@local
+    pre_recipe_updated_at: 2026-04-24T18:45:39.624486+00:00
+    post_recipe_updated_at: 2026-04-30T02:14:39.988305+00:00
+    sections_changed:
+      - planner
+      - translations
+      - kitchen_tools
+      - step_text
+      - tags
+    environment: local
