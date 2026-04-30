@@ -211,6 +211,7 @@ ALTER TABLE public.my_table ENABLE ROW LEVEL SECURITY;
 - `admin_analytics(action text, timeframe text, "limit" int)` — Admin dashboard metrics
 - `admin_content_health()` — Returns content quality issues (missing translations, images, nutrition, unpublished) across recipes, ingredients, and kitchen tools; used by the Content Health screen
 - `is_admin()` — Check current user's admin status
+- `apply_recipe_metadata(payload jsonb)` — Plan 12 transactional applier. Service-role only, single-transaction RPC that takes a YAML-derived JSON payload and updates planner/timings/translations/ingredients/steps/kitchen_tools/pairings/tags + cleanup.delete_locales (across `recipe_translations`, `recipe_step_translations`, `recipe_ingredient_translations`). Stale-diff guarded via `expected_recipe_updated_at` (FOR UPDATE row lock). Idempotent — re-running an unchanged payload writes nothing. Bug fixes ship as forward-only `CREATE OR REPLACE FUNCTION` migrations rather than editing the original (e.g. `_recipe_metadata_resolve_kitchen_tool` had a `max(uuid)` bug fixed by 20260428190944, not by editing the originating migration). See `yyx-server/data-pipeline/data/recipe-metadata/README.md` for the end-to-end workflow.
 
 ### Function Template
 

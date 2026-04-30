@@ -1,0 +1,86 @@
+recipe_match:
+  id: "10cadced-e31b-4846-a7ac-b20742068137"
+  name_en: "Ian's Raisin Cookies"
+  expected_recipe_updated_at: "2026-04-29T14:04:44.758096+00:00"
+
+review:
+  reviewed_by_label: "claude-opus-4-7"
+  reviewed_at: "2026-04-29T04:30:00.000Z"
+
+# Re-decided from scratch. Classic flour-butter-sugar-egg cookie loaded with
+# raisins + walnuts + oats; yields 24 cookies. Clearly a `dessert` — no
+# protein/carb/veg meal framing. Cookies keep at room temperature and the
+# recipe is a natural batch (24 cookies / ~3-4 per person ≈ 6-8 servings).
+# cooking_level beginner — Thermomix handles the creaming/mixing in pulses,
+# user weighs and dumps. Matches current DB; re-asserting per RECIPE-REVIEW.md.
+planner:
+  role: dessert
+  alternate_planner_roles: []
+  meal_components: []
+  is_complete_meal: false
+
+# description is null in the live DB across all locales — adding a one-liner
+# so the recipe reads as a finished dish on browse cards.
+description:
+  en: "Soft, chewy raisin-and-walnut cookies enriched with rolled oats and a hint of cinnamon. The dough comes together in the Thermomix® in a few minutes, then bakes low-and-slow at 150°C for cookies that stay tender in the middle."
+  es: "Galletas suaves y masticables de pasitas y nueces enriquecidas con avena y un toque de canela. La masa se prepara en la Thermomix® en pocos minutos y se hornea a fuego bajo a 150°C para que el centro quede tierno."
+
+# Currently only `meal_type: [dessert]` (preserved by omitting that
+# category). Adding the missing categories so the recipe is reachable from
+# browse filters.
+#
+# Diet-tag audit: vegetarian holds (butter + eggs; no animal flesh). Not
+# adding gluten_free (flour + oats — oats can be cross-contaminated). Not
+# adding low_sugar (300 g combined sugar / 24 cookies = ~12.5 g per cookie,
+# squarely in dessert territory).
+#
+# Practical: batch_cook (24-cookie yield), make_ahead + freezer_friendly
+# (tips explicitly cover freezing dough balls), leftover_friendly (cookies
+# keep), beginner_friendly (Thermomix-automated mixing).
+#
+# kid_friendly intentionally skipped — per user policy, the tag is for
+# kids-specific recipes (mild/hidden-veg/kid-favorites), not "kids will eat
+# this." Most desserts do not qualify. one_pot skipped — not a complete
+# meal, fails the rubric's first gate.
+tags:
+  diet: []
+  dish_type: [ bakery ]
+  occasion: [ comfort_food ]
+  practical: [ batch_cook, make_ahead, freezer_friendly, leftover_friendly, beginner_friendly ]
+
+# Live tools list is missing Thermomix® despite steps 2-5 explicitly using
+# the bowl ("Place ... in the mixing bowl", "Cream %thermomix%", etc.).
+# Adding it; preserving the rest of the live set. Canonical names per
+# taxonomy.kitchen_tool_names_en (Thermomix® uses the ® glyph).
+kitchen_tools:
+  set:
+    - name_en: "Thermomix®"
+    - name_en: "Oven"
+    - name_en: "Baking tray"
+    - name_en: "Parchment paper"
+    - name_en: "Measuring spoons"
+    - name_en: "Spoon"
+    - name_en: "Cooling rack"
+
+# Steps 2, 3, and 5 carry thermomix_temperature_unit='C' but no
+# temperature value — these are non-heated mixing/creaming/folding steps,
+# so the unit is an orphan. Clear it via null. Step 4 already has unit=null
+# correctly.
+step_overrides:
+  - match: { order: 2 }
+    thermomix_temperature_unit: null # creaming butter+sugar, no heat
+  - match: { order: 3 }
+    thermomix_temperature_unit: null # mixing eggs/vanilla/lemon juice, no heat
+  - match: { order: 5 }
+    thermomix_temperature_unit: null # folding raisins+walnuts (reverse blade), no heat
+applied:
+  - applied_at: 2026-04-29T14:04:45.000Z
+    applied_by: ian@local
+    pre_recipe_updated_at: 2026-04-17T13:55:15.884718+00:00
+    post_recipe_updated_at: 2026-04-29T14:04:44.758096+00:00
+    sections_changed:
+      - translations
+      - kitchen_tools
+      - step_overrides
+      - tags
+    environment: local

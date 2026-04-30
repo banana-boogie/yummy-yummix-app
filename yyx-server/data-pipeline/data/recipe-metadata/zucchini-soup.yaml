@@ -1,0 +1,62 @@
+recipe_match:
+  id: 'd1cad0e8-3295-4da1-ba4a-e2a789c6b9ee'
+  name_en: 'Zucchini Soup'
+  expected_recipe_updated_at: '2026-04-30T05:24:50.749541+00:00'
+
+review:
+  reviewed_by_label: 'claude-opus-4-7'
+  reviewed_at: '2026-04-29T16:00:00Z'
+
+planner:
+  role: side
+  meal_components: [ veg ]
+  is_complete_meal: false
+
+# Drop `quick` (45 min total is not a quick-meal promise) and `one_pot`
+# (rubric requires a complete meal; this is is_complete_meal=false). Drop
+# `mexican` cuisine — a creamy zucchini-spinach soup is not distinctively
+# Mexican. Diet tags retained as-is (user-ratified gluten_free despite the
+# crouton tip).
+tags:
+  cuisine: []
+  practical: [ leftover_friendly, thermomix_basics ]
+
+# Step 7 hard-codes Thermomix params in prose ("**1 min.** ... **vel. 4-8**")
+# and EN uses a stray `|` separator with Spanish-style numerics. Structured
+# fields are already populated (60s, speed_start 4 → speed_end 8); replace
+# the hard-coded text with the `%thermomix%` placeholder so the renderer
+# handles it. Auto-check #10.
+step_text_overrides:
+  - match: { order: 7 }
+    translations:
+      en:
+        instruction: 'Add a creamy touch to your soup by blending %thermomix%'
+      es:
+        instruction: 'Dale un toque cremosito a tu sopa licuando %thermomix%'
+
+# Step 5 instruction says "Add the water, salt and pepper" but the
+# recipe_step_ingredients link table is missing pepper. Recipe-level pepper
+# is at display_order 7, 5 g, optional=true. Auto-check #12.
+step_ingredient_adds:
+  - match: { order: 5 }
+    ingredient_slug: black_pepper
+    quantity: 5
+    unit: g
+    display_order: 3
+
+# Step 5 salt link drifts: link row says 3 tsp, recipe-level says 5 g. Snap
+# the link back to the recipe-level value. Auto-check #21.
+step_ingredient_updates:
+  - match: { order: 5, ingredient_slug: salt }
+    quantity: 5
+    unit: g
+applied:
+  - applied_at: 2026-04-30T05:24:51.122Z
+    applied_by: ian@local
+    pre_recipe_updated_at: 2026-04-28T19:45:51.538062+00:00
+    post_recipe_updated_at: 2026-04-30T05:24:50.749541+00:00
+    sections_changed:
+      - step_text
+      - step_ingredients
+      - tags
+    environment: local

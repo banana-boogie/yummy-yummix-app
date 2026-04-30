@@ -6,7 +6,9 @@
   },
   "imports": {
     "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2",
-    "std/": "https://deno.land/std@0.224.0/"
+    "std/": "https://deno.land/std@0.224.0/",
+    "yaml": "https://esm.sh/yaml@2.6.1",
+    "zod": "https://esm.sh/zod@3.23.8"
   },
   "tasks": {
     "test": "deno test --allow-env --allow-net --allow-read supabase/functions/ data-pipeline/",
@@ -25,7 +27,9 @@
     "pipeline:translate": "deno run --allow-net --allow-read --allow-write --allow-env data-pipeline/cli/translate-content.ts",
     "pipeline:scan": "deno run --allow-net --allow-read --allow-write --allow-env data-pipeline/cli/scan-entities.ts",
     "pipeline:backfill-translations": "deno run --allow-net --allow-read --allow-write --allow-env data-pipeline/cli/backfill-translations.ts",
-    "pipeline:upload-images": "deno run --allow-net --allow-read --allow-write --allow-env data-pipeline/cli/upload-images.ts"
+    "pipeline:upload-images": "deno run --allow-net --allow-read --allow-write --allow-env data-pipeline/cli/upload-images.ts",
+    "pipeline:apply-recipe-metadata": "deno run --allow-net --allow-read --allow-write --allow-env data-pipeline/cli/apply-recipe-metadata.ts",
+    "pipeline:export-review-snapshot": "deno run --allow-net --allow-read --allow-write --allow-env data-pipeline/cli/export-review-snapshot.ts"
   },
   "lint": {
     "include": ["supabase/functions/", "data-pipeline/"],

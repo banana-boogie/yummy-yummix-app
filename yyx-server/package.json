@@ -27,7 +27,8 @@
     "pipeline:images": "deno task pipeline:images",
     "pipeline:scan": "deno task pipeline:scan",
     "pipeline:backfill": "deno task pipeline:backfill-translations",
-    "pipeline:upload-images": "deno task pipeline:upload-images"
+    "pipeline:upload-images": "deno task pipeline:upload-images",
+    "pipeline:apply-recipe-metadata": "deno task pipeline:apply-recipe-metadata"
   },
   "devDependencies": {
     "@types/deno": "^2.2.0"
