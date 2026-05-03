@@ -1081,6 +1081,12 @@ Deno.test("swap_meal browse path returns up to 3 alternatives", async () => {
     equipment_tags: [],
     verified_at: null,
     recipe_translations: [{ locale: "en", name: `Alt ${i}` }],
+    recipe_to_tag: [{
+      recipe_tags: {
+        categories: ["meal_type"],
+        recipe_tag_translations: [{ locale: "en", name: "dinner" }],
+      },
+    }],
   }));
   const { supabase } = makeStatefulSupabase({
     plan: seededPlanRow(),
@@ -1100,6 +1106,72 @@ Deno.test("swap_meal browse path returns up to 3 alternatives", async () => {
   assertEquals(body.alternatives.length, 3);
 });
 
+Deno.test("swap_meal browse path filters out wrong-meal-type alternatives", async () => {
+  // Two protein recipes: one tagged dinner, one tagged breakfast. Only the
+  // dinner one should surface for a dinner slot.
+  const recipes = [
+    {
+      id: "alt-dinner",
+      planner_role: "main",
+      alternate_planner_roles: [],
+      meal_components: ["protein"],
+      total_time: 25,
+      difficulty: "easy",
+      portions: 4,
+      image_url: null,
+      equipment_tags: [],
+      verified_at: null,
+      recipe_translations: [{ locale: "en", name: "Dinner Protein" }],
+      recipe_to_tag: [{
+        recipe_tags: {
+          categories: ["meal_type"],
+          recipe_tag_translations: [{ locale: "en", name: "dinner" }],
+        },
+      }],
+    },
+    {
+      id: "alt-breakfast",
+      planner_role: "main",
+      alternate_planner_roles: [],
+      meal_components: ["protein"],
+      total_time: 15,
+      difficulty: "easy",
+      portions: 4,
+      image_url: null,
+      equipment_tags: [],
+      verified_at: null,
+      recipe_translations: [{ locale: "en", name: "Pancakes" }],
+      recipe_to_tag: [{
+        recipe_tags: {
+          categories: ["meal_type"],
+          recipe_tag_translations: [{ locale: "en", name: "breakfast" }],
+        },
+      }],
+    },
+  ];
+  const { supabase } = makeStatefulSupabase({
+    plan: seededPlanRow(),
+    slot: seededSlotRef(),
+    recipes,
+  });
+  const req = createAuthenticatedRequest({
+    action: "swap_meal",
+    payload: { mealPlanId: SEEDED_PLAN_ID, mealPlanSlotId: SEEDED_SLOT_ID },
+  });
+  const response = await handleMealPlannerRequest(req, {
+    ...mockDependencies,
+    createUserClient: () => supabase as never,
+  });
+  const body = await response.json();
+  assertEquals(response.status, 200);
+  assertEquals(body.alternatives.length, 1);
+  const alt = body.alternatives[0];
+  const altPrimary = alt.slot.components.find((
+    c: { isPrimary?: boolean },
+  ) => c.isPrimary);
+  assertEquals(altPrimary?.recipeId, "alt-dinner");
+});
+
 Deno.test("swap_meal apply path persists swap and records rejection", async () => {
   const REPLACEMENT_ID = "44444444-4444-4444-4444-444444444444";
   const replacement = {
@@ -1115,6 +1187,12 @@ Deno.test("swap_meal apply path persists swap and records rejection", async () =
     verified_at: null,
     is_published: true,
     recipe_translations: [{ locale: "en", name: "Replacement" }],
+    recipe_to_tag: [{
+      recipe_tags: {
+        categories: ["meal_type"],
+        recipe_tag_translations: [{ locale: "en", name: "dinner" }],
+      },
+    }],
   };
   const { supabase, updates, inserts } = makeStatefulSupabase({
     plan: seededPlanRow(),
@@ -1139,6 +1217,10 @@ Deno.test("swap_meal apply path persists swap and records rejection", async () =
   assertEquals(compUpdates[0].recipe_id, REPLACEMENT_ID);
   assertEquals(compUpdates[0].title_snapshot, "Replacement");
   assertEquals(compUpdates[0].pairing_basis, "swap");
+  // Lineage triple must end up canonical for the recipe branch of
+  // components_source_lineage_check, regardless of the prior state.
+  assertEquals(compUpdates[0].source_kind, "recipe");
+  assertEquals(compUpdates[0].source_component_id, null);
 
   const slotUpdates = updates["meal_plan_slots"] ?? [];
   assertEquals(slotUpdates[0].swap_count, 1);
@@ -1209,6 +1291,12 @@ Deno.test("swap_meal apply rejects a previously-rejected recipe", async () => {
     verified_at: null,
     is_published: true,
     recipe_translations: [{ locale: "en", name: "Already Rejected" }],
+    recipe_to_tag: [{
+      recipe_tags: {
+        categories: ["meal_type"],
+        recipe_tag_translations: [{ locale: "en", name: "dinner" }],
+      },
+    }],
   };
   const { supabase } = makeStatefulSupabase({
     plan: seededPlanRow(),

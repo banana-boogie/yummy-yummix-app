@@ -11,7 +11,7 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { createUserClient } from "../_shared/supabase-client.ts";
 import { validateAuth } from "../_shared/auth.ts";
-import { normalizeMealTypes } from "./meal-types.ts";
+import { normalizeMealTypes, toCanonicalMealType } from "./meal-types.ts";
 import {
   generatePlan,
   InsufficientRecipesError,
@@ -431,6 +431,41 @@ interface SwapCandidateRow {
   recipe_translations:
     | Array<{ locale: string; name: string | null }>
     | null;
+  recipe_to_tag?:
+    | Array<{
+      recipe_tags: {
+        categories: string[] | null;
+        recipe_tag_translations: Array<
+          { locale: string; name: string | null }
+        >;
+      } | null;
+    }>
+    | null;
+}
+
+/**
+ * Derive canonical meal-type tags from a candidate row's tag join. Returns the
+ * set of meal types this recipe is tagged with (e.g. ["dinner", "lunch"]).
+ * Used to filter swap alternatives so a breakfast recipe doesn't surface for
+ * a dinner slot. Mirrors the logic in candidate-retrieval.ts.
+ */
+function deriveMealTypeTags(
+  row: SwapCandidateRow,
+): Set<import("./types.ts").CanonicalMealType> {
+  const tags = new Set<import("./types.ts").CanonicalMealType>();
+  for (const link of row.recipe_to_tag ?? []) {
+    const tag = link.recipe_tags;
+    if (!tag?.categories?.includes("meal_type")) continue;
+    for (const t of tag.recipe_tag_translations ?? []) {
+      if (!t.name) continue;
+      try {
+        tags.add(toCanonicalMealType(t.name));
+      } catch {
+        // ignore non-canonical legacy names
+      }
+    }
+  }
+  return tags;
 }
 
 function pickName(
@@ -551,13 +586,14 @@ async function respondWithSwapAlternatives(
       image_url,
       equipment_tags,
       verified_at,
-      recipe_translations(locale, name)
+      recipe_translations(locale, name),
+      recipe_to_tag(recipe_tags(categories, recipe_tag_translations(locale, name)))
     `)
     .eq("is_published", true)
     .or(`planner_role.eq.${role},alternate_planner_roles.cs.{${role}}`)
     .order("verified_at", { ascending: false, nullsFirst: false })
     .order("total_time", { ascending: true, nullsFirst: false })
-    .limit(20);
+    .limit(60);
 
   if (excluded.length > 0) {
     query = query.not("id", "in", `(${excluded.join(",")})`);
@@ -566,7 +602,14 @@ async function respondWithSwapAlternatives(
   const { data, error } = await query;
   if (error) throw new Error(`Failed to fetch alternatives: ${error.message}`);
 
-  const rows = (data ?? []) as SwapCandidateRow[];
+  // Filter by meal_type tag so e.g. breakfast recipes don't surface for dinner
+  // slots. Recipes without any meal_type tags are excluded — un-tagged recipes
+  // are catalog gaps to fix in the metadata pipeline (Plan 12), not silent
+  // matches that would degrade swap quality.
+  const allRows = (data ?? []) as unknown as SwapCandidateRow[];
+  const rows = allRows.filter((r) =>
+    deriveMealTypeTags(r).has(slot.mealType)
+  );
   if (rows.length === 0) {
     return errorResponse(
       "SWAP_NOT_AVAILABLE",
@@ -662,7 +705,8 @@ async function applySwap(
       equipment_tags,
       verified_at,
       is_published,
-      recipe_translations(locale, name)
+      recipe_translations(locale, name),
+      recipe_to_tag(recipe_tags(categories, recipe_tag_translations(locale, name)))
     `)
     .eq("id", selectedRecipeId)
     .eq("is_published", true)
@@ -681,6 +725,14 @@ async function applySwap(
   const recipe = recipeRow as unknown as SwapCandidateRow & {
     is_published: boolean;
   };
+  // Same meal_type filter the browse path applies — keeps applySwap aligned
+  // with what the user could have actually been shown.
+  if (!deriveMealTypeTags(recipe).has(slot.mealType)) {
+    return errorResponse(
+      "INVALID_INPUT",
+      "selectedRecipeId is not eligible for this slot",
+    );
+  }
   const title = pickName(recipe.recipe_translations ?? null, plan.locale);
 
   // The four post-validation writes touch disjoint rows so we run them in
@@ -714,6 +766,12 @@ async function applySwap(
     supabase
       .from("meal_plan_slot_components")
       .update({
+        // Force the lineage triple back to the canonical recipe shape. If the
+        // primary was previously a leftover or custom component, leaving
+        // `source_kind` / `source_component_id` untouched while setting
+        // `recipe_id` violates `components_source_lineage_check`.
+        source_kind: "recipe",
+        source_component_id: null,
         recipe_id: recipe.id,
         title_snapshot: title,
         image_url_snapshot: recipe.image_url,
