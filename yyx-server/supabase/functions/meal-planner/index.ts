@@ -607,9 +607,7 @@ async function respondWithSwapAlternatives(
   // are catalog gaps to fix in the metadata pipeline (Plan 12), not silent
   // matches that would degrade swap quality.
   const allRows = (data ?? []) as unknown as SwapCandidateRow[];
-  const rows = allRows.filter((r) =>
-    deriveMealTypeTags(r).has(slot.mealType)
-  );
+  const rows = allRows.filter((r) => deriveMealTypeTags(r).has(slot.mealType));
   if (rows.length === 0) {
     return errorResponse(
       "SWAP_NOT_AVAILABLE",
