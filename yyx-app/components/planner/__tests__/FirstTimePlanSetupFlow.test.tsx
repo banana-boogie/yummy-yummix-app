@@ -87,6 +87,7 @@ describe('FirstTimePlanSetupFlow', () => {
       defaultMaxWeeknightMinutes: 30,
       preferLeftoversForLunch: false,
       preferredEatTimes: {},
+        setupCompletedAt: null,
     };
 
     renderWithProviders(
@@ -115,6 +116,7 @@ describe('FirstTimePlanSetupFlow', () => {
       defaultMaxWeeknightMinutes: 30,
       preferLeftoversForLunch: false,
       preferredEatTimes: {},
+        setupCompletedAt: null,
     };
 
     renderWithProviders(

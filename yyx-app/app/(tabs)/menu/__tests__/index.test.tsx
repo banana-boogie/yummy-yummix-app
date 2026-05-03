@@ -1,6 +1,5 @@
 import React from 'react';
 import * as ReactNative from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { renderWithProviders, screen, fireEvent, waitFor, act } from '@/test/utils/render';
 import type {
   MealPlanResponse,
@@ -52,20 +51,6 @@ jest.mock('@/hooks/useMealPlan', () => ({
   useMealPlan: () => mockUseMealPlanReturn.current,
 }));
 
-// AsyncStorage already mocked in jest.setup.js — and returns null by default.
-// Force "setup completed" by stubbing the storage module's getItem.
-jest.mock('@react-native-async-storage/async-storage', () => ({
-  __esModule: true,
-  default: {
-    getItem: jest.fn(async (key: string) =>
-      key === 'planner.setupCompleted' ? 'true' : null,
-    ),
-    setItem: jest.fn(async () => {}),
-    removeItem: jest.fn(async () => {}),
-    clear: jest.fn(async () => {}),
-  },
-}));
-
 // BackHandler listener registry — populated by overriding addEventListener
 // on the imported singleton (jest.mock would force RN init crashes).
 const mockBackHandlerListeners: Record<string, () => boolean> = {};
@@ -104,6 +89,7 @@ function buildSlot(id: string): MealPlanSlotResponse {
     cookedAt: null,
     skippedAt: null,
     mergedCookingGuide: null,
+    coverageComplete: true,
     components: [
       {
         id: `${id}-c0`,
@@ -148,6 +134,7 @@ function mockBuildHookReturn() {
     defaultMaxWeeknightMinutes: 30,
     preferLeftoversForLunch: false,
     preferredEatTimes: {},
+    setupCompletedAt: '2026-04-25T12:00:00Z',
   };
   return {
     activePlan: buildPlan(slots),
@@ -158,6 +145,9 @@ function mockBuildHookReturn() {
     generatePlan: jest.fn(),
     updatePreferences: jest.fn(),
     swapSlot: jest
+      .fn()
+      .mockResolvedValue({ alternatives: [], warnings: [] }),
+    applySwap: jest
       .fn()
       .mockResolvedValue({ alternatives: [], warnings: [] }),
     skipSlot: jest.fn(),
@@ -311,10 +301,12 @@ describe('MenuScreen mode toggle', () => {
     expect(UNSAFE_root).toBeTruthy();
   });
 
-  it('does not persist setupCompleted when plan generation fails', async () => {
+  it('shows generation-failure alert when generatePlan rejects from the ready empty state', async () => {
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     const generatePlan = jest.fn().mockRejectedValue(new Error('generate failed'));
-    const updatePreferences = jest.fn().mockResolvedValue(undefined);
+    // User is "onboarded" (preferences saved with setup_completed_at) but has
+    // no active plan — the ready empty state. Pressing the CTA calls
+    // generatePlan directly with saved preferences, bypassing the setup flow.
     const prefs: PreferencesResponse = {
       mealTypes: ['lunch'],
       busyDays: [2],
@@ -322,16 +314,13 @@ describe('MenuScreen mode toggle', () => {
       defaultMaxWeeknightMinutes: 30,
       preferLeftoversForLunch: false,
       preferredEatTimes: {},
+      setupCompletedAt: '2026-04-25T12:00:00Z',
     };
-    (
-      AsyncStorage.getItem as jest.MockedFunction<typeof AsyncStorage.getItem>
-    ).mockResolvedValueOnce(null);
     mockUseMealPlanReturn.current = {
       ...mockBuildHookReturn(),
       activePlan: null as unknown as MealPlanResponse,
       preferences: prefs,
       generatePlan,
-      updatePreferences,
       todaysSlots: [],
       hasCachedPlan: false,
     };
@@ -347,13 +336,9 @@ describe('MenuScreen mode toggle', () => {
     await waitFor(() => {
       expect(generatePlan).toHaveBeenCalled();
     });
-    expect(AsyncStorage.setItem).not.toHaveBeenCalledWith(
-      'planner.setupCompleted',
-      'true',
-    );
     expect(alertSpy).toHaveBeenCalledWith(
-      "Couldn't save your preferences",
-      'generate failed',
+      "Hmm, your menu didn't come together",
+      expect.any(String),
     );
 
     alertSpy.mockRestore();

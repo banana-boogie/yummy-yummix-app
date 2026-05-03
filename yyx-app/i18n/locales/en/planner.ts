@@ -1,7 +1,6 @@
 export const planner = {
   title: "My Menu",
   openSettings: "Edit planning preferences",
-  planReadyPlaceholder: "Your menu is on the way — meals will appear here.",
   dayEmpty: "No meals planned for this day.",
   empty: {
     planMyMenu: "Plan My Menu",
@@ -66,6 +65,18 @@ export const planner = {
     untitled: "Untitled meal",
     minutes: "{{n}} min",
     portions: "{{n}} portions",
+    coverageIncomplete: "Couldn't complete this meal — add a side or veg",
+    componentRole: {
+      main: "main",
+      side: "side",
+      base: "base",
+      veg: "veg",
+      snack: "snack",
+      dessert: "dessert",
+      beverage: "drink",
+      condiment: "condiment",
+      custom: "extra",
+    },
   },
   difficulty: {
     easy: "Easy",
@@ -80,9 +91,26 @@ export const planner = {
     approved: "Shopping list ready",
   },
   error: {
-    setupTitle: "Couldn't save your preferences",
-    shoppingListTitle: "Couldn't make your list",
-    swapTitle: "Couldn't load alternatives",
+    setupTitle: "Let's try that again",
+    generateTitle: "Hmm, your menu didn't come together",
+    shoppingListTitle: "Your list isn't ready yet",
+    swapTitle: "I couldn't find other options",
+    insufficientRecipes:
+      "I couldn't find enough recipes for what you're craving this time. Try a few more meal types or busy days, and I'll keep adding new recipes — there'll be more to choose from soon.",
+    invalidInput:
+      "Something looks a little off on my end. Give it another try and I'll get it right.",
+    unauthorized:
+      "Looks like you need to sign in again. Just a quick step and we're back cooking.",
+    notFound:
+      "I couldn't find that menu. Pull down to refresh and we'll start fresh.",
+    conflict:
+      "Your menu was just updated somewhere else. Refresh and we'll pick up where you left off.",
+    swapNotAvailable:
+      "No other options for this meal right now — but don't worry, the one you have is a good one.",
+    limitedCatalog:
+      "We're still adding new recipes, so your menu might be a little shorter than usual. More are on the way!",
+    generic:
+      "I couldn't connect right now. Check your connection and try again in a moment.",
   },
   today: {
     heading: "Today on your menu",

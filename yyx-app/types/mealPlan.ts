@@ -122,6 +122,10 @@ export interface SwapMealPayload {
   mealPlanId: string;
   mealPlanSlotId: string;
   reason?: string;
+  // When omitted, swap_meal is read-only and returns alternatives.
+  // When provided, the server applies that recipe to the slot's primary
+  // component, increments swap_count, and stamps last_swapped_at.
+  selectedRecipeId?: string;
 }
 
 export interface SkipMealPayload {
@@ -193,6 +197,11 @@ export interface MealPlanSlotResponse {
   skippedAt: string | null;
   mergedCookingGuide: Record<string, unknown> | null;
   components: MealPlanSlotComponentResponse[];
+  // True when the structure_template's expected components are all filled.
+  // False signals a partial slot (e.g., main without a side); UI surfaces a
+  // hint so the user knows to complete it. Always present; backend defaults
+  // to true when the DB row has no coverage signal.
+  coverageComplete: boolean;
 }
 
 export interface MealPlanResponse {
@@ -240,6 +249,10 @@ export interface PreferencesResponse {
   defaultMaxWeeknightMinutes: number;
   preferLeftoversForLunch: boolean;
   preferredEatTimes: Record<string, unknown>;
+  // ISO timestamp set on first successful update_preferences. Null until the
+  // user completes the setup flow; the menu screen reads this as the
+  // server-side "has the user onboarded?" signal.
+  setupCompletedAt: string | null;
 }
 
 export interface GetPreferencesResponse {

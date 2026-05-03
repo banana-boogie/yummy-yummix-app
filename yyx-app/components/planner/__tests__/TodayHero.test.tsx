@@ -62,6 +62,7 @@ function buildSlot(
     cookedAt: null,
     skippedAt: null,
     mergedCookingGuide: null,
+    coverageComplete: true,
     components: [
       {
         id: `${overrides.id}-c0`,
@@ -108,6 +109,7 @@ const prefs: PreferencesResponse = {
   defaultMaxWeeknightMinutes: 30,
   preferLeftoversForLunch: false,
   preferredEatTimes: {},
+        setupCompletedAt: null,
 };
 
 const baseProps = {
@@ -116,6 +118,9 @@ const baseProps = {
   isRefreshing: false,
   onSeeWeek: jest.fn(),
   onSwap: jest.fn().mockResolvedValue({ alternatives: [], warnings: [] }),
+  onApplySwap: jest
+    .fn()
+    .mockResolvedValue({ alternatives: [], warnings: [] }),
 };
 
 describe('TodayHero', () => {

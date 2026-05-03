@@ -20,6 +20,11 @@ interface MealCardProps {
 export function MealCard({ slot, mode, onCook, onRemove }: MealCardProps) {
   const primary =
     slot.components.find((c) => c.isPrimary) ?? slot.components[0];
+  // Secondary components ordered by displayOrder. Filter out the primary so
+  // it isn't repeated, regardless of whether it has the lowest displayOrder.
+  const secondaries = slot.components
+    .filter((c) => c !== primary)
+    .sort((a, b) => a.displayOrder - b.displayOrder);
   const isLeftover = slot.slotType === 'leftover_target_slot';
   const isCooked = slot.status === 'cooked';
   const isRemoved = slot.status === 'skipped';
@@ -29,11 +34,17 @@ export function MealCard({ slot, mode, onCook, onRemove }: MealCardProps) {
     ? 'bg-background-secondary border border-grey-light'
     : 'bg-neutral-white border border-grey-light';
 
+  // VoiceOver should announce the full meal bundle, not just the main.
+  const allTitles = [primary, ...secondaries]
+    .map((c) => c?.title)
+    .filter((t): t is string => !!t);
+  const a11yLabel = `${slot.displayMealLabel}: ${allTitles.join(' · ')}`;
+
   return (
     <View
       className={`rounded-lg p-md ${cardClass}`}
       style={{ opacity }}
-      accessibilityLabel={`${slot.displayMealLabel}: ${primary?.title ?? ''}`}
+      accessibilityLabel={a11yLabel}
     >
       <Text preset="caption" className="text-text-secondary mb-xs uppercase">
         {slot.displayMealLabel}
@@ -71,6 +82,30 @@ export function MealCard({ slot, mode, onCook, onRemove }: MealCardProps) {
           )}
         </View>
       </View>
+
+      {secondaries.length > 0 && (
+        <View className="mt-sm">
+          {secondaries.map((c) => (
+            <Text
+              key={c.id}
+              preset="caption"
+              className="text-text-secondary"
+            >
+              {c.title}
+              {' · '}
+              {i18n.t(`planner.card.componentRole.${c.componentRole}`, {
+                defaultValue: c.componentRole,
+              })}
+            </Text>
+          ))}
+        </View>
+      )}
+
+      {slot.coverageComplete === false && (
+        <Text preset="caption" className="text-text-secondary mt-xs italic">
+          {i18n.t('planner.card.coverageIncomplete')}
+        </Text>
+      )}
 
       {isRemoved ? (
         <Text preset="bodySmall" className="text-text-secondary mt-md">

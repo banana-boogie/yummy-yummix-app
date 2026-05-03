@@ -31,6 +31,7 @@ function buildSlot(
     cookedAt: null,
     skippedAt: null,
     mergedCookingGuide: null,
+    coverageComplete: true,
     components: [],
     ...overrides,
   };
@@ -46,6 +47,7 @@ function buildPreferences(
     defaultMaxWeeknightMinutes: 30,
     preferLeftoversForLunch: false,
     preferredEatTimes: {},
+        setupCompletedAt: null,
     ...overrides,
   };
 }

@@ -1,7 +1,6 @@
 export const planner = {
   title: "Mi Menú",
   openSettings: "Editar preferencias de planificación",
-  planReadyPlaceholder: "Tu menú está en camino — las comidas aparecerán aquí.",
   dayEmpty: "No hay comidas planeadas para este día.",
   empty: {
     planMyMenu: "Planear mi menú",
@@ -66,6 +65,18 @@ export const planner = {
     untitled: "Comida sin título",
     minutes: "{{n}} min",
     portions: "{{n}} porciones",
+    coverageIncomplete: "No se pudo completar la comida — agrega una guarnición o verdura",
+    componentRole: {
+      main: "principal",
+      side: "guarnición",
+      base: "base",
+      veg: "verdura",
+      snack: "antojito",
+      dessert: "postre",
+      beverage: "bebida",
+      condiment: "condimento",
+      custom: "extra",
+    },
   },
   difficulty: {
     easy: "Fácil",
@@ -80,9 +91,26 @@ export const planner = {
     approved: "Lista de compras lista",
   },
   error: {
-    setupTitle: "No pude guardar tus preferencias",
-    shoppingListTitle: "No pude hacer tu lista",
-    swapTitle: "No pude cargar alternativas",
+    setupTitle: "Intentémoslo otra vez",
+    generateTitle: "Tu menú no se armó esta vez",
+    shoppingListTitle: "Tu lista todavía no está lista",
+    swapTitle: "No encontré otras opciones",
+    insufficientRecipes:
+      "No encontré suficientes recetas para lo que se te antoja esta vez. Prueba con más tipos de comida o días ocupados, y mientras tanto seguiré agregando recetas — pronto habrá más para elegir.",
+    invalidInput:
+      "Algo no me cuadró por aquí. Inténtalo otra vez y lo arreglamos juntas.",
+    unauthorized:
+      "Parece que necesitas iniciar sesión otra vez. Es rápido y volvemos a cocinar.",
+    notFound:
+      "No encontré ese menú. Desliza hacia abajo para actualizar y empezamos de nuevo.",
+    conflict:
+      "Tu menú se acaba de actualizar en otro lugar. Actualiza y seguimos donde te quedaste.",
+    swapNotAvailable:
+      "Por ahora no tengo otras opciones para esta comida — pero tranquila, la que elegiste está muy rica.",
+    limitedCatalog:
+      "Todavía estamos agregando recetas nuevas, así que tu menú puede ser un poco más corto de lo normal. ¡Pronto habrá más!",
+    generic:
+      "No pude conectarme en este momento. Revisa tu conexión y vuelve a intentarlo en un momento.",
   },
   today: {
     heading: "Hoy en tu menú",

@@ -14,6 +14,7 @@ function buildPreferences(
     defaultMaxWeeknightMinutes: 30,
     preferLeftoversForLunch: false,
     preferredEatTimes: {},
+        setupCompletedAt: null,
     ...overrides,
   };
 }

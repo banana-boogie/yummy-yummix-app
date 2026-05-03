@@ -43,6 +43,7 @@ function buildPlan(overrides: Partial<MealPlanResponse> = {}): MealPlanResponse 
         cookedAt: null,
         skippedAt: null,
         mergedCookingGuide: null,
+    coverageComplete: true,
         components: [],
       },
       {
@@ -63,6 +64,7 @@ function buildPlan(overrides: Partial<MealPlanResponse> = {}): MealPlanResponse 
         cookedAt: null,
         skippedAt: null,
         mergedCookingGuide: null,
+    coverageComplete: true,
         components: [],
       },
       {
@@ -83,6 +85,7 @@ function buildPlan(overrides: Partial<MealPlanResponse> = {}): MealPlanResponse 
         cookedAt: null,
         skippedAt: null,
         mergedCookingGuide: null,
+    coverageComplete: true,
         components: [],
       },
     ],
@@ -117,6 +120,7 @@ describe('useMealPlan', () => {
         defaultMaxWeeknightMinutes: 30,
         preferLeftoversForLunch: false,
         preferredEatTimes: {},
+        setupCompletedAt: null,
       },
       warnings: [],
     };
@@ -158,6 +162,7 @@ describe('useMealPlan', () => {
         defaultMaxWeeknightMinutes: 30,
         preferLeftoversForLunch: false,
         preferredEatTimes: {},
+        setupCompletedAt: null,
       },
       updated: true,
       warnings: [],
@@ -212,6 +217,7 @@ describe('useMealPlan', () => {
             cookedAt: null,
             skippedAt: null,
             mergedCookingGuide: null,
+    coverageComplete: true,
             components: [],
           },
           {
@@ -233,6 +239,7 @@ describe('useMealPlan', () => {
             cookedAt: null,
             skippedAt: null,
             mergedCookingGuide: null,
+    coverageComplete: true,
             components: [],
           },
         ],
@@ -247,6 +254,7 @@ describe('useMealPlan', () => {
         defaultMaxWeeknightMinutes: 30,
         preferLeftoversForLunch: false,
         preferredEatTimes: {},
+        setupCompletedAt: null,
       },
       warnings: [],
     };
@@ -288,6 +296,7 @@ describe('useMealPlan', () => {
         defaultMaxWeeknightMinutes: 30,
         preferLeftoversForLunch: false,
         preferredEatTimes: {},
+        setupCompletedAt: null,
       },
       warnings: [],
     };
@@ -357,6 +366,7 @@ describe('useMealPlan', () => {
         defaultMaxWeeknightMinutes: 30,
         preferLeftoversForLunch: false,
         preferredEatTimes: {},
+        setupCompletedAt: null,
       },
       warnings: [],
     };
@@ -398,6 +408,7 @@ describe('useMealPlan', () => {
         defaultMaxWeeknightMinutes: 30,
         preferLeftoversForLunch: false,
         preferredEatTimes: {},
+        setupCompletedAt: null,
       },
       warnings: [],
     };

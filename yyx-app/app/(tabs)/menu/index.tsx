@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { ResponsiveLayout } from '@/components/layouts/ResponsiveLayout';
 import { Text } from '@/components/common';
@@ -26,17 +25,10 @@ import {
 } from '@/components/planner/TodayHero';
 import { todayDayIndex } from '@/components/planner/utils/dayIndex';
 import { eventService } from '@/services/eventService';
+import { mealPlannerErrorMessage } from '@/services/mealPlanService';
 import i18n from '@/i18n';
 import { COLORS } from '@/constants/design-tokens';
 import type { GeneratePlanOptions } from '@/types/mealPlan';
-
-/**
- * Explicit setup signal — do not infer from `preferences.mealTypes.length`,
- * because the backend stub returns default preferences that make every new
- * user look configured. The flag is set only after the user confirms the
- * guided setup flow.
- */
-const SETUP_COMPLETED_KEY = 'planner.setupCompleted';
 
 type MenuMode = 'today' | 'week';
 
@@ -44,7 +36,6 @@ export default function MenuScreen() {
   const [setupMode, setSetupMode] = useState<'first-time' | 'settings' | null>(
     null,
   );
-  const [setupCompleted, setSetupCompleted] = useState<boolean | null>(null);
   const [approving, setApproving] = useState(false);
   const [mode, setMode] = useState<MenuMode>('today');
   const [refreshing, setRefreshing] = useState(false);
@@ -59,6 +50,7 @@ export default function MenuScreen() {
     updatePreferences,
     skipSlot,
     swapSlot,
+    applySwap,
     generateShoppingList,
     planProgress,
     todaysSlots,
@@ -66,15 +58,14 @@ export default function MenuScreen() {
     refetch,
   } = useMealPlan();
 
+  // Server-derived: true once the user has completed the setup flow at least
+  // once. Backed by a `setup_completed_at` timestamp on the preferences row,
+  // so it survives reinstall and works across devices.
+  const setupCompleted = preferences?.setupCompletedAt != null;
+
   // Refs for a11y focus shifts when toggling between today/week. Per F5.
   const weekHeaderRef = useRef<View>(null);
   const todayHeroRef = useRef<View>(null);
-
-  useEffect(() => {
-    AsyncStorage.getItem(SETUP_COMPLETED_KEY)
-      .then((v) => setSetupCompleted(v === 'true'))
-      .catch(() => setSetupCompleted(false));
-  }, []);
 
   // Hardware back: when in week mode, intercept and return to today instead
   // of leaving the tab. Android-only; iOS has no hardware back, web has no
@@ -136,40 +127,63 @@ export default function MenuScreen() {
     return () => cancelAnimationFrame(raf);
   }, [mode]);
 
-  const handlePlanPress = useCallback(() => {
+  const handlePlanPress = useCallback(async () => {
     if (!setupCompleted) {
       setSetupMode('first-time');
       return;
     }
-    generatePlan({
-      dayIndexes: preferences?.activeDayIndexes,
-      mealTypes: preferences?.mealTypes,
-      busyDays: preferences?.busyDays,
-      preferLeftoversForLunch: preferences?.preferLeftoversForLunch,
-    });
+    try {
+      await generatePlan({
+        dayIndexes: preferences?.activeDayIndexes,
+        mealTypes: preferences?.mealTypes,
+        busyDays: preferences?.busyDays,
+        preferLeftoversForLunch: preferences?.preferLeftoversForLunch,
+      });
+    } catch (err) {
+      Alert.alert(
+        i18n.t('planner.error.generateTitle'),
+        mealPlannerErrorMessage(err),
+      );
+    }
   }, [setupCompleted, generatePlan, preferences]);
 
   const handleSetupComplete = useCallback(
     async (answers: GeneratePlanOptions) => {
-      // Persist + generate first. Only dismiss the flow on success so failures
-      // are visible instead of silently dropping the user back to the screen.
+      // Two-step flow: save preferences, then generate the plan. Title the
+      // alert by the step that actually failed so the user isn't blamed for
+      // the wrong action.
       try {
         await updatePreferences({
           dayIndexes: answers.dayIndexes,
           mealTypes: answers.mealTypes,
           busyDays: answers.busyDays,
         });
-        // Generate the plan BEFORE persisting the completion flag. If
-        // generatePlan rejects, the user is not stranded in a "completed"
-        // state with no plan — they bounce back to the setup flow on retry.
-        await generatePlan(answers);
-        await AsyncStorage.setItem(SETUP_COMPLETED_KEY, 'true');
-        setSetupCompleted(true);
-        setSetupMode(null);
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        Alert.alert(i18n.t('planner.error.setupTitle'), message);
+        Alert.alert(
+          i18n.t('planner.error.setupTitle'),
+          mealPlannerErrorMessage(err),
+        );
+        return;
       }
+      try {
+        // updatePreferences sets setup_completed_at server-side on the first
+        // save, so by the time generatePlan runs the user is "onboarded" from
+        // the server's perspective. If generatePlan rejects, the user still
+        // sees the "ready" empty state on retry — no stranded "completed but
+        // no plan" UI state.
+        await generatePlan(answers);
+      } catch (err) {
+        Alert.alert(
+          i18n.t('planner.error.generateTitle'),
+          mealPlannerErrorMessage(err),
+        );
+        return;
+      }
+      // Land on the week view after a fresh generation so the user can review
+      // and adjust the whole plan before approving. Today view (the default)
+      // takes over once they navigate back via "Back to today" or relaunch.
+      setMode('week');
+      setSetupMode(null);
     },
     [generatePlan, updatePreferences],
   );
@@ -181,8 +195,10 @@ export default function MenuScreen() {
       await generateShoppingList();
       router.push('/(tabs)/shopping' as never);
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      Alert.alert(i18n.t('planner.error.shoppingListTitle'), message);
+      Alert.alert(
+        i18n.t('planner.error.shoppingListTitle'),
+        mealPlannerErrorMessage(err),
+      );
     } finally {
       setApproving(false);
     }
@@ -209,13 +225,7 @@ export default function MenuScreen() {
   }
 
   const hasPlan = !!activePlan && activePlan.slots.length > 0;
-  // Stub backend may return plan: null after generate_plan. Show a dedicated
-  // "we're still putting your menu together" state instead of bouncing to the
-  // empty CTA.
-  const showGeneratingPlaceholder =
-    setupCompleted === true && isGenerating && !hasPlan;
-  const showPlanPendingPlaceholder =
-    setupCompleted === true && !isGenerating && !hasPlan && !isLoading;
+  const showGeneratingPlaceholder = setupCompleted && isGenerating && !hasPlan;
 
   // Header content depends on mode.
   const renderHeader = () => {
@@ -281,15 +291,6 @@ export default function MenuScreen() {
   };
 
   const renderBody = () => {
-    // setup-rehydrating uses ActivityIndicator (not a plan-load state). Plan
-    // initial load in today-mode renders the skeleton (F7).
-    if (setupCompleted === null) {
-      return (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color={COLORS.primary.darkest} />
-        </View>
-      );
-    }
     if (isLoading) {
       return mode === 'today' ? (
         <TodayHeroSkeleton />
@@ -337,6 +338,7 @@ export default function MenuScreen() {
               isRefreshing={refreshing}
               onSeeWeek={handleSeeWeek}
               onSwap={swapSlot}
+              onApplySwap={applySwap}
             />
           </ResponsiveLayout>
         );
@@ -360,24 +362,6 @@ export default function MenuScreen() {
           <Text preset="body" className="text-center mt-md">
             {i18n.t('planner.setup.generating')}
           </Text>
-        </View>
-      );
-    }
-
-    if (showPlanPendingPlaceholder) {
-      return (
-        <View className="flex-1 items-center justify-center px-lg">
-          <Text preset="body" className="text-center text-text-secondary">
-            {i18n.t('planner.planReadyPlaceholder')}
-          </Text>
-          <Pressable
-            onPress={handlePlanPress}
-            className="mt-lg px-xl py-md rounded-full bg-primary-medium"
-            style={{ minHeight: 44 }}
-            accessibilityLabel={i18n.t('planner.empty.planMyMenu')}
-          >
-            <Text preset="body">{i18n.t('planner.empty.planMyMenu')}</Text>
-          </Pressable>
         </View>
       );
     }

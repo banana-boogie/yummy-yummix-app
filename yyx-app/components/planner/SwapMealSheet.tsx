@@ -1,12 +1,11 @@
 /**
  * Bottom-sheet-style modal for swapping a meal slot.
  *
- * v1 contract: open → call `onSwap()` (which fetches alternatives via the
- * server's `swap_meal` action) → display up to 3 alternatives. Tapping an
- * alternative closes the sheet; the server-side commit-to-chosen-alternative
- * round-trip does not yet exist, so the next plan refetch (queued by
- * `useMealPlan.swapMutation`'s `onSuccess: invalidatePlan`) reflects whatever
- * the server selected.
+ * Open → `onSwap()` fetches alternatives via the server's `swap_meal` action
+ * (read-only, returns up to 3 candidates). Tapping an alternative invokes
+ * `onPickAlternative` (parent calls `applySwap` with the chosen recipeId,
+ * which triggers a second `swap_meal` call carrying `selectedRecipeId`).
+ * The plan invalidates and refetches; the sheet closes.
  *
  * Built with RN's built-in `Modal` to avoid pulling in reanimated /
  * gesture-handler. Slide animation is handled natively.
@@ -153,16 +152,20 @@ export function SwapMealSheet({
             )}
 
             {state.phase === 'loaded' && state.alternatives.length > 0 && (
-              <ScrollView className="max-h-96" showsVerticalScrollIndicator={false}>
+              <ScrollView showsVerticalScrollIndicator={false}>
                 <View className="gap-sm">
-                  {state.alternatives.slice(0, 3).map((alt) => {
+                  {state.alternatives.slice(0, 3).map((alt, idx) => {
                     const altPrimary =
                       alt.slot.components.find((c) => c.isPrimary) ??
                       alt.slot.components[0];
                     const newRecipeId = altPrimary?.recipeId ?? null;
+                    // Backend returns alternatives that share the same slot.id
+                    // (the slot being swapped). The unique-per-row identifier
+                    // is the candidate recipeId; idx breaks ties if a recipe
+                    // appears twice.
                     return (
                       <AlternativeRow
-                        key={alt.slot.id}
+                        key={`${newRecipeId ?? 'no-recipe'}-${idx}`}
                         alternative={alt}
                         onPick={() => {
                           onPickAlternative?.({

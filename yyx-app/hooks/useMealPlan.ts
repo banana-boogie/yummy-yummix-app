@@ -55,6 +55,13 @@ export interface UseMealPlanReturn {
     payload: UpdatePreferencesPayload,
   ) => Promise<UpdatePreferencesResponse>;
   swapSlot: (slotId: string, reason?: string) => Promise<SwapMealResponse>;
+  /**
+   * Apply a chosen alternative to a slot. Calls swap_meal with
+   * selectedRecipeId, which triggers the server to swap the slot's primary
+   * component, increment swap_count, stamp last_swapped_at, and return
+   * fresh alternatives. The plan is invalidated and refetched on success.
+   */
+  applySwap: (slotId: string, recipeId: string) => Promise<SwapMealResponse>;
   skipSlot: (slotId: string) => Promise<void>;
   markCooked: (slotId: string) => Promise<void>;
   generateShoppingList: () => Promise<string | null>;
@@ -132,6 +139,18 @@ export function useMealPlan(): UseMealPlanReturn {
     onSuccess: () => invalidatePlan(),
   });
 
+  const applySwapMutation = useMutation({
+    mutationFn: async (vars: { slotId: string; recipeId: string }) => {
+      if (!activePlan) throw new Error('No active plan');
+      return mealPlanService.swapMeal({
+        mealPlanId: activePlan.planId,
+        mealPlanSlotId: vars.slotId,
+        selectedRecipeId: vars.recipeId,
+      });
+    },
+    onSuccess: () => invalidatePlan(),
+  });
+
   const skipMutation = useMutation({
     mutationFn: async (slotId: string) => {
       if (!activePlan) throw new Error('No active plan');
@@ -199,6 +218,8 @@ export function useMealPlan(): UseMealPlanReturn {
     updatePreferences: (payload) =>
       updatePreferencesMutation.mutateAsync(payload),
     swapSlot: (slotId, reason) => swapMutation.mutateAsync({ slotId, reason }),
+    applySwap: (slotId, recipeId) =>
+      applySwapMutation.mutateAsync({ slotId, recipeId }),
     skipSlot: (slotId) => skipMutation.mutateAsync(slotId).then(() => undefined),
     markCooked: (slotId) =>
       markCookedMutation.mutateAsync(slotId).then(() => undefined),

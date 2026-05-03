@@ -79,6 +79,8 @@ interface TodayHeroProps {
   onSeeWeek: () => void;
   /** Swap mutation; returns alternatives. Sheet calls this on open. */
   onSwap: (slotId: string, reason?: string) => Promise<SwapMealResponse>;
+  /** Apply a chosen alternative to the slot. Called when the user picks one. */
+  onApplySwap: (slotId: string, recipeId: string) => Promise<SwapMealResponse>;
 }
 
 export const TodayHero = forwardRef<View, TodayHeroProps>(function TodayHero(
@@ -90,6 +92,7 @@ export const TodayHero = forwardRef<View, TodayHeroProps>(function TodayHero(
     isRefreshing,
     onSeeWeek,
     onSwap,
+    onApplySwap,
   }: TodayHeroProps,
   ref,
 ) {
@@ -152,6 +155,12 @@ export const TodayHero = forwardRef<View, TodayHeroProps>(function TodayHero(
       slotId: slot.id,
       newRecipeId,
     });
+    if (newRecipeId) {
+      // Fire-and-forget: server applies the swap, plan invalidates and
+      // refetches automatically via the mutation's onSuccess. Errors swallowed
+      // here surface in the next plan refetch as stale data; not user-blocking.
+      onApplySwap(slot.id, newRecipeId).catch(() => {});
+    }
   };
 
   // ---- Cook navigation ----
@@ -171,6 +180,14 @@ export const TodayHero = forwardRef<View, TodayHeroProps>(function TodayHero(
     if (!slot) return;
     if (primaryComponent?.recipeId)
       router.push(`/recipes/${primaryComponent.recipeId}` as never);
+  };
+
+  // Card-level tap (image + title): navigate to recipe detail when a recipe
+  // is available. Distinct from "Cook this" only in analytics intent.
+  const handleViewRecipe = () => {
+    if (primaryComponent?.recipeId) {
+      router.push(`/recipes/${primaryComponent.recipeId}` as never);
+    }
   };
 
   // ---- Date heading ----
@@ -219,6 +236,9 @@ export const TodayHero = forwardRef<View, TodayHeroProps>(function TodayHero(
               onSwap={handleOpenSwap}
               onSeeMyMenu={onSeeWeek}
               onViewRecipeAgain={handleViewRecipeAgain}
+              onPressCard={
+                primaryComponent?.recipeId ? handleViewRecipe : null
+              }
             />
           )
         )}
@@ -275,6 +295,7 @@ interface HeroCardProps {
   onSwap: () => void;
   onSeeMyMenu: () => void;
   onViewRecipeAgain: () => void;
+  onPressCard: (() => void) | null;
 }
 
 function HeroCard({
@@ -285,6 +306,7 @@ function HeroCard({
   onSwap,
   onSeeMyMenu,
   onViewRecipeAgain,
+  onPressCard,
 }: HeroCardProps) {
   const primary =
     slot.components.find((c) => c.isPrimary) ?? slot.components[0];
@@ -320,12 +342,19 @@ function HeroCard({
         elevation: 2,
       }}
     >
-      <PhotoBlock
-        imageUrl={primary?.imageUrl ?? null}
-        title={title}
-        cooked={isCookedVariant}
-        skipped={isSkipped}
-      />
+      <Pressable
+        onPress={onPressCard ?? undefined}
+        disabled={!onPressCard}
+        accessibilityRole={onPressCard ? 'button' : undefined}
+        accessibilityLabel={onPressCard ? title : undefined}
+      >
+        <PhotoBlock
+          imageUrl={primary?.imageUrl ?? null}
+          title={title}
+          cooked={isCookedVariant}
+          skipped={isSkipped}
+        />
+      </Pressable>
 
       <View className="px-lg pt-md pb-lg">
         {isCookedVariant && (
@@ -339,28 +368,35 @@ function HeroCard({
           </Text>
         )}
 
-        <Text
-          preset="h2"
-          numberOfLines={titleLines}
-          style={isSkipped ? { opacity: 0.6 } : undefined}
+        <Pressable
+          onPress={onPressCard ?? undefined}
+          disabled={!onPressCard}
+          accessibilityRole={onPressCard ? 'button' : undefined}
+          accessibilityLabel={onPressCard ? title : undefined}
         >
-          {title}
-        </Text>
-
-        {meta.length > 0 && !isCookedVariant && (
-          // numberOfLines={1} keeps the meta row from wrapping. Custom Text
-          // doesn't pass through adjustsFontSizeToFit; at very large font
-          // scales the meta will truncate with an ellipsis. Acceptable per
-          // design §7 — caller is the canonical Text component.
           <Text
-            preset="bodySmall"
-            className="mt-xxs text-text-default"
-            numberOfLines={1}
+            preset="h2"
+            numberOfLines={titleLines}
             style={isSkipped ? { opacity: 0.6 } : undefined}
           >
-            {meta.join(' · ')}
+            {title}
           </Text>
-        )}
+
+          {meta.length > 0 && !isCookedVariant && (
+            // numberOfLines={1} keeps the meta row from wrapping. Custom Text
+            // doesn't pass through adjustsFontSizeToFit; at very large font
+            // scales the meta will truncate with an ellipsis. Acceptable per
+            // design §7 — caller is the canonical Text component.
+            <Text
+              preset="bodySmall"
+              className="mt-xxs text-text-default"
+              numberOfLines={1}
+              style={isSkipped ? { opacity: 0.6 } : undefined}
+            >
+              {meta.join(' · ')}
+            </Text>
+          )}
+        </Pressable>
 
         {/* --- Action area: variant-specific --- */}
         {variant === 'activePlanned' && (

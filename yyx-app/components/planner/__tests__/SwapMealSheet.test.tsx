@@ -26,6 +26,7 @@ function buildSlot(id: string, title: string): MealPlanSlotResponse {
     cookedAt: null,
     skippedAt: null,
     mergedCookingGuide: null,
+    coverageComplete: true,
     components: [
       {
         id: `${id}-c0`,
