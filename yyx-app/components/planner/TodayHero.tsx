@@ -25,6 +25,7 @@ import React, {
 } from 'react';
 import {
   AccessibilityInfo,
+  Alert,
   Animated,
   Easing,
   PixelRatio,
@@ -46,6 +47,7 @@ import i18n from '@/i18n';
 import { selectPrimarySlot } from './utils/selectPrimarySlot';
 import { SwapMealSheet } from './SwapMealSheet';
 import { eventService } from '@/services/eventService';
+import { mealPlannerErrorMessage } from '@/services/mealPlanService';
 import type {
   MealPlanResponse,
   MealPlanSlotResponse,
@@ -156,10 +158,17 @@ export const TodayHero = forwardRef<View, TodayHeroProps>(function TodayHero(
       newRecipeId,
     });
     if (newRecipeId) {
-      // Fire-and-forget: server applies the swap, plan invalidates and
-      // refetches automatically via the mutation's onSuccess. Errors swallowed
-      // here surface in the next plan refetch as stale data; not user-blocking.
-      onApplySwap(slot.id, newRecipeId).catch(() => {});
+      // Apply asynchronously so the sheet can close immediately. On rejection
+      // (e.g., recipe is in the rejection set, role mismatch, unpublished
+      // mid-swap), surface the translated error so the user knows the swap
+      // didn't take. The plan invalidates and refetches via the mutation's
+      // onSuccess when the apply succeeds.
+      onApplySwap(slot.id, newRecipeId).catch((err) => {
+        Alert.alert(
+          i18n.t('planner.error.swapTitle'),
+          mealPlannerErrorMessage(err),
+        );
+      });
     }
   };
 

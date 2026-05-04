@@ -115,7 +115,18 @@ export function useMealPlan(): UseMealPlanReturn {
         replaceExisting: options.replaceExisting,
       });
     },
-    onSuccess: () => invalidatePlan(),
+    onSuccess: (data) => {
+      // Seed the active-plan cache from the response so the plan view paints
+      // immediately after setup — no empty-state flash while a refetch is in
+      // flight. Project to GetCurrentPlanResponse shape (drop generate-only
+      // fields). Invalidate after to keep server-side ranking changes in
+      // sync on the next read.
+      queryClient.setQueryData(mealPlanKeys.active(), {
+        plan: data.plan,
+        warnings: data.warnings,
+      });
+      invalidatePlan();
+    },
   });
 
   const updatePreferencesMutation = useMutation({
