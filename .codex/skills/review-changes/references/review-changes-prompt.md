@@ -16,8 +16,8 @@ Domain delegation:
 - Always run $code-reviewer on all files for cross-cutting concerns.
 
 Output requirements:
-- Human-readable summary: Verdict (READY FOR PR/QUICK FIXES THEN PR/NEEDS WORK with severity counts), Highlights, flat Issues list by severity
-- Detailed Next Steps prompt for implementation AI: full findings with categories, options/tradeoffs, recommendations, potential misses
+- Human-readable summary: Verdict (READY FOR PR/QUICK FIXES THEN PR/NEEDS WORK with severity counts), Highlights, "Issues at a Glance" table (one row per finding: # | Sev | Area | File | Issue)
+- Detailed Next Steps prompt for implementation AI: full findings (numbered to match the table) with categories, options/tradeoffs, recommendations, potential misses
 - Keep the human section short — all detail goes in Next Steps
 ```
 
