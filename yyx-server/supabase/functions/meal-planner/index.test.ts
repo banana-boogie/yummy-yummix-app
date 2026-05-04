@@ -1561,7 +1561,7 @@ Deno.test("mark_meal_cooked returns INVALID_INPUT when mealPlanId mismatches the
   assertEquals(body.error.code, "INVALID_INPUT");
 });
 
-Deno.test("generate_shopping_list returns 501 NOT_IMPLEMENTED when Track B not present", async () => {
+Deno.test("generate_shopping_list returns PLAN_NOT_FOUND when plan is missing", async () => {
   const { supabase } = makeStatefulSupabase({});
   const req = createAuthenticatedRequest({
     action: "generate_shopping_list",
@@ -1572,8 +1572,8 @@ Deno.test("generate_shopping_list returns 501 NOT_IMPLEMENTED when Track B not p
     createUserClient: () => supabase as never,
   });
   const body = await response.json();
-  assertEquals(response.status, 501);
-  assertEquals(body.error.code, "NOT_IMPLEMENTED");
+  assertEquals(response.status, 404);
+  assertEquals(body.error.code, "PLAN_NOT_FOUND");
 });
 
 Deno.test("mark_meal_cooked is idempotent when slot is already cooked", async () => {

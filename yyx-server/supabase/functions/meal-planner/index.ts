@@ -1044,6 +1044,9 @@ async function handleGenerateShoppingList(
   supabase: UserClient,
 ): Promise<Response> {
   let mealPlanId: string;
+  const defaultListName = typeof payload.defaultListName === "string"
+    ? payload.defaultListName
+    : undefined;
   try {
     mealPlanId = requireString(payload, "mealPlanId");
   } catch (error) {
@@ -1054,6 +1057,7 @@ async function handleGenerateShoppingList(
     supabase,
     userId,
     mealPlanId,
+    defaultListName,
   );
   if (status === 404) {
     return errorResponse("PLAN_NOT_FOUND", "Meal plan not found", 404);

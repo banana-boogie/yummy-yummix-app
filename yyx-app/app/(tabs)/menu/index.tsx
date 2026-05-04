@@ -192,8 +192,11 @@ export default function MenuScreen() {
     if (!activePlan) return;
     setApproving(true);
     try {
-      await generateShoppingList();
-      router.push('/(tabs)/shopping' as never);
+      const shoppingListId = await generateShoppingList();
+      if (!shoppingListId) {
+        throw new Error('Generated shopping list missing');
+      }
+      router.push(`/(tabs)/shopping/${shoppingListId}` as never);
     } catch (err) {
       Alert.alert(
         i18n.t('planner.error.shoppingListTitle'),

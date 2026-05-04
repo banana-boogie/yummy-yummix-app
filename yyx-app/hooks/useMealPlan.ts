@@ -12,6 +12,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { mealPlanService } from '@/services/mealPlanService';
+import i18n from '@/i18n';
 import {
   todayDayIndex,
   todayLocalISO,
@@ -189,6 +190,7 @@ export function useMealPlan(): UseMealPlanReturn {
       if (!activePlan) throw new Error('No active plan');
       const res = await mealPlanService.generateShoppingList({
         mealPlanId: activePlan.planId,
+        defaultListName: i18n.t('planner.shoppingListDefaultName'),
       });
       return res.shoppingListId;
     },

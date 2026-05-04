@@ -34,12 +34,13 @@ interface GenerateResult {
 }
 
 const DEFAULT_CATEGORY_ID = "other";
-const LIST_NAME = "Meal Plan";
+const DEFAULT_LIST_NAME = "Shopping List";
 
 export async function executeGenerateShoppingList(
   supabase: Supa,
   userId: string,
   mealPlanId: string,
+  defaultListName = DEFAULT_LIST_NAME,
 ): Promise<GenerateResult> {
   const warnings: string[] = [];
 
@@ -207,9 +208,10 @@ export async function executeGenerateShoppingList(
     if (!list) shoppingListId = null;
   }
   if (!shoppingListId) {
+    const listName = defaultListName.trim() || DEFAULT_LIST_NAME;
     const { data: created, error: createErr } = await supabase
       .from("shopping_lists")
-      .insert({ user_id: userId, name: LIST_NAME })
+      .insert({ user_id: userId, name: listName })
       .select("id")
       .single();
     if (createErr || !created) {
@@ -227,65 +229,35 @@ export async function executeGenerateShoppingList(
     }
   }
 
-  // 6. Delete existing plan-sourced items on this list. Items with
-  // source_meal_plan_slot_id IS NULL (manually added) are preserved.
-  const { error: deleteErr } = await supabase
-    .from("shopping_list_items")
-    .delete()
-    .eq("shopping_list_id", shoppingListId)
-    .not("source_meal_plan_slot_id", "is", null);
-  if (deleteErr) {
-    throw new Error(`Delete stale plan items failed: ${deleteErr.message}`);
-  }
-
-  // 7. Insert consolidated items.
   const rows = [...consolidated.values()].map((item, index) => ({
-    shopping_list_id: shoppingListId,
     ingredient_id: item.ingredientId,
     name_custom: item.ingredientId ? null : item.nameCustom,
     category_id: item.categoryId,
     quantity: item.quantity,
     unit_id: item.measurementUnitId,
-    is_checked: false,
     display_order: index,
     source_meal_plan_slot_id: item.firstSlotId,
     source_meal_plan_slot_component_id: item.firstComponentId,
   }));
-  if (rows.length > 0) {
-    const { error: insertErr } = await supabase
-      .from("shopping_list_items")
-      .insert(rows);
-    if (insertErr) {
-      throw new Error(`Insert shopping items failed: ${insertErr.message}`);
-    }
-  } else {
+  if (rows.length === 0) {
     warnings.push("NO_INGREDIENTS_FOUND");
   }
   if (skippedFreeText > 0) {
     warnings.push(`SKIPPED_FREE_TEXT_INGREDIENTS:${skippedFreeText}`);
   }
 
-  // 8. Mark freshness as current on both the plan and its slots.
-  const { error: planUpdateErr } = await supabase
-    .from("meal_plans")
-    .update({ shopping_sync_state: "current" })
-    .eq("id", mealPlanId);
-  if (planUpdateErr) {
+  const { error: regenerateErr } = await supabase.rpc(
+    "regenerate_plan_shopping_list_items",
+    {
+      p_plan_id: mealPlanId,
+      p_list_id: shoppingListId,
+      p_items: rows,
+    },
+  );
+  if (regenerateErr) {
     throw new Error(
-      `Update plan sync state failed: ${planUpdateErr.message}`,
+      `Regenerate shopping list failed: ${regenerateErr.message}`,
     );
-  }
-  if (slotRows.length > 0) {
-    const slotIds = slotRows.map((s) => s.id);
-    const { error: slotUpdateErr } = await supabase
-      .from("meal_plan_slots")
-      .update({ shopping_sync_state: "current" })
-      .in("id", slotIds);
-    if (slotUpdateErr) {
-      throw new Error(
-        `Update slot sync states failed: ${slotUpdateErr.message}`,
-      );
-    }
   }
 
   return {
