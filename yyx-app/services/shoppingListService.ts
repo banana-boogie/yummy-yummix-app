@@ -7,7 +7,6 @@ import {
     ShoppingListWithItems,
     ShoppingCategory,
     ShoppingCategoryWithItems,
-    ConsolidationResult,
     IngredientSuggestion,
 } from '@/types/shopping-list.types';
 import {
@@ -17,6 +16,10 @@ import {
     invalidateAllShoppingListCaches,
 } from './cache/shoppingListCache';
 import { getCurrentLocale, mapIngredient, mapMeasurementUnit, getLocalizedCategoryName } from './utils/mapSupabaseItem';
+import type { MeasurementUnit } from '@/types/recipe.types';
+
+// Module-scope cache — units are static, ~30 rows; no need for AsyncStorage.
+let measurementUnitsCache: MeasurementUnit[] | null = null;
 
 const ITEM_SELECT = `
   id, shopping_list_id, ingredient_id, category_id, name_custom, quantity, unit_id, notes, is_checked, checked_at, recipe_id, display_order, created_at, updated_at,
@@ -265,6 +268,7 @@ export const shoppingListService = {
 
     async updateItem(itemId: string, updates: ShoppingListItemUpdate, listId?: string): Promise<void> {
         const dbUpdates: Record<string, any> = {};
+        if (updates.nameCustom !== undefined) dbUpdates.name_custom = updates.nameCustom;
         if (updates.quantity !== undefined) dbUpdates.quantity = updates.quantity;
         if (updates.unitId !== undefined) dbUpdates.unit_id = updates.unitId;
         if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
@@ -287,37 +291,6 @@ export const shoppingListService = {
         if (error) throw new Error(`Error deleting item: ${error.message}`);
         const userId = await getCurrentUserId();
         await invalidateShoppingCaches(userId, listId);
-    },
-
-    async consolidateItems(shoppingListId: string): Promise<ConsolidationResult> {
-        const list = await this.getShoppingListById(shoppingListId);
-        if (!list) throw new Error('Shopping list not found');
-
-        const itemGroups = new Map<string, ShoppingListItem[]>();
-        for (const item of list.items) {
-            if (!item.ingredientId) continue;
-            const key = `${item.ingredientId}-${item.unit?.id ?? 'no-unit'}`;
-            const group = itemGroups.get(key) ?? [];
-            group.push(item);
-            itemGroups.set(key, group);
-        }
-
-        let mergedCount = 0;
-        for (const [, items] of itemGroups) {
-            if (items.length <= 1) continue;
-            const primary = items[0];
-            const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
-            await this.updateItem(primary.id, { quantity: totalQuantity }, shoppingListId);
-            for (let i = 1; i < items.length; i++) {
-                await this.deleteItem(items[i].id, shoppingListId);
-                mergedCount++;
-            }
-        }
-
-        const updatedList = await this.getShoppingListById(shoppingListId, false);
-        const userId = await getCurrentUserId();
-        await invalidateShoppingCaches(userId, shoppingListId);
-        return { merged: mergedCount, items: updatedList?.items ?? [] };
     },
 
     async getCategories(useCache = true): Promise<ShoppingCategory[]> {
@@ -380,6 +353,21 @@ export const shoppingListService = {
             await shoppingCategoryCache.setCategories(result, userId);
         }
         return result;
+    },
+
+    async getMeasurementUnits(useCache = true): Promise<MeasurementUnit[]> {
+        if (useCache && measurementUnitsCache) return measurementUnitsCache;
+        const locale = getCurrentLocale();
+        const { data, error } = await supabase
+            .from('measurement_units')
+            .select(`
+                id, type, system,
+                translations:measurement_unit_translations (locale, name, name_plural, symbol, symbol_plural)
+            `);
+        if (error) throw new Error(`Error fetching units: ${error.message}`);
+        const units = (data ?? []).map((row: any) => mapMeasurementUnit(row, locale)).filter((u: MeasurementUnit | undefined): u is MeasurementUnit => Boolean(u));
+        measurementUnitsCache = units;
+        return units;
     },
 
     async searchIngredients(query: string, limit = 10): Promise<IngredientSuggestion[]> {

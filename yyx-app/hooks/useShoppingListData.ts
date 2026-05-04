@@ -21,6 +21,14 @@ interface UseShoppingListDataOptions {
     listId: string | undefined;
 }
 
+interface EditItemUpdates {
+    nameCustom?: string;
+    quantity?: number;
+    unitId?: string | null;
+    categoryId?: string;
+    notes?: string;
+}
+
 interface UseShoppingListDataReturn {
     // Data
     list: ShoppingListWithItems | null;
@@ -44,7 +52,7 @@ interface UseShoppingListDataReturn {
     handleCheckItem: (itemId: string, isChecked: boolean) => Promise<void>;
     handleDeleteItem: (itemId: string) => void;
     handleAddItem: (itemData: Omit<ShoppingListItemCreate, 'shoppingListId'>) => Promise<void>;
-    handleConsolidate: () => Promise<void>;
+    handleEditItem: (itemId: string, updates: EditItemUpdates) => Promise<void>;
     handleReorderItems: (categoryId: string, reorderedItems: ShoppingListItem[]) => Promise<void>;
 
     // For optimistic updates from parent
@@ -55,10 +63,6 @@ interface UseShoppingListDataReturn {
     isSyncing: boolean;
     pendingCount: number;
     queueMutation: ReturnType<typeof useOfflineSync>['queueMutation'];
-
-    // Pull-to-refresh
-    isRefreshing: boolean;
-    handleRefresh: () => void;
 }
 
 /**
@@ -71,7 +75,6 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
     const [categories, setCategories] = useState<ShoppingCategory[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
-    const [isRefreshing, setIsRefreshing] = useState(false);
 
     // Ref to track list for rollback without causing re-renders
     const listRef = useRef<ShoppingListWithItems | null>(null);
@@ -194,7 +197,6 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
             toast.showError(i18n.t('common.errors.title'), i18n.t('shoppingList.loadError'));
         } finally {
             setLoading(false);
-            setIsRefreshing(false);
         }
     }, [listId, toast]);
 
@@ -205,12 +207,6 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
 
     useEffect(() => {
         fetchList();
-    }, [fetchList]);
-
-    // Pull-to-refresh handler
-    const handleRefresh = useCallback(() => {
-        setIsRefreshing(true);
-        fetchList(true);
     }, [fetchList]);
 
     // Check item handler
@@ -375,18 +371,82 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
         }
     }, [listId, categories, toast, isOffline, queueMutation, setList]);
 
-    // Consolidate handler
-    const handleConsolidate = useCallback(async () => {
-        if (!listId) return;
+    // Edit item handler with optimistic update
+    const handleEditItem = useCallback(async (itemId: string, updates: EditItemUpdates) => {
+        const previousList = listRef.current;
+
+        // Optimistic update — apply changes locally first.
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setList(current => {
+            if (!current) return null;
+            // Walk every category, mutate the matching item, and reassign
+            // to a new category if categoryId changed.
+            let movedItem: ShoppingListItem | undefined;
+            const stripped = current.categories.map(cat => ({
+                ...cat,
+                items: cat.items.filter(item => {
+                    if (item.id !== itemId) return true;
+                    movedItem = {
+                        ...item,
+                        name: updates.nameCustom ?? item.name,
+                        quantity: updates.quantity ?? item.quantity,
+                        notes: updates.notes ?? item.notes,
+                        categoryId: updates.categoryId ?? item.categoryId,
+                    };
+                    return false;
+                }),
+            })).filter(cat => cat.items.length > 0);
+
+            if (!movedItem) return current;
+
+            const targetId = movedItem.categoryId;
+            const existingIdx = stripped.findIndex(c => c.id === targetId);
+            const newCategories = [...stripped];
+            if (existingIdx >= 0) {
+                newCategories[existingIdx] = {
+                    ...newCategories[existingIdx],
+                    items: [...newCategories[existingIdx].items, movedItem],
+                };
+            } else {
+                const cat = categories.find(c => c.id === targetId);
+                if (cat) {
+                    newCategories.push({
+                        ...cat,
+                        localizedName: getLocalizedCategoryName(cat),
+                        items: [movedItem],
+                    });
+                }
+            }
+            return { ...current, categories: newCategories };
+        });
+
         try {
-            const result = await shoppingListService.consolidateItems(listId);
-            toast.showSuccess(i18n.t('shoppingList.consolidatedCount', { count: result.merged }));
-            fetchList();
+            // null unitId means "clear it"; the service/queue types use undefined,
+            // so coerce here. The optimistic update already shows the new value.
+            const normalizedUnitId = updates.unitId ?? undefined;
+            if (isOffline) {
+                await queueMutation('UPDATE_ITEM', { itemId, updates: {
+                    nameCustom: updates.nameCustom,
+                    quantity: updates.quantity,
+                    unitId: normalizedUnitId,
+                    categoryId: updates.categoryId,
+                    notes: updates.notes,
+                }, listId });
+            } else {
+                await shoppingListService.updateItem(itemId, {
+                    quantity: updates.quantity,
+                    unitId: normalizedUnitId,
+                    categoryId: updates.categoryId,
+                    notes: updates.notes,
+                }, listId);
+            }
+            toast.showSuccess(i18n.t('shoppingList.listUpdated'));
         } catch (error) {
-            console.error('Error consolidating:', error);
-            toast.showError(i18n.t('common.errors.title'), i18n.t('shoppingList.consolidateError'));
+            setList(previousList);
+            console.error('Error editing item:', error);
+            toast.showError(i18n.t('common.errors.title'), i18n.t('shoppingList.checkError'));
         }
-    }, [listId, toast, fetchList]);
+    }, [isOffline, queueMutation, toast, listId, setList, categories]);
 
     // Reorder items handler
     const handleReorderItems = useCallback(async (categoryId: string, reorderedItems: ShoppingListItem[]) => {
@@ -443,15 +503,13 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
         handleCheckItem,
         handleDeleteItem,
         handleAddItem,
-        handleConsolidate,
+        handleEditItem,
         handleReorderItems,
         setList,
         isOffline,
         isSyncing,
         pendingCount,
         queueMutation,
-        isRefreshing,
-        handleRefresh,
     };
 }
 
