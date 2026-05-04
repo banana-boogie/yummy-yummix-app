@@ -7,7 +7,7 @@ export default function AuthLayout() {
 
   if (loading) return null;
   // Redirect to "Home" page if user is logged in
-  if (user) return <Redirect href="/(tabs)/recipes" />;
+  if (user) return <Redirect href="/(tabs)/chat" />;
 
   return (
     <Stack screenOptions={{ headerShown: false }}>

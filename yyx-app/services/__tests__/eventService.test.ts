@@ -279,4 +279,124 @@ describe('eventService', () => {
 
     expect(removeListenerMock).toHaveBeenCalled();
   });
+
+  describe('planner events', () => {
+    function setupService() {
+      const insertMock = jest.fn().mockResolvedValue({ error: null });
+
+      jest.doMock('@/lib/supabase', () => ({
+        supabase: {
+          auth: {
+            getUser: jest
+              .fn()
+              .mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null }),
+            onAuthStateChange: jest.fn(() => ({
+              data: { subscription: { unsubscribe: jest.fn() } },
+            })),
+          },
+          from: jest.fn(() => ({ insert: insertMock })),
+        },
+      }));
+
+      jest.doMock('react-native', () => ({
+        AppState: { addEventListener: jest.fn(() => ({ remove: jest.fn() })) },
+        Platform: { OS: 'ios' },
+      }));
+
+      const { eventService } = require('../eventService');
+      return { eventService, insertMock };
+    }
+
+    it('queues a planner_today_view event with variant', async () => {
+      const { eventService, insertMock } = setupService();
+      await flushPromises();
+
+      eventService.logPlannerTodayView({ variant: 'activePlanned' });
+      await eventService.flush();
+
+      expect(insertMock).toHaveBeenCalledTimes(1);
+      const [row] = insertMock.mock.calls[0][0];
+      expect(row.event_type).toBe('planner_today_view');
+      expect(row.payload).toEqual({ variant: 'activePlanned' });
+    });
+
+    it('queues a planner_cook_press event', async () => {
+      const { eventService, insertMock } = setupService();
+      await flushPromises();
+
+      eventService.logPlannerCookPress({ slotId: 's1', recipeId: 'r1' });
+      await eventService.flush();
+
+      const [row] = insertMock.mock.calls[0][0];
+      expect(row.event_type).toBe('planner_cook_press');
+      expect(row.payload).toEqual({ slot_id: 's1', recipe_id: 'r1' });
+    });
+
+    it('queues a planner_swap_press event', async () => {
+      const { eventService, insertMock } = setupService();
+      await flushPromises();
+
+      eventService.logPlannerSwapPress({ slotId: 's1' });
+      await eventService.flush();
+
+      const [row] = insertMock.mock.calls[0][0];
+      expect(row.event_type).toBe('planner_swap_press');
+      expect(row.payload).toEqual({ slot_id: 's1' });
+    });
+
+    it('queues a planner_swap_complete event', async () => {
+      const { eventService, insertMock } = setupService();
+      await flushPromises();
+
+      eventService.logPlannerSwapComplete({ slotId: 's1', newRecipeId: 'r2' });
+      await eventService.flush();
+
+      const [row] = insertMock.mock.calls[0][0];
+      expect(row.event_type).toBe('planner_swap_complete');
+      expect(row.payload).toEqual({ slot_id: 's1', new_recipe_id: 'r2' });
+    });
+
+    it('queues a planner_week_link_press event', async () => {
+      const { eventService, insertMock } = setupService();
+      await flushPromises();
+
+      eventService.logPlannerWeekLinkPress();
+      await eventService.flush();
+
+      const [row] = insertMock.mock.calls[0][0];
+      expect(row.event_type).toBe('planner_week_link_press');
+      expect(row.payload).toEqual({});
+    });
+
+    it('queues a planner_mode_change event with trigger', async () => {
+      const { eventService, insertMock } = setupService();
+      await flushPromises();
+
+      eventService.logPlannerModeChange({
+        from: 'today',
+        to: 'week',
+        trigger: 'link',
+      });
+      await eventService.flush();
+
+      const [row] = insertMock.mock.calls[0][0];
+      expect(row.event_type).toBe('planner_mode_change');
+      expect(row.payload).toEqual({
+        from: 'today',
+        to: 'week',
+        trigger: 'link',
+      });
+    });
+
+    it('queues a planner_pull_to_refresh event', async () => {
+      const { eventService, insertMock } = setupService();
+      await flushPromises();
+
+      eventService.logPlannerPullToRefresh();
+      await eventService.flush();
+
+      const [row] = insertMock.mock.calls[0][0];
+      expect(row.event_type).toBe('planner_pull_to_refresh');
+    });
+  });
 });
