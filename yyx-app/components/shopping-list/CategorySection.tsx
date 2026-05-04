@@ -9,12 +9,12 @@ import { ShoppingListItemRow } from './ShoppingListItem';
 import { DraggableShoppingListItem } from './DraggableShoppingListItem';
 import i18n from '@/i18n';
 
-// Wrapper to avoid inline closures per checked item in the .map() render
+// Wrapper to avoid inline closures per item in the .map() render
 const CheckedItemRow = React.memo(function CheckedItemRow({
     item,
     onCheckItem,
-    onDeleteItem,
     onPressItem,
+    onLongPressItem,
     onQuantityChange,
     isSelectMode,
     onToggleSelection,
@@ -22,8 +22,8 @@ const CheckedItemRow = React.memo(function CheckedItemRow({
 }: {
     item: ShoppingListItem;
     onCheckItem: (itemId: string, isChecked: boolean) => void;
-    onDeleteItem: (itemId: string) => void;
     onPressItem: (itemId: string) => void;
+    onLongPressItem?: (itemId: string) => void;
     onQuantityChange?: (itemId: string, quantity: number) => void;
     isSelectMode: boolean;
     onToggleSelection?: (itemId: string) => void;
@@ -37,8 +37,6 @@ const CheckedItemRow = React.memo(function CheckedItemRow({
         }
     }, [isSelectMode, onToggleSelection, onCheckItem, item.id, item.isChecked]);
 
-    const handleDelete = useCallback(() => onDeleteItem(item.id), [onDeleteItem, item.id]);
-
     const handlePress = useCallback(() => {
         if (isSelectMode && onToggleSelection) {
             onToggleSelection(item.id);
@@ -46,6 +44,10 @@ const CheckedItemRow = React.memo(function CheckedItemRow({
             onPressItem(item.id);
         }
     }, [isSelectMode, onToggleSelection, onPressItem, item.id]);
+
+    const handleLongPress = useCallback(() => {
+        onLongPressItem?.(item.id);
+    }, [onLongPressItem, item.id]);
 
     const handleQuantityChange = useCallback(
         (qty: number) => onQuantityChange?.(item.id, qty),
@@ -56,8 +58,8 @@ const CheckedItemRow = React.memo(function CheckedItemRow({
         <ShoppingListItemRow
             item={item}
             onCheck={handleCheck}
-            onDelete={handleDelete}
             onPress={handlePress}
+            onLongPress={onLongPressItem ? handleLongPress : undefined}
             onQuantityChange={isSelectMode ? undefined : (onQuantityChange ? handleQuantityChange : undefined)}
             isSelectMode={isSelectMode}
             isSelected={selectedItems?.has(item.id)}
@@ -72,8 +74,8 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 interface CategorySectionProps {
     category: ShoppingCategoryWithItems;
     onCheckItem: (itemId: string, isChecked: boolean) => void;
-    onDeleteItem: (itemId: string) => void;
     onPressItem: (itemId: string) => void;
+    onLongPressItem?: (itemId: string) => void;
     onQuantityChange?: (itemId: string, quantity: number) => void;
     onReorderItems?: (items: ShoppingListItem[]) => void;
     defaultExpanded?: boolean;
@@ -86,7 +88,7 @@ interface CategorySectionProps {
     onSelectAllInCategory?: (itemIds: string[]) => void;
 }
 
-export const CategorySection = React.memo(function CategorySection({ category, onCheckItem, onDeleteItem, onPressItem, onQuantityChange, onReorderItems, defaultExpanded = true, isExpanded: controlledExpanded, onToggleExpand, isSelectMode = false, selectedItems, onToggleSelection, onSelectAllInCategory }: CategorySectionProps) {
+export const CategorySection = React.memo(function CategorySection({ category, onCheckItem, onPressItem, onLongPressItem, onQuantityChange, onReorderItems, defaultExpanded = true, isExpanded: controlledExpanded, onToggleExpand, isSelectMode = false, selectedItems, onToggleSelection, onSelectAllInCategory }: CategorySectionProps) {
     const [localExpanded, setLocalExpanded] = useState(defaultExpanded);
 
     // Use controlled state if provided, otherwise use local state
@@ -144,21 +146,22 @@ export const CategorySection = React.memo(function CategorySection({ category, o
                 if (isSelectMode && onToggleSelection) onToggleSelection(item.id);
                 else onPressItem(item.id);
             };
+            const handleLongPress = onLongPressItem ? () => onLongPressItem(item.id) : undefined;
             return (
                 <DraggableShoppingListItem
                     item={item}
                     drag={drag}
                     isActive={isActive}
                     onCheck={handleCheck}
-                    onDelete={() => onDeleteItem(item.id)}
                     onPress={handlePress}
+                    onLongPress={handleLongPress}
                     onQuantityChange={onQuantityChange ? (qty) => onQuantityChange(item.id, qty) : undefined}
                     isSelectMode={isSelectMode}
                     isSelected={selectedItems?.has(item.id)}
                 />
             );
         },
-        [isSelectMode, onToggleSelection, onCheckItem, onPressItem, onDeleteItem, onQuantityChange, selectedItems],
+        [isSelectMode, onToggleSelection, onCheckItem, onPressItem, onLongPressItem, onQuantityChange, selectedItems],
     );
 
     return (
@@ -228,8 +231,8 @@ export const CategorySection = React.memo(function CategorySection({ category, o
                                 key={item.id}
                                 item={item}
                                 onCheckItem={onCheckItem}
-                                onDeleteItem={onDeleteItem}
                                 onPressItem={onPressItem}
+                                onLongPressItem={onLongPressItem}
                                 onQuantityChange={onQuantityChange}
                                 isSelectMode={isSelectMode}
                                 onToggleSelection={onToggleSelection}
@@ -242,8 +245,8 @@ export const CategorySection = React.memo(function CategorySection({ category, o
                             key={item.id}
                             item={item}
                             onCheckItem={onCheckItem}
-                            onDeleteItem={onDeleteItem}
                             onPressItem={onPressItem}
+                            onLongPressItem={onLongPressItem}
                             onQuantityChange={onQuantityChange}
                             isSelectMode={isSelectMode}
                             onToggleSelection={onToggleSelection}

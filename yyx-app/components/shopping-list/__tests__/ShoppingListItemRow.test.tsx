@@ -31,7 +31,6 @@ describe('ShoppingListItemRow', () => {
       <ShoppingListItemRow
         item={item}
         onCheck={jest.fn()}
-        onDelete={jest.fn()}
         onPress={jest.fn()}
       />
     );
@@ -48,7 +47,6 @@ describe('ShoppingListItemRow', () => {
       <ShoppingListItemRow
         item={item}
         onCheck={onCheck}
-        onDelete={jest.fn()}
         onPress={jest.fn()}
         isSelectMode
       />
@@ -73,10 +71,8 @@ describe('ShoppingListItemRow', () => {
       <ShoppingListItemRow
         item={item}
         onCheck={jest.fn()}
-        onDelete={jest.fn()}
         onPress={jest.fn()}
         onQuantityChange={onQuantityChange}
-        isSelectMode
       />
     );
 
@@ -98,21 +94,5 @@ describe('ShoppingListItemRow', () => {
 
     expect(onQuantityChange).toHaveBeenCalledWith(3);
     expect(onQuantityChange).toHaveBeenCalledWith(1);
-  });
-
-  it('hides delete action in select mode', () => {
-    const item = shoppingListFactory.createItem({ name: 'Apples' });
-
-    render(
-      <ShoppingListItemRow
-        item={item}
-        onCheck={jest.fn()}
-        onDelete={jest.fn()}
-        onPress={jest.fn()}
-        isSelectMode
-      />
-    );
-
-    expect(screen.queryByText(i18n.t('common.delete'))).toBeNull();
   });
 });

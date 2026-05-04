@@ -9,8 +9,8 @@ import { COLORS } from '@/constants/design-tokens';
 interface DraggableShoppingListItemProps {
     item: ShoppingListItem;
     onCheck: () => void;
-    onDelete: () => void;
     onPress: () => void;
+    onLongPress?: () => void;
     onQuantityChange?: (qty: number) => void;
     drag: () => void;
     isActive: boolean;
@@ -23,8 +23,8 @@ export const DraggableShoppingListItem = React.memo(function DraggableShoppingLi
     drag,
     isActive,
     onCheck,
-    onDelete,
     onPress,
+    onLongPress,
     onQuantityChange,
     isSelectMode,
     isSelected,
@@ -65,8 +65,8 @@ export const DraggableShoppingListItem = React.memo(function DraggableShoppingLi
                 <ShoppingListItemRow
                     item={item}
                     onCheck={onCheck}
-                    onDelete={onDelete}
                     onPress={onPress}
+                    onLongPress={onLongPress}
                     onQuantityChange={onQuantityChange}
                     isSelectMode={isSelectMode}
                     isSelected={isSelected}
