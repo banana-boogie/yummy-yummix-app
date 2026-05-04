@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { View, FlatList, TouchableOpacity, TextInput, Animated, RefreshControl, Keyboard } from 'react-native';
+import { View, FlatList, TouchableOpacity, TextInput, Animated, Keyboard } from 'react-native';
 import { useLocalSearchParams, Stack } from 'expo-router';
 import { Text, OfflineBanner, AlertModal } from '@/components/common';
-import { CategorySection, AddItemModal, FloatingActionBar } from '@/components/shopping-list';
+import { CategorySection, AddItemModal, EditItemModal, FloatingActionBar } from '@/components/shopping-list';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING } from '@/constants/design-tokens';
 import i18n from '@/i18n';
@@ -127,7 +127,9 @@ function AnimatedProgressBar({ percentage }: { percentage: number }) {
 export default function ShoppingListDetailScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const [modalVisible, setModalVisible] = useState(false);
+    const [editingItem, setEditingItem] = useState<ShoppingListItem | null>(null);
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+    const [prefilledAddName, setPrefilledAddName] = useState<string | undefined>(undefined);
     const searchInputRef = useRef<TextInput>(null);
     const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -145,15 +147,13 @@ export default function ShoppingListDetailScreen() {
         handleCheckItem,
         handleDeleteItem,
         handleAddItem,
-        handleConsolidate,
+        handleEditItem,
         handleReorderItems,
         setList,
         isOffline,
         isSyncing,
         pendingCount,
         queueMutation,
-        isRefreshing,
-        handleRefresh,
     } = useShoppingListData({ listId: id });
 
     // Selection mode
@@ -225,10 +225,41 @@ export default function ShoppingListDetailScreen() {
         Keyboard.dismiss();
     }, []);
 
-    // Stable no-op for item press
-    const handlePressItem = useCallback(() => {
-        // Item press - no action needed for now
-    }, []);
+    // Tap a row → open the edit modal for that item.
+    const handlePressItem = useCallback((itemId: string) => {
+        if (!list) return;
+        const found = list.items.find(i => i.id === itemId);
+        if (found) setEditingItem(found);
+    }, [list]);
+
+    // Long-press a row → enter select mode and pre-select that row.
+    const handleLongPressItem = useCallback((itemId: string) => {
+        if (!isSelectMode) {
+            toggleSelectMode();
+        }
+        toggleItemSelection(itemId);
+    }, [isSelectMode, toggleSelectMode, toggleItemSelection]);
+
+    const handleEditSave = useCallback(async (updates: Parameters<typeof handleEditItem>[1]) => {
+        if (!editingItem) return;
+        await handleEditItem(editingItem.id, updates);
+    }, [editingItem, handleEditItem]);
+
+    const handleEditDelete = useCallback(() => {
+        if (!editingItem) return;
+        handleDeleteItem(editingItem.id);
+    }, [editingItem, handleDeleteItem]);
+
+    // Filter input "Add as new" affordance — open AddItemModal with the typed
+    // name pre-filled so the user can continue without re-typing.
+    const handleAddFromFilter = useCallback(() => {
+        const typed = debouncedSearchQuery.trim();
+        if (!typed) return;
+        setPrefilledAddName(typed);
+        setDebouncedSearchQuery('');
+        setSearchQuery('');
+        setModalVisible(true);
+    }, [debouncedSearchQuery, setSearchQuery]);
 
     // Stable callback for reorder that binds category ID
     const handleCategoryReorder = useCallback((categoryId: string, items: ShoppingListItem[]) => {
@@ -270,7 +301,9 @@ export default function ShoppingListDetailScreen() {
             />
 
             <Stack.Screen options={{
-                title: list.name,
+                title: isSelectMode
+                    ? i18n.t('shoppingList.selectMode', { count: selectedItems.size })
+                    : list.name,
                 headerRight: () => (
                     <View className="flex-row items-center">
                         {/* Clear checked items button */}
@@ -289,33 +322,20 @@ export default function ShoppingListDetailScreen() {
                                 />
                             </TouchableOpacity>
                         )}
-                        {/* Consolidate button */}
-                        {!isSelectMode && (
+                        {/* In select mode: cancel button takes the place of the toggle.
+                            Out of select mode: long-press a row enters select mode (no header button). */}
+                        {isSelectMode && (
                             <TouchableOpacity
-                                onPress={handleConsolidate}
-                                className="mr-md"
-                                accessibilityLabel={i18n.t('shoppingList.consolidate')}
+                                onPress={toggleSelectMode}
+                                disabled={isAnyBatchOperationInProgress}
+                                accessibilityLabel={i18n.t('shoppingList.exitSelectMode')}
                                 accessibilityRole="button"
                             >
-                                <Ionicons name="git-merge-outline" size={24} color={COLORS.primary.default} />
+                                <Text preset="body" className="text-text-default font-medium">
+                                    {i18n.t('common.cancel')}
+                                </Text>
                             </TouchableOpacity>
                         )}
-                        {/* Select mode toggle */}
-                        <TouchableOpacity
-                            onPress={toggleSelectMode}
-                            disabled={isAnyBatchOperationInProgress}
-                            accessibilityLabel={isSelectMode
-                                ? i18n.t('shoppingList.exitSelectMode')
-                                : i18n.t('shoppingList.enterSelectMode')
-                            }
-                            accessibilityRole="button"
-                        >
-                            <Ionicons
-                                name={isSelectMode ? 'close' : 'checkbox-outline'}
-                                size={24}
-                                color={isSelectMode ? COLORS.grey.dark : COLORS.primary.default}
-                            />
-                        </TouchableOpacity>
                     </View>
                 )
             }} />
@@ -336,21 +356,32 @@ export default function ShoppingListDetailScreen() {
                 <AnimatedProgressBar percentage={progressPercentage} />
             </View>
 
-            {/* Search Bar */}
+            {/* Filter-or-add bar */}
             <View className="px-md pb-sm">
                 <View className="flex-row items-center bg-grey-lightest rounded-lg px-sm py-xs">
-                    <Ionicons name="search" size={18} color={COLORS.grey.medium} />
                     <TextInput
                         ref={searchInputRef}
                         className="flex-1 ml-sm py-xs text-text-default"
-                        placeholder={i18n.t('shoppingList.searchItems')}
+                        placeholder={i18n.t('shoppingList.filterOrAddPlaceholder')}
                         placeholderTextColor={COLORS.grey.medium}
                         value={debouncedSearchQuery}
                         onChangeText={handleSearchChange}
                         autoCorrect={false}
-                        returnKeyType="search"
-                        onSubmitEditing={() => Keyboard.dismiss()}
-                        accessibilityLabel={i18n.t('shoppingList.searchItems')}
+                        returnKeyType="done"
+                        onSubmitEditing={() => {
+                            // Pressing Enter in the filter always opens AddItemModal pre-filled,
+                            // even if the typed text matches existing items — lets users add a
+                            // duplicate (different unit/notes) without going through the FAB.
+                            const typed = debouncedSearchQuery.trim();
+                            if (typed) {
+                                setPrefilledAddName(typed);
+                                setDebouncedSearchQuery('');
+                                setSearchQuery('');
+                                setModalVisible(true);
+                            }
+                            Keyboard.dismiss();
+                        }}
+                        accessibilityLabel={i18n.t('shoppingList.filterOrAddPlaceholder')}
                     />
                     {debouncedSearchQuery.length > 0 && (
                         <TouchableOpacity
@@ -364,6 +395,19 @@ export default function ShoppingListDetailScreen() {
                         </TouchableOpacity>
                     )}
                 </View>
+                {/* Inline "+ Add 'foo' as new" affordance: only when typed, no matches, not in select mode. */}
+                {!isSelectMode && debouncedSearchQuery.trim().length >= 2 && filteredCategories.length === 0 && (
+                    <TouchableOpacity
+                        onPress={handleAddFromFilter}
+                        className="flex-row items-center px-sm py-sm mt-xs rounded-lg bg-primary-lightest"
+                        accessibilityRole="button"
+                    >
+                        <Ionicons name="add-circle" size={20} color={COLORS.primary.darkest} />
+                        <Text preset="body" className="ml-sm text-primary-darkest">
+                            {i18n.t('shoppingList.addAsNew', { query: debouncedSearchQuery.trim() })}
+                        </Text>
+                    </TouchableOpacity>
+                )}
             </View>
 
             {isEmpty ? (
@@ -376,8 +420,8 @@ export default function ShoppingListDetailScreen() {
                         <CategorySection
                             category={item}
                             onCheckItem={handleCheckItem}
-                            onDeleteItem={handleDeleteItem}
                             onPressItem={handlePressItem}
+                            onLongPressItem={handleLongPressItem}
                             onReorderItems={(items) => handleCategoryReorder(item.id, items)}
                             isExpanded={!collapsedCategories.has(item.id)}
                             onToggleExpand={() => toggleCategoryCollapse(item.id)}
@@ -388,14 +432,6 @@ export default function ShoppingListDetailScreen() {
                         />
                     )}
                     contentContainerStyle={listContentContainerStyle}
-                    refreshControl={
-                        <RefreshControl
-                            refreshing={isRefreshing}
-                            onRefresh={handleRefresh}
-                            tintColor={COLORS.primary.default}
-                            colors={[COLORS.primary.default]}
-                        />
-                    }
                     onScrollBeginDrag={handleScrollBeginDrag}
                     keyboardShouldPersistTaps="handled"
                 />
@@ -415,9 +451,22 @@ export default function ShoppingListDetailScreen() {
 
             <AddItemModal
                 visible={modalVisible}
-                onClose={() => setModalVisible(false)}
+                onClose={() => {
+                    setModalVisible(false);
+                    setPrefilledAddName(undefined);
+                }}
                 onAddItem={handleAddItem}
                 categories={categories}
+                initialName={prefilledAddName}
+            />
+
+            <EditItemModal
+                visible={!!editingItem}
+                onClose={() => setEditingItem(null)}
+                item={editingItem}
+                categories={categories}
+                onSave={handleEditSave}
+                onDelete={handleEditDelete}
             />
 
             {/* Floating action bar for batch operations */}

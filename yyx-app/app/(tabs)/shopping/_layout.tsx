@@ -17,7 +17,7 @@ export default function ShoppingLayout() {
             }}
         >
             <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="[id]" options={{ title: '' }} />
+            <Stack.Screen name="[id]" options={{ title: '', headerBackTitle: '' }} />
             <Stack.Screen name="pantry" />
             <Stack.Screen name="favorites" />
         </Stack>
