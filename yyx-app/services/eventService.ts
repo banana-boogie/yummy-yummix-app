@@ -8,7 +8,14 @@ type EventType =
   | 'cook_complete'
   | 'search'
   | 'recipe_generate'
-  | 'action_execute';
+  | 'action_execute'
+  | 'planner_today_view'
+  | 'planner_cook_press'
+  | 'planner_swap_press'
+  | 'planner_swap_complete'
+  | 'planner_week_link_press'
+  | 'planner_mode_change'
+  | 'planner_pull_to_refresh';
 type RecipeTable = 'recipes' | 'user_recipes';
 
 interface QueuedEvent {
@@ -216,6 +223,78 @@ class EventService {
       source,
       path,
     });
+  }
+
+  /**
+   * Log which TodayHero variant rendered.
+   * Tracks the planner-today funnel and surfaces variant distribution
+   * (e.g. catches stale-plan or selector regressions in the wild).
+   */
+  logPlannerTodayView(params: { variant: string }): void {
+    this.queueEvent('planner_today_view', { variant: params.variant });
+  }
+
+  /**
+   * Log when the user taps "Cocinar esto" on TodayHero.
+   * Tracks activation from the daily surface specifically.
+   */
+  logPlannerCookPress(params: { slotId: string; recipeId: string }): void {
+    this.queueEvent('planner_cook_press', {
+      slot_id: params.slotId,
+      recipe_id: params.recipeId,
+    });
+  }
+
+  /**
+   * Log when the user opens the swap sheet.
+   */
+  logPlannerSwapPress(params: { slotId: string }): void {
+    this.queueEvent('planner_swap_press', { slot_id: params.slotId });
+  }
+
+  /**
+   * Log when the user picks an alternative from the swap sheet.
+   */
+  logPlannerSwapComplete(params: {
+    slotId: string;
+    newRecipeId: string | null;
+  }): void {
+    this.queueEvent('planner_swap_complete', {
+      slot_id: params.slotId,
+      new_recipe_id: params.newRecipeId,
+    });
+  }
+
+  /**
+   * Log when the user taps the "see my menu for the week" link below TodayHero.
+   * Distinct from logPlannerModeChange — that event covers all triggers; this
+   * one is specifically the link.
+   */
+  logPlannerWeekLinkPress(): void {
+    this.queueEvent('planner_week_link_press', {});
+  }
+
+  /**
+   * Log when the menu surface toggles between today and week mode.
+   * Substitutes for route-based page-view tracking since URL doesn't change.
+   */
+  logPlannerModeChange(params: {
+    from: 'today' | 'week';
+    to: 'today' | 'week';
+    trigger: 'link' | 'back-button' | 'hardware-back';
+  }): void {
+    this.queueEvent('planner_mode_change', {
+      from: params.from,
+      to: params.to,
+      trigger: params.trigger,
+    });
+  }
+
+  /**
+   * Log when the user pulls TodayHero to refresh.
+   */
+  logPlannerPullToRefresh(): void {
+    this.queueEvent('planner_pull_to_refresh', {});
   }
 
   /**

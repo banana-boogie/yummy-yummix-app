@@ -15,6 +15,7 @@ export const common = {
   noOptionsAvailable: "No hay opciones disponibles",
   import: "Import",
   done: "Listo",
+  continue: "Continuar",
   selectDate: "Seleccionar Fecha",
   showAll: "Mostrar {{count}} más",
   showLess: "Mostrar menos",
