@@ -416,8 +416,10 @@ export const shoppingListService = {
 
     async updateItemsOrder(updates: { id: string; displayOrder: number }[], listId?: string): Promise<void> {
         if (updates.length === 0) return;
+        if (!listId) throw new Error('Shopping list ID is required to update item order');
 
         const { error } = await supabase.rpc('update_shopping_list_item_orders', {
+            p_list_id: listId,
             updates: updates.map(({ id, displayOrder }) => ({
                 id,
                 display_order: displayOrder,
@@ -529,7 +531,7 @@ export const shoppingListService = {
         }
 
         const toInsert: Record<string, any>[] = [];
-        const toUpdate: { id: string; quantity: number }[] = [];
+        const toUpdate = new Map<string, number>();
         for (const ing of ingredients) {
             const ingId = ing.ingredientId ?? null;
             const unitId = ing.unitId ?? null;
@@ -537,7 +539,7 @@ export const shoppingListService = {
                 const match = byKey.get(keyOf(ingId, unitId));
                 if (match) {
                     match.quantity += ing.quantity;
-                    toUpdate.push({ id: match.id, quantity: match.quantity });
+                    toUpdate.set(match.id, match.quantity);
                     continue;
                 }
             }
@@ -559,10 +561,10 @@ export const shoppingListService = {
             const { error } = await supabase.from('shopping_list_items').insert(toInsert);
             if (error) throw new Error(`Insert items failed: ${error.message}`);
         }
-        if (toUpdate.length > 0) {
+        if (toUpdate.size > 0) {
             const results = await Promise.all(
-                toUpdate.map((u) =>
-                    supabase.from('shopping_list_items').update({ quantity: u.quantity }).eq('id', u.id),
+                [...toUpdate.entries()].map(([id, quantity]) =>
+                    supabase.from('shopping_list_items').update({ quantity }).eq('id', id),
                 ),
             );
             const failed = results.find((r) => r.error);

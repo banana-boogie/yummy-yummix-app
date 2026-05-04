@@ -18,7 +18,6 @@ interface MeasurementUnitTranslationRow {
 
 interface RawIngredientJoin {
     id: string;
-    picture_url?: string;
     image_url?: string;
     translations?: IngredientTranslationRow[];
 }
@@ -57,7 +56,7 @@ export function mapIngredient(
     return {
         name: t?.name ?? fallbackName ?? '',
         pluralName: t?.plural_name ?? undefined,
-        pictureUrl: ingredient?.picture_url ?? ingredient?.image_url,
+        pictureUrl: ingredient?.image_url,
     };
 }
 
