@@ -17,9 +17,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Appreciate inspirational content that feels achievable, not exclusionary
 - Want warmth and approachability without sacrificing sophistication
 
-**Two key segments:**
-- **Sofía (35-45)**: Busy professional, tech-comfortable, wants kitchen efficiency, may have young family
-- **Lupita (55+)**: Experienced home cook, has time to explore, **technologically challenged — the majority segment**. Design must guide her explicitly — no self-discovery.
+**Avatar strategy: Sell to Sofía, Design for Lupita.**
+- **Sofía (35–50) — the buyer.** Mexican Thermomix owner who runs the household's weekly food decisions. Acute weekly-planning pain; pays 149 MXN/mo; tech-comfortable; matches the founder's own use case (dogfood works). Defined by job-to-be-done, not demographic.
+- **Lupita (55+) — the design constraint, not the buyer.** Tech-anxious experienced cook. Pain is execution and tech-anxiety, not weekly planning. Subscription willingness is weaker than Sofía's. Included in beta only as 3–5 usability/accessibility testers.
+
+Every UI decision must pass two gates:
+- **Sofía gate** — does the buyer pay more, retain longer, or refer more after this surface change?
+- **Lupita gate** — can the constraint user complete it without help (44px+ targets, no self-discovery, large readable text)?
 
 **Mexico-first launch** — Spanish is the primary language.
 
@@ -29,6 +33,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `supabase/` - Supabase configuration
 
 <!-- END:shared/project-overview -->
+
+## AI Documentation Sync
+
+Persona, design, and strategy content is **bundled** across three places that drift if edited separately. When you change any one, change them all in the same PR:
+
+1. `docs/agent-guidelines/shared/project-overview.md` — canonical source for the persona/strategy block in `CLAUDE.md` and `AGENTS.md`. Run `npm run dev:docs-sync` after editing.
+2. `docs/agent-guidelines/DESIGN-GUIDELINES.md` — the deeper design playbook.
+3. `docs/agent-guidelines/AGENT-ROLES.yaml` — canonical source for `.claude/agents/*.md` and `.codex/skills/*`. Run `node scripts/agents-sync.js` after editing.
+
+Don't edit `CLAUDE.md`, `AGENTS.md`, or `.claude/agents/*.md` directly for this content — the managed sections are generated. See [docs/operations/AI-DOCS-SYNC.md](docs/operations/AI-DOCS-SYNC.md) and [docs/operations/AGENT-SYNC.md](docs/operations/AGENT-SYNC.md).
 
 <!-- BEGIN:shared/development-setup -->
 ## Development Setup

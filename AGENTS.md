@@ -28,9 +28,13 @@ Guidelines for AI coding agents working on the YummyYummix codebase. This file s
 - Appreciate inspirational content that feels achievable, not exclusionary
 - Want warmth and approachability without sacrificing sophistication
 
-**Two key segments:**
-- **Sofía (35-45)**: Busy professional, tech-comfortable, wants kitchen efficiency, may have young family
-- **Lupita (55+)**: Experienced home cook, has time to explore, **technologically challenged — the majority segment**. Design must guide her explicitly — no self-discovery.
+**Avatar strategy: Sell to Sofía, Design for Lupita.**
+- **Sofía (35–50) — the buyer.** Mexican Thermomix owner who runs the household's weekly food decisions. Acute weekly-planning pain; pays 149 MXN/mo; tech-comfortable; matches the founder's own use case (dogfood works). Defined by job-to-be-done, not demographic.
+- **Lupita (55+) — the design constraint, not the buyer.** Tech-anxious experienced cook. Pain is execution and tech-anxiety, not weekly planning. Subscription willingness is weaker than Sofía's. Included in beta only as 3–5 usability/accessibility testers.
+
+Every UI decision must pass two gates:
+- **Sofía gate** — does the buyer pay more, retain longer, or refer more after this surface change?
+- **Lupita gate** — can the constraint user complete it without help (44px+ targets, no self-discovery, large readable text)?
 
 **Mexico-first launch** — Spanish is the primary language.
 
