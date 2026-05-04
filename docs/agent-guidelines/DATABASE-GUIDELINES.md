@@ -120,6 +120,12 @@ CREATE INDEX idx_<table>_user_id ON public.<table_name>(user_id);
 - `food_allergies` — User allergy records
 - `diet_types` — User diet type records
 - `cuisine_preferences` — User cuisine preferences
+- `shopping_lists` — User-owned shopping list headers
+- `shopping_list_items` — Shopping list rows, including recipe- and planner-sourced item metadata
+- `pantry_items` — User pantry inventory rows
+- `favorite_shopping_items` — User shopping favorites for quick re-add
+- `purchase_history` — Shopping purchase history snapshots
+- `user_category_order` — Per-user shopping category ordering
 
 ### Chat/Voice Tables
 - `ai_chat_sessions` — Chat sessions
@@ -131,6 +137,7 @@ CREATE INDEX idx_<table>_user_id ON public.<table_name>(user_id);
 - `allergen_groups` — Allergen category mapping
 - `food_safety_rules` — USDA cooking temperatures (read-only)
 - `ingredient_aliases` — Ingredient synonym mapping
+- `shopping_list_categories` — Public shopping category taxonomy (`produce`, `dairy`, `meat`, etc.)
 
 ### i18n Tables
 - `locales` — Supported locales with `parent_code` for fallback chain
@@ -212,6 +219,17 @@ ALTER TABLE public.my_table ENABLE ROW LEVEL SECURITY;
 - `admin_content_health()` — Returns content quality issues (missing translations, images, nutrition, unpublished) across recipes, ingredients, and kitchen tools; used by the Content Health screen
 - `is_admin()` — Check current user's admin status
 - `apply_recipe_metadata(payload jsonb)` — Plan 12 transactional applier. Service-role only, single-transaction RPC that takes a YAML-derived JSON payload and updates planner/timings/translations/ingredients/steps/kitchen_tools/pairings/tags + cleanup.delete_locales (across `recipe_translations`, `recipe_step_translations`, `recipe_ingredient_translations`). Stale-diff guarded via `expected_recipe_updated_at` (FOR UPDATE row lock). Idempotent — re-running an unchanged payload writes nothing. Bug fixes ship as forward-only `CREATE OR REPLACE FUNCTION` migrations rather than editing the original (e.g. `_recipe_metadata_resolve_kitchen_tool` had a `max(uuid)` bug fixed by 20260428190944, not by editing the originating migration). See `yyx-server/data-pipeline/data/recipe-metadata/README.md` for the end-to-end workflow.
+- `update_shopping_list_item_orders(p_list_id uuid, updates jsonb)` — Authenticated, `SECURITY INVOKER` RPC used by the app to atomically update shopping list item `display_order` values during drag-to-reorder. The list id scopes the update and RLS on `shopping_list_items` still constrains rows to the current user's lists.
+
+### Shopping List Migrations
+
+Shopping list schema currently lands through these migrations:
+- `20260413000001_add_shopping_list.sql` — shopping categories, lists, items, pantry, favorites, purchase history, RLS, triggers, seed categories, and the deferred `meal_plans.shopping_list_id` FK.
+- `20260413000003_shopping_list_planner_link.sql` — source slot/component FKs for planner-generated list rows.
+- `20260426000001_shopping_list_item_order_rpc.sql` — reorder RPC plus recipe lookup index.
+- `20260426000002_ingredient_default_category.sql` — nullable `ingredients.default_category_id` FK for default shopping grouping.
+
+`ingredients.default_category_id` needs a reviewed seed migration before production recipe/planner-sourced items stop falling back to `other`. Generate the SQL with `deno task pipeline:categorize-ingredients`, review the output manually, then promote it to a migration only after `npm run backup:all`.
 
 ### Function Template
 

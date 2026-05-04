@@ -13,6 +13,8 @@ yyx-app/
 │   │   ├── index.tsx       # Home / Recipe discovery
 │   │   ├── chat/           # AI chat (Irmixy)
 │   │   ├── cooking-guide/  # Step-by-step cooking
+│   │   ├── menu/           # Meal planner ("Mi Menú") and Make My List flow
+│   │   ├── shopping/       # Shopping lists, pantry, and favorites tab
 │   │   └── profile/        # User profile
 │   ├── recipe/             # Recipe detail routes
 │   ├── onboarding/         # Onboarding flow
@@ -24,6 +26,8 @@ yyx-app/
 │   ├── recipe/             # Recipe cards, lists
 │   ├── recipe-detail/      # Recipe detail views
 │   ├── cooking-guide/      # Cooking guide components
+│   ├── planner/            # Meal plan cards, today hero, setup flow, approval CTA
+│   ├── shopping-list/      # Shopping list rows, category sections, add modals, batch action bar
 │   ├── profile/            # Profile components
 │   ├── onboarding/         # Onboarding components
 │   ├── settings/           # Settings components
@@ -40,12 +44,16 @@ yyx-app/
 │   ├── nutritionalFactsService.ts
 │   ├── eventService.ts
 │   ├── preferencesService.ts
+│   ├── mealPlanService.ts
+│   ├── shoppingListService.ts
+│   ├── pantryService.ts
 │   ├── analyticsService.ts
 │   ├── actions/            # Action execution system
 │   │   └── actionRegistry.ts  # Handler map for frontend action execution
 │   ├── voice/              # Voice provider system
 │   ├── admin/              # Admin services (adminRecipeService, adminContentHealthService, adminTranslateService, etc.)
-│   └── cache/              # Caching layer
+│   ├── cache/              # Caching layer
+│   └── offlineQueue/       # Persisted shopping-list mutation queue for offline replay
 ├── hooks/                  # Custom React hooks (key hooks listed)
 │   ├── useRecipes.ts
 │   ├── useRecipeSearch.ts
@@ -55,6 +63,10 @@ yyx-app/
 │   ├── useDebounce.ts
 │   ├── useAudioPlayback.ts
 │   ├── useImmersiveMode.ts
+│   ├── useMealPlan.ts
+│   ├── useShoppingListData.ts
+│   ├── useOfflineSync.ts
+│   ├── useBatchActions.ts
 │   ├── admin/              # Admin hooks (useContentHealth, useRecipeTranslation, useActiveLocales, etc.)
 │   └── ... (useRecipe, useRecipeQuery, useUserProfileQuery, etc.)
 ├── contexts/               # React contexts
@@ -65,6 +77,8 @@ yyx-app/
 │   └── UserProfileContext.tsx
 ├── types/                  # TypeScript definitions
 │   ├── recipe.types.ts
+│   ├── mealPlan.ts
+│   ├── shopping-list.types.ts
 │   ├── recipe.api.types.ts
 │   ├── user.ts
 │   ├── irmixy.ts
@@ -86,6 +100,13 @@ yyx-app/
     ├── factories/           # recipeFactory, userFactory
     └── mocks/supabase.ts   # Supabase mock helpers
 ```
+
+### Shopping List Integration
+
+- The top-level Shopping tab lives at `app/(tabs)/shopping/` and uses `shoppingListService`, `useShoppingListData`, `useOfflineSync`, and the persisted `services/offlineQueue/mutationQueue.ts`.
+- Recipe detail uses `AddToShoppingListModal` to add selected canonical recipe ingredients to an existing or newly-created list. It consolidates existing rows by `ingredient_id + unit_id`.
+- The planner "Make My List" CTA calls `mealPlanService.generateShoppingList()` through `useMealPlan`, then opens the generated shopping list detail route. Keep this route-to-detail behavior when touching approval.
+- Offline shopping mutations are optimistic in UI and queued per authenticated user namespace. When changing shopping CRUD, batch ops, or reordering, update both the online service path and the offline replay path.
 
 ---
 
