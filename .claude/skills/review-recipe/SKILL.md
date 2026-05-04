@@ -361,7 +361,14 @@ The applier ignores this section — it is YAML-only, surfaced by `--list-author
 
 ## Step 7 — Report
 
-The report is a **triage**, not an exhaustive change log. The dry-run is the source of truth for every mechanical change — the report's job is to tell the user what to look at *before* running `--apply`. Lead with the recipe identifier, then the buckets in this order:
+The report is a **triage**, not an exhaustive change log. The dry-run is the source of truth for every mechanical change — the report's job is to tell the user what to look at *before* running `--apply`. Lead with the recipe identifier, then the buckets in this order.
+
+**Spacing rules** (also see *Formatting and Whitespace* in `docs/agent-guidelines/REVIEW-OUTPUT-SPEC.md`):
+
+- One blank line between every bucket (header + its bullets).
+- One blank line between every bullet within a bucket — even short bullets. The buckets are scannable; the per-bullet whitespace is what makes them readable.
+- No blank line between a bucket header and its first bullet.
+- No trailing blank lines at the end of the report.
 
 ```
 STATUS: <READY | REVIEW (N risks) | BLOCKED (stale_diff)>
@@ -371,24 +378,34 @@ Dry-run: <N> changes  stale_diff: <yes/no>
 
 ⚠ Risks — read or push back
   - <every item that's structural, reversible-but-wrong-could-ship, or otherwise high-stakes>
+
   - <e.g. "step 4 sauté params cleared (thermomix_speed null, was 4) — verify the structured field is right">
+
   - <e.g. "Added diet:gluten_free promise — confirm no soy sauce / wheat-bouillon in description.es">
+
   - <e.g. "Role flipped main → side, diverges from DB; ratify before apply">
+
   - <e.g. "Discarded existing fixture body in refresh mode (3 sections diverged from DB)">
 
 ▸ Routine judgment calls
   - <one bullet per dry-run section that changed, summarizing the call — not enumerating every item>
+
   - <e.g. "Tags: + cuisine, meal_type, occasion, practical (cuisine: mexican, meal_type: lunch+dinner, …)">
+
   - <e.g. "Tips rewritten in en + es to fix usted-imperative voice (auto-check #20)">
+
   - <e.g. "Pairings: kept role 'side' for White Rice with Vegetables (one-line reason)">
 
 ▸ Skipped on purpose
   - <only items where a reasonable reviewer might have added this AND been wrong to>
+
   - <e.g. "diet:vegetarian skipped — avocado mayo may contain egg, not in data">
+
   - <e.g. "kid_friendly skipped — adult flavor (mustard, vinegar bite)">
 
 ▸ Admin SQL needed
   - <count + pointer; do not re-state notes>
+
   - <e.g. "2 items in requires_authoring.notes (ambiguous ingredient identity needs human judgment, step references missing procedure)">
 
 Next step: review risks, then run `deno task pipeline:apply-recipe-metadata --local --recipe <slug> --apply`.
