@@ -832,6 +832,16 @@ docs: update API documentation
 
 <!-- END:shared/git-conventions -->
 
+## Git Safety
+
+Hard rules for any AI agent working in this repo. These apply in every mode (auto, plan, manual) and override any blanket approval given earlier in a conversation.
+
+- **Never merge a PR without explicit per-PR consent.** Open the PR, push the branch, report the URL, and stop. Do not run `gh pr merge` (any flag — `--auto`, `--admin`, `--squash`, `--rebase`, `--merge`) until the user says "merge it" / "merge PR #N" / equivalent for *that specific PR*. Approval given on a previous PR in the same conversation does not carry forward.
+- **Never push directly to `main`.** All changes ship through PRs.
+- **Never `git push --force` to a shared branch** without an explicit, scoped ask from the user.
+- **Never bypass branch protection.** If a merge is blocked, report it and wait — don't reach for `--admin`.
+- **Never skip hooks** (`--no-verify`, `--no-gpg-sign`, etc.) unless the user explicitly asks for it.
+
 <!-- BEGIN:shared/workflow -->
 ## Development Workflow
 
