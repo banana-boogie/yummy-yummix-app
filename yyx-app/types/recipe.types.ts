@@ -82,6 +82,7 @@ export enum RecipeDifficulty {
 // Ingredient Related Types
 export interface RecipeIngredient {
   id: string;
+  rowId: string;
   name: string;
   pluralName: string;
   pictureUrl?: string;

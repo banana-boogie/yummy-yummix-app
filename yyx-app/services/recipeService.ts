@@ -27,6 +27,7 @@ const getRecipeListQuery = () => {
       description
     ),
     ingredients:recipe_ingredients (
+      id,
       quantity,
       ingredient:ingredients (
         id,
@@ -112,6 +113,7 @@ const getRecipeDetailQuery = () => {
       )
     ),
     ingredients:recipe_ingredients (
+      id,
       quantity,
       display_order,
       optional,

@@ -60,7 +60,7 @@ const RecipeDetail: React.FC = () => {
   const shoppingIngredients = useMemo<AddToShoppingListIngredient[]>(() => {
     if (!recipe?.ingredients) return [];
     return recipe.ingredients.map((ing) => ({
-      key: ing.id,
+      key: ing.rowId,
       ingredientId: ing.id,
       name: ing.name,
       quantity: parseFloat(ing.quantity) || 1,

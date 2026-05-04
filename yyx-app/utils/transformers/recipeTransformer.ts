@@ -210,6 +210,7 @@ export function createRecipeTransformer(measurementSystem: 'metric' | 'imperial'
 
       return {
         id: raw.ingredient.id,
+        rowId: raw.id,
         name: ingredientTranslation?.name ?? '',
         pluralName: ingredientTranslation?.plural_name ?? '',
         quantity: raw.quantity.toString(),

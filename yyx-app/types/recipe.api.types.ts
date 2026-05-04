@@ -85,6 +85,7 @@ export interface RawRecipe {
 
 // Raw Ingredient Types
 export interface RawRecipeIngredient {
+  id: string;
   quantity: number;
   ingredient: RawIngredient;
   measurement_unit: RawMeasurementUnit;

@@ -159,6 +159,7 @@ export function createIngredient(overrides?: Partial<RecipeIngredient>): RecipeI
 
   return {
     id: generateId(),
+    rowId: generateId(),
     name,
     pluralName: name + 's',
     pictureUrl: `https://images.test.com/ingredients/${name.toLowerCase().replace(/\s+/g, '-')}.jpg`,
