@@ -188,7 +188,7 @@ function toCandidate(
         try {
           mealTypeTags.add(toCanonicalMealType(translation.name));
         } catch {
-          // Ignore non-canonical legacy names that happen to carry MEAL_TYPE.
+          // Ignore non-canonical legacy names that happen to carry meal_type.
         }
       }
     }

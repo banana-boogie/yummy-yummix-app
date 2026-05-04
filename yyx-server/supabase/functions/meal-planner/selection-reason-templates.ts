@@ -16,6 +16,9 @@ export type SelectionReasonCode =
   | "leftovers_source"
   | "verified_fit"
   | "time_fit"
+  | "swap_alternative_verified"
+  | "swap_alternative_quick"
+  | "swap_applied"
   | "default";
 
 export interface SelectionReasonParams {
@@ -47,6 +50,10 @@ const SELECTION_REASON_TEMPLATES: Record<
       ).trim(),
     time_fit: ({ dayLabel = "" }) =>
       `Fits your usual ${dayLabel} time window.`.replace(/\s+\./, ".").trim(),
+    swap_alternative_verified: () =>
+      `YummyYummix-tested recipe that fits this slot.`,
+    swap_alternative_quick: () => `Quick alternative for this slot.`,
+    swap_applied: () => `Applied.`,
     default: ({ dayLabel = "" }) =>
       `Good fit for your ${dayLabel}.`.replace(/\s+\./, ".").trim(),
   },
@@ -75,6 +82,10 @@ const SELECTION_REASON_TEMPLATES: Record<
       ).trim(),
     time_fit: ({ dayLabel = "" }) =>
       `Se adapta a tu horario de ${dayLabel}.`.replace(/\s+\./, ".").trim(),
+    swap_alternative_verified: () =>
+      `Receta probada por YummyYummix que encaja con esta comida.`,
+    swap_alternative_quick: () => `Alternativa rápida para esta comida.`,
+    swap_applied: () => `Aplicado.`,
     default: ({ dayLabel = "" }) =>
       `Buena opción para tu ${dayLabel}.`.replace(/\s+\./, ".").trim(),
   },
