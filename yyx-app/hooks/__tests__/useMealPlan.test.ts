@@ -453,4 +453,38 @@ describe('useMealPlan', () => {
     );
     expect(keys).toContain(JSON.stringify(['mealPlan', 'active']));
   });
+
+  it('surfaces preference fetch failures in the error state', async () => {
+    // Setup state derives from preferences. A silent prefsQuery error would
+    // render as a default first-time empty state instead of a network failure
+    // alert. This test pins that prefsQuery.error participates in the
+    // surfaced error coalescing.
+    const planResponse: GetCurrentPlanResponse = {
+      plan: buildPlan(),
+      warnings: [],
+    };
+
+    const mockClient = getMockSupabaseClient();
+    mockClient.functions.invoke.mockImplementation(
+      (_name: string, opts: { body: { action: string } }) => {
+        const action = opts.body.action;
+        if (action === 'get_current_plan') {
+          return Promise.resolve({ data: planResponse, error: null });
+        }
+        if (action === 'get_preferences') {
+          return Promise.resolve({
+            data: null,
+            error: { message: 'prefs unreachable' },
+          });
+        }
+        return Promise.resolve({ data: null, error: null });
+      },
+    );
+
+    const { result } = renderHook(() => useMealPlan(), { wrapper: wrapper() });
+
+    await waitFor(() => {
+      expect(result.current.error).toBe('prefs unreachable');
+    });
+  });
 });
