@@ -35,6 +35,28 @@ export const mealPlanKeys = {
   preferences: () => [...mealPlanKeys.all, 'preferences'] as const,
 };
 
+/**
+ * Format a YYYY-MM-DD plan-week-start in the user's locale.
+ * Returns "May 4" (en) / "4 may" (es) / falls back to the raw ISO if parsing fails.
+ */
+function formatPlanDate(weekStartISO: string | undefined, locale: string): string {
+  if (!weekStartISO) return '';
+  // Build a Date from the local ISO without TZ shift — split on '-' so we
+  // get the date the user thinks they have, not UTC midnight in their zone.
+  const [y, m, d] = weekStartISO.split('-').map((p) => parseInt(p, 10));
+  if (!y || !m || !d) return weekStartISO;
+  const date = new Date(y, m - 1, d);
+  if (Number.isNaN(date.getTime())) return weekStartISO;
+  try {
+    return new Intl.DateTimeFormat(locale, {
+      month: 'short',
+      day: 'numeric',
+    }).format(date);
+  } catch {
+    return weekStartISO;
+  }
+}
+
 function startOfWeekISO(date = new Date()): string {
   // ISO week start = Monday
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -188,9 +210,15 @@ export function useMealPlan(): UseMealPlanReturn {
   const shoppingListMutation = useMutation({
     mutationFn: async () => {
       if (!activePlan) throw new Error('No active plan');
+      // Format the plan's week-start date in the user's locale so the list
+      // name reads "Mi Menú - 4 may" / "My Menu - May 4" — anchors the list
+      // to the plan it represents, not the moment the user clicked.
+      const formattedDate = formatPlanDate(activePlan.weekStart, i18n.locale);
       const res = await mealPlanService.generateShoppingList({
         mealPlanId: activePlan.planId,
-        defaultListName: i18n.t('planner.shoppingListDefaultName'),
+        defaultListName: i18n.t('planner.shoppingListDefaultName', {
+          date: formattedDate,
+        }),
       });
       return res.shoppingListId;
     },
