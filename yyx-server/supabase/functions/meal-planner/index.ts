@@ -10,7 +10,10 @@
  */
 
 import { corsHeaders } from "../_shared/cors.ts";
-import { createUserClient } from "../_shared/supabase-client.ts";
+import {
+  createServiceClient,
+  createUserClient,
+} from "../_shared/supabase-client.ts";
 import { validateAuth } from "../_shared/auth.ts";
 import { normalizeMealTypes, toCanonicalMealType } from "./meal-types.ts";
 import {
@@ -50,11 +53,19 @@ type UserClient = ReturnType<typeof createUserClient>;
 
 export interface MealPlannerDependencies {
   createUserClient: typeof createUserClient;
+  // The swap apply path needs an elevated client to invoke the
+  // `apply_meal_plan_slot_swap` RPC, which is granted only to `service_role`
+  // (its surface accepts arbitrary snapshot params, so we keep it off the
+  // authenticated public RPC surface). Edge-side ownership validation runs
+  // before the RPC call via `loadSlotWithPlan`, so elevating privilege after
+  // that point is safe.
+  createServiceClient: typeof createServiceClient;
   validateAuth: typeof validateAuth;
 }
 
 const DEFAULT_DEPENDENCIES: MealPlannerDependencies = {
   createUserClient,
+  createServiceClient,
   validateAuth,
 };
 
@@ -482,6 +493,7 @@ async function handleSwapMeal(
   payload: Record<string, unknown>,
   userId: string,
   supabase: UserClient,
+  deps: MealPlannerDependencies,
 ): Promise<Response> {
   let mealPlanId: string | undefined;
   let mealPlanSlotId: string;
@@ -540,6 +552,7 @@ async function handleSwapMeal(
 
   return await applySwap(
     supabase,
+    deps,
     userId,
     plan,
     slot,
@@ -654,6 +667,7 @@ async function respondWithSwapAlternatives(
 
 async function applySwap(
   supabase: UserClient,
+  deps: MealPlannerDependencies,
   userId: string,
   plan: import("./types.ts").MealPlanResponse,
   slot: import("./types.ts").MealPlanSlotResponse,
@@ -742,8 +756,15 @@ async function applySwap(
   // freshness flags. `pairing_basis: "swap"` (set inside the RPC)
   // distinguishes user-picked-from-alternatives from `manual` (planner-
   // bypass) for analytics.
+  //
+  // The RPC is granted ONLY to `service_role` — its surface accepts
+  // arbitrary snapshot params, so we keep it off the authenticated public
+  // RPC surface. Edge-side validation above (ownership via RLS-scoped
+  // `loadSlotWithPlan`, plus role/publication/meal-type/rejection guards)
+  // gates access; we elevate after that point to write transactionally.
+  const serviceClient = deps.createServiceClient();
   const nowIso = new Date().toISOString();
-  const { error: rpcErr } = await supabase.rpc(
+  const { error: rpcErr } = await serviceClient.rpc(
     "apply_meal_plan_slot_swap",
     {
       p_component_id: primary.id,
@@ -1131,6 +1152,7 @@ const actionHandlers: Record<
     payload: Record<string, unknown>,
     userId: string,
     supabase: UserClient,
+    deps: MealPlannerDependencies,
   ) => Response | Promise<Response>
 > = {
   get_current_plan: handleGetCurrentPlan,
@@ -1193,7 +1215,12 @@ export async function handleMealPlannerRequest(
   const supabase = dependencies.createUserClient(authHeader!);
 
   try {
-    return await actionHandlers[action](payload, user.id, supabase);
+    return await actionHandlers[action](
+      payload,
+      user.id,
+      supabase,
+      dependencies,
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[meal-planner] ${action} error:`, message);

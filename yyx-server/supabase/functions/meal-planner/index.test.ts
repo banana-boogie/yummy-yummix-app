@@ -55,6 +55,11 @@ function makeEmptySupabase(): any {
 
 const mockDependencies = {
   createUserClient: (_authHeader: string) => makeEmptySupabase() as never,
+  // Service-role client is used only by the swap apply path's RPC. Tests
+  // that exercise apply override this to share the stateful supabase mock
+  // (so the RPC call is captured); the empty default keeps non-swap tests
+  // hermetic.
+  createServiceClient: () => makeEmptySupabase() as never,
   validateAuth: async (_authHeader: string | null) => ({
     user: { id: "user-123", email: "test@example.com", role: "user" },
     error: null,
@@ -1274,6 +1279,9 @@ Deno.test("swap_meal apply path persists swap and records rejection", async () =
   const response = await handleMealPlannerRequest(req, {
     ...mockDependencies,
     createUserClient: () => supabase as never,
+    // Share the stateful mock so the RPC call lands in the same `rpcCalls`
+    // bucket the test is asserting against.
+    createServiceClient: () => supabase as never,
   });
   assertEquals(response.status, 200);
 
@@ -1340,6 +1348,7 @@ Deno.test("swap_meal apply path returns 500 and skips rejection insert when the 
   const response = await handleMealPlannerRequest(req, {
     ...mockDependencies,
     createUserClient: () => supabase as never,
+    createServiceClient: () => supabase as never,
   });
   assertEquals(response.status, 500);
 

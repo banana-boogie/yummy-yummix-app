@@ -57,6 +57,30 @@ Deno.test("renderSelectionReason: first_week_trust is locale-specific", () => {
   assertStringIncludes(es, "primera semana");
 });
 
+Deno.test("renderSelectionReason: swap_alternative_verified is locale-specific", () => {
+  const en = renderSelectionReason("swap_alternative_verified", "en", {});
+  const es = renderSelectionReason("swap_alternative_verified", "es", {});
+  assertStringIncludes(en, "YummyYummix-tested");
+  assertStringIncludes(es, "Receta probada");
+  if (en === es) {
+    throw new Error("EN and ES swap_alternative_verified copy should differ");
+  }
+});
+
+Deno.test("renderSelectionReason: swap_alternative_quick is locale-specific", () => {
+  const en = renderSelectionReason("swap_alternative_quick", "en", {});
+  const es = renderSelectionReason("swap_alternative_quick", "es-MX", {});
+  assertStringIncludes(en, "Quick");
+  assertStringIncludes(es, "rápida");
+});
+
+Deno.test("renderSelectionReason: swap_applied is locale-specific", () => {
+  const en = renderSelectionReason("swap_applied", "en", {});
+  const es = renderSelectionReason("swap_applied", "es", {});
+  assertEquals(en, "Applied.");
+  assertEquals(es, "Aplicado.");
+});
+
 Deno.test("getDayLabel: English labels", () => {
   assertEquals(getDayLabel(0, "en"), "Monday");
   assertEquals(getDayLabel(6, "en"), "Sunday");
