@@ -47,7 +47,7 @@ describe('AddItemModal', () => {
     );
 
     fireEvent.changeText(
-      screen.getByPlaceholderText(i18n.t('shoppingList.searchItems')),
+      screen.getByPlaceholderText(i18n.t('shoppingList.itemNamePlaceholder')),
       'Mi'
     );
 
@@ -73,7 +73,7 @@ describe('AddItemModal', () => {
     );
 
     fireEvent.changeText(
-      screen.getByPlaceholderText(i18n.t('shoppingList.searchItems')),
+      screen.getByPlaceholderText(i18n.t('shoppingList.itemNamePlaceholder')),
       'Apples'
     );
 
@@ -84,6 +84,7 @@ describe('AddItemModal', () => {
       nameCustom: 'Apples',
       categoryId: 'other',
       quantity: 1,
+      unitId: undefined,
       notes: undefined,
     });
   });
