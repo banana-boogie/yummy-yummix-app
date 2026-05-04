@@ -39,6 +39,20 @@ Example: **QUICK FIXES THEN PR** — 0 critical, 2 warnings, 4 suggestions
 
 2-4 bullet points of what's done well. Keep it genuine — skip if nothing stands out.
 
+**Format: concept-first, with an indented technical pointer.** The top-level bullet leads with the user/product/architectural value in plain language (max ~20 words). The indented sub-bullet gives the file pointer and the mechanic for readers who want to see where it lives.
+
+```
+- The menu stays correct after every change — swaps, skips, and cooks all refresh automatically.
+  - `useMealPlan.ts:88` — every mutation calls `queryClient.invalidateQueries(mealPlanKeys.active())` in `onSuccess`.
+- Client and server speak the exact same vocabulary, so drift gets caught at compile time.
+  - `types/mealPlan.ts` — `as const` arrays + derived union types mirror server `types.ts`.
+```
+
+Rules:
+- Top-level bullet has no file paths, function names, or API surface — those go in the sub-bullet.
+- One sentence per layer. If you can't explain *why it's good* in plain language, drop the highlight.
+- Acknowledge patterns with leverage, not local cleverness.
+
 ### 5. Issues at a Glance
 
 A **single table** of all findings — one row per finding, sorted by severity (Critical → Warning → Suggestion). This is the scannable overview: the reader should be able to see every issue, where it lives, and how bad it is in one glance, without reading any prose.
