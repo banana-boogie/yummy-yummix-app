@@ -90,6 +90,80 @@ If there are no findings to act on, omit this section.
 
 ---
 
+## Formatting and Whitespace
+
+How the report is laid out matters as much as what it says. The following rules apply to every review output (PR review, change review, triage, recipe review):
+
+- **Two-line bold-label paragraph blocks** are the canonical format for Highlights, Verdict Notes, and Notes-style prose sections (see *Highlights* in section 4). The first line is the bold-label intro (`**Highlight N.**`, `**#N Verdict.**`, etc.); the second line is `**Where:**` with the file pointer and mechanic. No list syntax, no nested indentation.
+- **Blank line between every entry.** Whether a finding is two lines (Highlights, Notes) or one row (Issues at a Glance has no inter-row blank lines because it's a table), entries within a prose section get a blank line between them. Terminals keep the vertical breathing room; markdown viewers render the entries as discrete blocks.
+- **`---` horizontal rule between major sections.** One rule per boundary, not decorative repetition. Boundaries are: header block → glance table → notes/highlights → next-steps / handoff prompt. Adjacent text-only sections (e.g. Verdict → Highlights) do not need a rule between them.
+- **Tables stay tight.** No blank lines inside the table body. Whitespace lives between sections, not inside them.
+- **No trailing decorative whitespace.** No blank lines at the very end of the report; no triple blank lines anywhere.
+
+### Worked example (Highlights / Notes-style section)
+
+Right (bold-label paragraph blocks — entries separated by blank lines, no list syntax):
+
+```
+**Highlight 1.** The menu stays correct after every change — swaps, skips, and cooks all refresh automatically.
+**Where:** `useMealPlan.ts:88` — every mutation invalidates the active-plan query in `onSuccess`.
+
+**Highlight 2.** Client and server speak the exact same vocabulary, so drift gets caught at compile time.
+**Where:** `types/mealPlan.ts` — `as const` arrays + derived union types mirror server `types.ts`.
+```
+
+Wrong (no blank line between entries — readers can't see where one ends and the next begins):
+
+```
+**Highlight 1.** The menu stays correct after every change — swaps, skips, and cooks all refresh automatically.
+**Where:** `useMealPlan.ts:88` — every mutation invalidates the active-plan query in `onSuccess`.
+**Highlight 2.** Client and server speak the exact same vocabulary, so drift gets caught at compile time.
+**Where:** `types/mealPlan.ts` — `as const` arrays + derived union types mirror server `types.ts`.
+```
+
+Wrong (intro and `**Where:**` separated by a blank line — they read as two unrelated paragraphs):
+
+```
+**Highlight 1.** The menu stays correct after every change — swaps, skips, and cooks all refresh automatically.
+
+**Where:** `useMealPlan.ts:88` — every mutation invalidates the active-plan query in `onSuccess`.
+```
+
+### Section-boundary example
+
+```
+### Verdict
+
+**APPROVE** — 0 critical, 2 warnings, 4 suggestions
+
+### Highlights
+
+**Highlight 1.** <plain-language value>
+**Where:** `file:line` — <mechanic>
+
+**Highlight 2.** <plain-language value>
+**Where:** `file:line` — <mechanic>
+
+---
+
+### Issues at a Glance
+
+| # | Sev | Area | File | Issue |
+|---|-----|------|------|-------|
+| 1 | Warning | Frontend | `file:line` | <headline> |
+
+---
+
+### Next Steps
+
+> Copy-paste the prompt below to the implementing AI.
+…
+```
+
+One rule between glance table and next steps; no rule between Verdict and Highlights (both compact text blocks).
+
+---
+
 ## Internal Review Process
 
 The reviewer still performs the full analysis internally (all 9 categories, severity assessment, options for critical findings, potential misses). This work feeds into the report — the human section is a distillation, and the Next Steps prompt is a reorganization with full detail. **Don't skip the analysis, just don't dump all of it into the human-facing output.**
