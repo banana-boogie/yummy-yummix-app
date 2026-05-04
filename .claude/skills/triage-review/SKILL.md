@@ -64,19 +64,21 @@ One row per finding, sorted by verdict in this order: Must fix → Verify → De
 
 ### Verdict Notes
 
-For each finding, give a **concept-first one-liner** (what this means for the product or the user) and an **indented technical sub-bullet** with the file/function pointer and the mechanic. Detail beyond that goes in the Handoff Prompt — not here.
+For each finding, two lines, no list syntax. The first line is a `**#N Verdict.**` bold-label intro followed by the plain-language consequence. The second line is `**Where:**` followed by the file pointer and the mechanic. A blank line separates entries. Detail beyond that goes in the Handoff Prompt — not here.
 
-- **#1 Must fix** — New users skip wizard steps they never answered.
-  - `FirstTimePlanSetupFlow.tsx:95` — step-skip logic trusts populated arrays from `DEFAULT_PREFERENCES`; doesn't gate on `setupCompletedAt`.
-- **#2 Verify** — Don't merge this PR before its backend dependency lands.
-  - `types/mealPlan.ts:117` — depends on fields from PR #54 (`setupCompletedAt`, `selectedRecipeId`); confirm PR #54 is merged to main first.
-- **#3 Defer** — "Mark cooked" looks supported but no UI path actually triggers it.
-  - `TodayHero.tsx:185` + `cooking-guide/[step].tsx` — threading `mealPlanSlotId` through the cook flow is a separate task; document as a known limitation, push to a follow-up.
+**#1 Must fix.** New users skip wizard steps they never answered.
+**Where:** `FirstTimePlanSetupFlow.tsx:95` — step-skip logic trusts populated arrays from `DEFAULT_PREFERENCES`; doesn't gate on `setupCompletedAt`.
+
+**#2 Verify.** Don't merge this PR before its backend dependency lands.
+**Where:** `types/mealPlan.ts:117` — depends on fields from PR #54 (`setupCompletedAt`, `selectedRecipeId`); confirm PR #54 is merged to main first.
+
+**#3 Defer.** "Mark cooked" looks supported but no UI path actually triggers it.
+**Where:** `TodayHero.tsx:185` + `cooking-guide/[step].tsx` — threading `mealPlanSlotId` through the cook flow is a separate task; document as a known limitation, push to a follow-up.
 
 Prose rules for this section:
 - **Lead with the user/product consequence, not the API.** "Failed removes are silent" beats "skipSlot called without await/catch."
-- One sentence per top-level bullet, max ~20 words.
-- No file paths or function names in the top-level bullet — those live in the indented sub-bullet.
+- One sentence per line, max ~20 words on the intro line.
+- No file paths or function names on the intro line — those live on the `**Where:**` line.
 - Drop entries that can only be expressed technically — they're not interesting at this layer; they live in the Handoff Prompt.
 
 ---
