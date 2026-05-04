@@ -1,6 +1,7 @@
 import { Storage } from '@/utils/storage';
 import { v4 as uuidv4 } from 'uuid';
 import { ShoppingListItemCreate, ShoppingListItemUpdate } from '@/types/shopping-list.types';
+import { logger } from '@/services/logger';
 
 export type MutationType =
     | 'ADD_ITEM'
@@ -69,7 +70,7 @@ class MutationQueue {
                 this.queue = JSON.parse(stored);
             }
         } catch (error) {
-            console.warn('Failed to load mutation queue:', error);
+            logger.warn('Failed to load mutation queue:', error);
             this.queue = [];
         }
         this.isLoaded = true;
@@ -82,7 +83,7 @@ class MutationQueue {
         try {
             await Storage.setItem(this.storageKey, JSON.stringify(this.queue));
         } catch (error) {
-            console.warn('Failed to save mutation queue:', error);
+            logger.warn('Failed to save mutation queue:', error);
         }
     }
 
@@ -140,7 +141,7 @@ class MutationQueue {
         try {
             await Storage.removeItem(this.storageKey);
         } catch (error) {
-            console.warn('Failed to clear mutation queue:', error);
+            logger.warn('Failed to clear mutation queue:', error);
         }
     }
 
@@ -192,11 +193,11 @@ class MutationQueue {
                 successCount++;
                 this.onMutationProcessed?.(mutation, true);
             } catch (error) {
-                console.warn(`Failed to process mutation ${mutation.id}:`, error);
+                logger.warn(`Failed to process mutation ${mutation.id}:`, error);
 
                 // Check retry count BEFORE incrementing to ensure exactly 3 attempts
                 if (mutation.retryCount >= 2) {
-                    console.warn(`Removing mutation ${mutation.id} after 3 failed attempts`);
+                    logger.warn(`Removing mutation ${mutation.id} after 3 failed attempts`);
                     await this.dequeue(mutation.id);
                 } else {
                     await this.incrementRetry(mutation.id);
