@@ -752,10 +752,15 @@ function makeStatefulSupabase(opts: {
   // and falls back to `opts.plan`. Lets tests assert which plan a handler
   // returns when more than one exists for the user.
   planById?: Record<string, Record<string, unknown>>;
+  // Per-RPC error injection. When `rpcErrors[name]` is set, calls to
+  // `supabase.rpc(name, …)` resolve with that error instead of success —
+  // exercises partial-failure paths without needing a live DB.
+  rpcErrors?: Record<string, { message: string }>;
 }) {
   const updates: Record<string, Record<string, unknown>[]> = {};
   const inserts: Record<string, Record<string, unknown>[]> = {};
   const upserts: Record<string, Record<string, unknown>[]> = {};
+  const rpcCalls: Record<string, Record<string, unknown>[]> = {};
 
   const buildBuilder = (table: string) => {
     let pendingUpdate: Record<string, unknown> | null = null;
@@ -885,10 +890,22 @@ function makeStatefulSupabase(opts: {
   };
 
   return {
-    supabase: { from: (t: string) => buildBuilder(t) },
+    supabase: {
+      from: (t: string) => buildBuilder(t),
+      rpc: (name: string, params: Record<string, unknown>) => {
+        if (!rpcCalls[name]) rpcCalls[name] = [];
+        rpcCalls[name].push(params);
+        const injected = opts.rpcErrors?.[name];
+        return Promise.resolve({
+          data: null,
+          error: injected ?? null,
+        });
+      },
+    },
     updates,
     inserts,
     upserts,
+    rpcCalls,
   };
 }
 
@@ -1068,6 +1085,53 @@ Deno.test("approve_plan returns PLAN_NOT_FOUND when plan missing", async () => {
   assertEquals(body.error.code, "PLAN_NOT_FOUND");
 });
 
+Deno.test("approve_plan is idempotent on already-active plans (no status flip, no analytics event)", async () => {
+  const activeRow = { ...seededPlanRow(), status: "active" };
+  const { supabase, updates, inserts } = makeStatefulSupabase({
+    plan: activeRow,
+  });
+  const req = createAuthenticatedRequest({
+    action: "approve_plan",
+    payload: { mealPlanId: SEEDED_PLAN_ID },
+  });
+  const response = await handleMealPlannerRequest(req, {
+    ...mockDependencies,
+    createUserClient: () => supabase as never,
+  });
+  assertEquals(response.status, 200);
+  // No status flip — the plan was already active.
+  assertEquals(updates["meal_plans"], undefined);
+  // No analytics event — re-approval of an already-active plan must not
+  // inflate the meal_plan_approved counter.
+  const events = inserts["user_events"] ?? [];
+  const approvalEvents = events.filter((e) =>
+    e.event_type === "meal_plan_approved"
+  );
+  assertEquals(approvalEvents.length, 0);
+});
+
+Deno.test("approve_plan rejects archived plans with INVALID_INPUT", async () => {
+  const archivedRow = { ...seededPlanRow(), status: "archived" };
+  const { supabase, inserts } = makeStatefulSupabase({ plan: archivedRow });
+  const req = createAuthenticatedRequest({
+    action: "approve_plan",
+    payload: { mealPlanId: SEEDED_PLAN_ID },
+  });
+  const response = await handleMealPlannerRequest(req, {
+    ...mockDependencies,
+    createUserClient: () => supabase as never,
+  });
+  const body = await response.json();
+  assertEquals(response.status, 400);
+  assertEquals(body.error.code, "INVALID_INPUT");
+  // No analytics event for an archived-plan rejection either.
+  const events = inserts["user_events"] ?? [];
+  const approvalEvents = events.filter((e) =>
+    e.event_type === "meal_plan_approved"
+  );
+  assertEquals(approvalEvents.length, 0);
+});
+
 Deno.test("swap_meal browse path returns up to 3 alternatives", async () => {
   const recipes = Array.from({ length: 5 }, (_, i) => ({
     id: `alt-${i}`,
@@ -1194,7 +1258,7 @@ Deno.test("swap_meal apply path persists swap and records rejection", async () =
       },
     }],
   };
-  const { supabase, updates, inserts } = makeStatefulSupabase({
+  const { supabase, inserts, rpcCalls } = makeStatefulSupabase({
     plan: seededPlanRow(),
     slot: seededSlotRef(),
     recipeById: { [REPLACEMENT_ID]: replacement },
@@ -1213,25 +1277,75 @@ Deno.test("swap_meal apply path persists swap and records rejection", async () =
   });
   assertEquals(response.status, 200);
 
-  const compUpdates = updates["meal_plan_slot_components"] ?? [];
-  assertEquals(compUpdates[0].recipe_id, REPLACEMENT_ID);
-  assertEquals(compUpdates[0].title_snapshot, "Replacement");
-  assertEquals(compUpdates[0].pairing_basis, "swap");
-  // Lineage triple must end up canonical for the recipe branch of
-  // components_source_lineage_check, regardless of the prior state.
-  assertEquals(compUpdates[0].source_kind, "recipe");
-  assertEquals(compUpdates[0].source_component_id, null);
+  // The required slot/component/plan writes go through the transactional
+  // RPC; the test asserts the RPC was called with the right snapshot.
+  const rpcCall = rpcCalls["apply_meal_plan_slot_swap"]?.[0];
+  if (!rpcCall) throw new Error("apply_meal_plan_slot_swap was not called");
+  assertEquals(rpcCall.p_recipe_id, REPLACEMENT_ID);
+  assertEquals(rpcCall.p_title_snapshot, "Replacement");
+  assertEquals(rpcCall.p_component_id, SEEDED_COMPONENT_ID);
+  assertEquals(rpcCall.p_slot_id, SEEDED_SLOT_ID);
+  assertEquals(rpcCall.p_plan_id, SEEDED_PLAN_ID);
 
-  const slotUpdates = updates["meal_plan_slots"] ?? [];
-  assertEquals(slotUpdates[0].swap_count, 1);
-  assertEquals(slotUpdates[0].shopping_sync_state, "stale");
-
-  const planUpdates = updates["meal_plans"] ?? [];
-  assertEquals(planUpdates[0].shopping_sync_state, "stale");
-
+  // Rejection insert is best-effort and runs OUTSIDE the transaction.
   const rejections = inserts["meal_plan_slot_rejections"] ?? [];
   assertEquals(rejections[0].recipe_id, "recipe-A");
   assertEquals(rejections[0].reason_code, "user_swap");
+});
+
+Deno.test("swap_meal apply path returns 500 and skips rejection insert when the RPC fails", async () => {
+  // Regression: with the prior parallel-write design a partial failure could
+  // persist a refreshed component snapshot while the slot/plan freshness
+  // updates failed. The transactional RPC eliminates that — this test
+  // exercises the failure path by injecting an RPC error and asserts no
+  // rejection row was written either (rollback intent: after a failed
+  // transactional swap, no side effects should be visible to the user).
+  const REPLACEMENT_ID = "77777777-7777-7777-7777-777777777777";
+  const replacement = {
+    id: REPLACEMENT_ID,
+    planner_role: "main",
+    alternate_planner_roles: [],
+    meal_components: ["protein"],
+    total_time: 20,
+    difficulty: "easy",
+    portions: 4,
+    image_url: null,
+    equipment_tags: [],
+    verified_at: null,
+    is_published: true,
+    recipe_translations: [{ locale: "en", name: "Replacement" }],
+    recipe_to_tag: [{
+      recipe_tags: {
+        categories: ["meal_type"],
+        recipe_tag_translations: [{ locale: "en", name: "dinner" }],
+      },
+    }],
+  };
+  const { supabase, inserts } = makeStatefulSupabase({
+    plan: seededPlanRow(),
+    slot: seededSlotRef(),
+    recipeById: { [REPLACEMENT_ID]: replacement },
+    rpcErrors: {
+      apply_meal_plan_slot_swap: { message: "constraint x failed" },
+    },
+  });
+  const req = createAuthenticatedRequest({
+    action: "swap_meal",
+    payload: {
+      mealPlanId: SEEDED_PLAN_ID,
+      mealPlanSlotId: SEEDED_SLOT_ID,
+      selectedRecipeId: REPLACEMENT_ID,
+    },
+  });
+  const response = await handleMealPlannerRequest(req, {
+    ...mockDependencies,
+    createUserClient: () => supabase as never,
+  });
+  assertEquals(response.status, 500);
+
+  // No rejection row should be written when the swap itself failed.
+  const rejections = inserts["meal_plan_slot_rejections"] ?? [];
+  assertEquals(rejections.length, 0);
 });
 
 Deno.test("swap_meal apply rejects re-applying the slot's current recipe", async () => {

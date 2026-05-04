@@ -1,11 +1,12 @@
 /**
  * Meal Planner Edge Function
  *
- * Authenticated POST handler for all meal planning operations.
+ * Authenticated POST handler for all meal planning operations. This module
+ * holds request routing (auth, JSON parsing, action dispatch), all action
+ * handlers, and shared `errorResponse` / `jsonResponse` helpers.
  *
- * Action handlers split out one-per-file in `./handlers/`. This module is
- * the request-routing front door: auth, JSON parsing, action dispatch, and
- * the shared `errorResponse` / `jsonResponse` helpers.
+ * Read-side helpers live in `./plan-loader.ts`; locale-label resolution in
+ * `./meal-types.ts`; selection-reason copy in `./selection-reason-templates.ts`.
  */
 
 import { corsHeaders } from "../_shared/cors.ts";
@@ -23,6 +24,7 @@ import {
   loadSlotWithPlan,
 } from "./plan-loader.ts";
 import { buildLocaleChain, pickTranslation } from "../_shared/locale-utils.ts";
+import { renderSelectionReason } from "./selection-reason-templates.ts";
 
 import {
   type ApprovePlanResponse,
@@ -618,9 +620,10 @@ async function respondWithSwapAlternatives(
 
   const alternatives: SwapAlternative[] = rows.slice(0, 3).map((row) => {
     const title = pickName(row.recipe_translations ?? null, plan.locale);
-    const reason = row.verified_at
-      ? "Verified recipe that fits this slot."
-      : "Quick alternative for this slot.";
+    const reason = renderSelectionReason(
+      row.verified_at ? "swap_alternative_verified" : "swap_alternative_quick",
+      plan.locale,
+    );
     return {
       slot: {
         ...slot,
@@ -733,18 +736,41 @@ async function applySwap(
   }
   const title = pickName(recipe.recipe_translations ?? null, plan.locale);
 
-  // The four post-validation writes touch disjoint rows so we run them in
-  // parallel — saves 3 round-trips on a path users notice. Refresh the
-  // primary component's snapshot, increment swap_count + flip slot stale,
-  // flip plan stale, and record the rejection for the replaced recipe.
-  // `pairing_basis: "swap"` distinguishes user-picked-from-alternatives
-  // from `manual` (planner-bypass), so analytics can separate the two.
+  // Required writes (component snapshot, slot bump, plan stale) run in a
+  // single transactional RPC so a partial failure can't leave the user
+  // looking at a refreshed recipe with a stale swap_count or out-of-sync
+  // freshness flags. `pairing_basis: "swap"` (set inside the RPC)
+  // distinguishes user-picked-from-alternatives from `manual` (planner-
+  // bypass) for analytics.
   const nowIso = new Date().toISOString();
-  // Schema requires `recipe_id` on rejection rows; custom/leftover slots
-  // (no replaced recipe) skip the insert rather than violating the
-  // constraint.
-  const rejectionInsert = primary.recipeId
-    ? supabase
+  const { error: rpcErr } = await supabase.rpc(
+    "apply_meal_plan_slot_swap",
+    {
+      p_component_id: primary.id,
+      p_recipe_id: recipe.id,
+      p_title_snapshot: title,
+      p_image_url_snapshot: recipe.image_url,
+      p_total_time_snapshot: recipe.total_time,
+      p_difficulty_snapshot: recipe.difficulty,
+      p_portions_snapshot: recipe.portions,
+      p_equipment_tags_snapshot: recipe.equipment_tags ?? [],
+      p_meal_components_snapshot: recipe.meal_components ?? [],
+      p_slot_id: slot.id,
+      p_plan_id: plan.planId,
+      p_now: nowIso,
+    },
+  );
+  if (rpcErr) {
+    throw new Error(`Failed to apply swap: ${rpcErr.message}`);
+  }
+
+  // Rejection is best-effort and runs OUTSIDE the transaction. Schema
+  // requires `recipe_id` on rejection rows; custom/leftover slots (no
+  // replaced recipe) skip the insert rather than violating the constraint.
+  // Losing a rejection row only causes the same recipe to reappear in the
+  // next browse — annoying but not corrupting.
+  if (primary.recipeId) {
+    const { error: rejErr } = await supabase
       .from("meal_plan_slot_rejections")
       .insert({
         meal_plan_slot_id: slot.id,
@@ -752,62 +778,12 @@ async function applySwap(
         recipe_id: primary.recipeId,
         rejection_source: "user",
         reason_code: "user_swap",
-      })
-    : Promise.resolve({ error: null });
-
-  const [
-    { error: compErr },
-    { error: slotErr },
-    { error: planErr },
-    { error: rejErr },
-  ] = await Promise.all([
-    supabase
-      .from("meal_plan_slot_components")
-      .update({
-        // Force the lineage triple back to the canonical recipe shape. If the
-        // primary was previously a leftover or custom component, leaving
-        // `source_kind` / `source_component_id` untouched while setting
-        // `recipe_id` violates `components_source_lineage_check`.
-        source_kind: "recipe",
-        source_component_id: null,
-        recipe_id: recipe.id,
-        title_snapshot: title,
-        image_url_snapshot: recipe.image_url,
-        total_time_snapshot: recipe.total_time,
-        difficulty_snapshot: recipe.difficulty,
-        portions_snapshot: recipe.portions,
-        equipment_tags_snapshot: recipe.equipment_tags ?? [],
-        meal_components_snapshot: recipe.meal_components ?? [],
-        pairing_basis: "swap",
-      })
-      .eq("id", primary.id),
-    supabase
-      .from("meal_plan_slots")
-      .update({
-        swap_count: (slot.swapCount ?? 0) + 1,
-        last_swapped_at: nowIso,
-        shopping_sync_state: "stale",
-      })
-      .eq("id", slot.id),
-    supabase
-      .from("meal_plans")
-      .update({ shopping_sync_state: "stale" })
-      .eq("id", plan.planId),
-    rejectionInsert,
-  ]);
-
-  if (compErr) {
-    throw new Error(`Failed to update component: ${compErr.message}`);
-  }
-  if (slotErr) throw new Error(`Failed to update slot: ${slotErr.message}`);
-  if (planErr) throw new Error(`Failed to update plan: ${planErr.message}`);
-  // Rejection is best-effort: the swap still succeeds even if we failed to
-  // record the rejection. Worst case the user sees the same recipe back in
-  // the next browse — annoying but not corrupting.
-  if (rejErr) {
-    console.warn(
-      `[meal-planner] swap_meal: failed to record rejection: ${rejErr.message}`,
-    );
+      });
+    if (rejErr) {
+      console.warn(
+        `[meal-planner] swap_meal: failed to record rejection: ${rejErr.message}`,
+      );
+    }
   }
 
   await logUserEvent(supabase, userId, "meal_plan_meal_swapped", {
@@ -829,10 +805,11 @@ async function applySwap(
   }
 
   console.info(`[meal-planner] swap_meal ok: slot=${slot.id}`);
+  const appliedReason = renderSelectionReason("swap_applied", plan.locale);
   const response: SwapMealResponse = {
     alternatives: [{
       slot: refreshed.slot,
-      selectionReason: "applied",
+      selectionReason: appliedReason,
     }],
     warnings: [],
   };
@@ -994,9 +971,21 @@ async function handleApprovePlan(
     return errorResponse("PLAN_NOT_FOUND", "Plan not found", 404);
   }
 
+  const status = (planRow as { status: string }).status;
+  // Archived plans cannot be re-approved — silently no-oping would mislead the
+  // UI into thinking the call succeeded.
+  if (status === "archived") {
+    return errorResponse(
+      "INVALID_INPUT",
+      "Cannot approve an archived plan",
+      400,
+    );
+  }
+
   // Idempotent: re-approving an already-active plan returns the current state
-  // without touching DB rows. Only flip status when transitioning from draft.
-  if ((planRow as { status: string }).status === "draft") {
+  // without touching DB rows or re-emitting the analytics event. Only flip
+  // status and log the transition when moving from draft → active.
+  if (status === "draft") {
     const { error: updateErr } = await supabase
       .from("meal_plans")
       .update({ status: "active" })
@@ -1004,11 +993,10 @@ async function handleApprovePlan(
     if (updateErr) {
       throw new Error(`Failed to approve plan: ${updateErr.message}`);
     }
+    await logUserEvent(supabase, userId, "meal_plan_approved", {
+      meal_plan_id: mealPlanId,
+    });
   }
-
-  await logUserEvent(supabase, userId, "meal_plan_approved", {
-    meal_plan_id: mealPlanId,
-  });
   console.info(`[meal-planner] approve_plan ok: plan=${mealPlanId}`);
 
   // Reload the specific plan we just approved (NOT loadActivePlan, which
