@@ -99,8 +99,12 @@ The report has **two sections**: a short human-readable summary, and a detailed 
 
 ### Highlights
 
-- <good pattern acknowledged>
-- <good pattern acknowledged>
+Concept-first, with an indented technical pointer. Top-level bullet = plain-language user/product/architectural value (max ~20 words, no file paths or API names). Sub-bullet = file pointer + the mechanic. Drop highlights you can only express technically.
+
+- <plain-language value: what's good about this and why it matters>
+  - `file:line` — <the technical mechanic that delivers it>
+- <plain-language value>
+  - `file:line` — <mechanic>
 
 ### Issues at a Glance
 
