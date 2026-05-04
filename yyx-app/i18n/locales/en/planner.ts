@@ -95,6 +95,7 @@ export const planner = {
     generateTitle: "Hmm, your menu didn't come together",
     shoppingListTitle: "Your list isn't ready yet",
     swapTitle: "I couldn't find other options",
+    removeTitle: "Couldn't remove that meal",
     insufficientRecipes:
       "I couldn't find enough recipes for what you're craving this time. Try a few more meal types or busy days, and I'll keep adding new recipes — there'll be more to choose from soon.",
     invalidInput:

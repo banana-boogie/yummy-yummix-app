@@ -91,11 +91,21 @@ export function FirstTimePlanSetupFlow({
   const { locale } = useLanguage();
 
   // Settings mode always shows every step so saved values stay editable.
-  // First-time mode skips already-answered steps for a fast onboarding path.
-  const hasSavedDays = !!initialPreferences?.activeDayIndexes?.length;
-  const hasSavedBusy = !!initialPreferences?.busyDays?.length;
-  const hasSavedMealTypes = !!initialPreferences?.mealTypes?.length;
+  // First-time mode skips already-answered steps for a fast onboarding path —
+  // BUT only if the user has actually saved preferences before. The backend
+  // returns DEFAULT_PREFERENCES with populated arrays for users with no DB row
+  // yet (`setupCompletedAt: null`); trusting array length alone would skip
+  // unanswered onboarding steps. Use `setupCompletedAt` as the truth signal:
+  // null = first-time, never trust defaults; non-null = saved values exist.
   const isSettings = mode === 'settings';
+  const hasSavedPrefs =
+    isSettings || initialPreferences?.setupCompletedAt != null;
+  const hasSavedDays =
+    hasSavedPrefs && !!initialPreferences?.activeDayIndexes?.length;
+  const hasSavedBusy =
+    hasSavedPrefs && !!initialPreferences?.busyDays?.length;
+  const hasSavedMealTypes =
+    hasSavedPrefs && !!initialPreferences?.mealTypes?.length;
 
   // Household size is handled at the profile level, not the planner contract.
   // Revisit if/when the planner API accepts householdSize.

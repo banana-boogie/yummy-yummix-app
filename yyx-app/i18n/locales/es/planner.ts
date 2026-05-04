@@ -95,6 +95,7 @@ export const planner = {
     generateTitle: "Tu menú no se armó esta vez",
     shoppingListTitle: "Tu lista todavía no está lista",
     swapTitle: "No encontré otras opciones",
+    removeTitle: "No pude quitar esa comida",
     insufficientRecipes:
       "No encontré suficientes recetas para lo que se te antoja esta vez. Prueba con más tipos de comida o días ocupados, y mientras tanto seguiré agregando recetas — pronto habrá más para elegir.",
     invalidInput:

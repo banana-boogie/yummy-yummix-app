@@ -78,7 +78,9 @@ describe('FirstTimePlanSetupFlow', () => {
     expect(screen.getByText('What should I plan?')).toBeTruthy();
   });
 
-  it('auto-finishes when first-time preferences already answer every step', async () => {
+  it('auto-finishes when saved preferences already answer every step', async () => {
+    // setupCompletedAt non-null — user has saved before, so populated arrays
+    // are real answers and the flow can fast-finish with them.
     const onComplete = jest.fn().mockResolvedValue(undefined);
     const initialPreferences: PreferencesResponse = {
       mealTypes: ['dinner'],
@@ -87,7 +89,7 @@ describe('FirstTimePlanSetupFlow', () => {
       defaultMaxWeeknightMinutes: 30,
       preferLeftoversForLunch: false,
       preferredEatTimes: {},
-        setupCompletedAt: null,
+      setupCompletedAt: '2026-04-25T12:00:00Z',
     };
 
     renderWithProviders(
@@ -107,7 +109,9 @@ describe('FirstTimePlanSetupFlow', () => {
     });
   });
 
-  it('uses the selected preset when days is the only remaining first-time step', async () => {
+  it('uses the selected preset when days is the only remaining step (saved prefs)', async () => {
+    // Saved prefs (setupCompletedAt non-null) with empty activeDayIndexes —
+    // only the days step needs to be answered.
     const onComplete = jest.fn().mockResolvedValue(undefined);
     const initialPreferences: PreferencesResponse = {
       mealTypes: ['dinner'],
@@ -116,7 +120,7 @@ describe('FirstTimePlanSetupFlow', () => {
       defaultMaxWeeknightMinutes: 30,
       preferLeftoversForLunch: false,
       preferredEatTimes: {},
-        setupCompletedAt: null,
+      setupCompletedAt: '2026-04-25T12:00:00Z',
     };
 
     renderWithProviders(
@@ -136,6 +140,35 @@ describe('FirstTimePlanSetupFlow', () => {
         busyDays: [2],
       });
     });
+  });
+
+  it('renders all steps for a first-time user even when defaults are populated', async () => {
+    // Backend returns DEFAULT_PREFERENCES with populated arrays for users with
+    // no DB row yet (`setupCompletedAt: null`). The flow must NOT auto-skip
+    // those steps — defaults aren't user answers.
+    const onComplete = jest.fn().mockResolvedValue(undefined);
+    const initialPreferences: PreferencesResponse = {
+      mealTypes: ['dinner'],
+      busyDays: [2],
+      activeDayIndexes: [0, 1, 2, 3, 4],
+      defaultMaxWeeknightMinutes: 30,
+      preferLeftoversForLunch: false,
+      preferredEatTimes: {},
+      setupCompletedAt: null,
+    };
+
+    renderWithProviders(
+      <FirstTimePlanSetupFlow
+        initialPreferences={initialPreferences}
+        onComplete={onComplete}
+        onCancel={jest.fn()}
+      />,
+    );
+
+    // Days step renders first; was being skipped under the old length-only
+    // check.
+    expect(screen.getByText(/which days do you want meals planned/i)).toBeTruthy();
+    expect(onComplete).not.toHaveBeenCalled();
   });
 
   it('uses comida copy and sends lunch for the locale-primary es-MX option', async () => {

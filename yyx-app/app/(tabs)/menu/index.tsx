@@ -205,10 +205,17 @@ export default function MenuScreen() {
   }, [activePlan, generateShoppingList]);
 
   const handleRemove = useCallback(
-    (slot: { id: string }) => {
+    async (slot: { id: string }) => {
       // Remove dims the card via skip_meal (no dedicated "remove" action yet —
       // keep server contract intact, surface as "Remove" in UI).
-      skipSlot(slot.id);
+      try {
+        await skipSlot(slot.id);
+      } catch (err) {
+        Alert.alert(
+          i18n.t('planner.error.removeTitle'),
+          mealPlannerErrorMessage(err),
+        );
+      }
     },
     [skipSlot],
   );

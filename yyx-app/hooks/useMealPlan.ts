@@ -214,8 +214,12 @@ export function useMealPlan(): UseMealPlanReturn {
     };
   }, [activePlan]);
 
+  // Include preference fetch failures: setup state derives from preferences,
+  // so a silent prefsQuery error makes a network failure look like first-time
+  // onboarding instead of a connection problem.
   const error =
     (planQuery.error as Error | undefined)?.message ??
+    (prefsQuery.error as Error | undefined)?.message ??
     (generateMutation.error as Error | undefined)?.message ??
     null;
 
