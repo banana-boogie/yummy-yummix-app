@@ -1,6 +1,6 @@
 export const planner = {
   title: "Mi Menú",
-  shoppingListDefaultName: "Lista de compras de Mi Menú",
+  shoppingListDefaultName: "Mi Menú - {{date}}",
   openSettings: "Editar preferencias de planificación",
   dayEmpty: "No hay comidas planeadas para este día.",
   empty: {

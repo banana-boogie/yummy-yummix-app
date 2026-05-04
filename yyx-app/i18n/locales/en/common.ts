@@ -11,6 +11,7 @@ export const common = {
   close: "Close",
   remove: "Remove",
   cancel: "Cancel",
+  create: "Create",
   import: "Import",
   done: "Done",
   next: "Next",
