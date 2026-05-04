@@ -68,7 +68,7 @@ export async function fetchAllIngredients(supabase: SupabaseClient): Promise<DbI
 export async function fetchAllTags(supabase: SupabaseClient): Promise<DbRecipeTag[]> {
   const { data, error } = await supabase
     .from('recipe_tags')
-    .select('id, categories, translations:recipe_tag_translations(locale, name)')
+    .select('id, slug, categories, translations:recipe_tag_translations(locale, name)')
     .limit(FETCH_LIMIT);
   if (error) throw new Error(`Failed to fetch tags: ${error.message}`);
   warnIfTruncated('tags', (data || []).length);
@@ -77,6 +77,7 @@ export async function fetchAllTags(supabase: SupabaseClient): Promise<DbRecipeTa
       const t = row.translations || [];
       return {
         id: row.id,
+        slug: row.slug,
         categories: row.categories,
         name_en: tr(t, 'en', 'name'),
         name_es: tr(t, 'es', 'name'),
@@ -241,32 +242,11 @@ export async function createKitchenTool(
   };
 }
 
-export async function createTag(
-  supabase: SupabaseClient,
-  tag: { name_en: string; name_es: string; categories: string[] },
-): Promise<DbRecipeTag> {
-  const { data, error } = await supabase
-    .from('recipe_tags')
-    .insert({ categories: tag.categories })
-    .select('id')
-    .single();
-  if (error) throw new Error(`Failed to create tag "${tag.name_en}": ${error.message}`);
-
-  const { error: tErr } = await supabase
-    .from('recipe_tag_translations')
-    .insert([
-      { recipe_tag_id: data.id, locale: 'en', name: tag.name_en },
-      { recipe_tag_id: data.id, locale: 'es', name: tag.name_es },
-    ]);
-  if (tErr) throw new Error(`Failed to create tag translations: ${tErr.message}`);
-
-  return {
-    id: data.id,
-    name_en: tag.name_en,
-    name_es: tag.name_es,
-    categories: tag.categories,
-  };
-}
+// NOTE: createTag was removed as part of the tag-system rebuild. The
+// taxonomy is now seeded via migration and tags are never created at
+// import time — the importer skips any Notion tag without a canonical
+// mapping. If a new canonical tag is needed, add it to the seed in
+// supabase/migrations/20260427022448_tag_system_rebuild.sql.
 
 // ─── Create Recipe (with all related entities) ───────────
 
@@ -281,6 +261,14 @@ export interface RecipeInsertData {
   is_published: boolean;
   tips_and_tricks_en?: string;
   tips_and_tricks_es?: string;
+  planner_role?: string | null;
+  equipment_tags?: string[];
+  meal_components?: string[];
+  is_complete_meal?: boolean;
+  cooking_level?: string | null;
+  leftovers_friendly?: boolean | null;
+  max_household_size_supported?: number | null;
+  batch_friendly?: boolean | null;
 }
 
 export interface RecipeIngredientInsert {
@@ -310,6 +298,8 @@ export interface RecipeStepInsert {
   thermomix_temperature: number | string | null;
   thermomix_temperature_unit: string | null;
   thermomix_is_blade_reversed: boolean | null;
+  thermomix_mode: string | null;
+  timer_seconds: number | null;
   recipe_section_en: string;
   recipe_section_es: string;
   tip_en: string;
@@ -339,6 +329,14 @@ export async function createRecipe(
       total_time: recipe.total_time,
       portions: recipe.portions,
       is_published: recipe.is_published,
+      planner_role: recipe.planner_role ?? null,
+      equipment_tags: recipe.equipment_tags ?? [],
+      meal_components: recipe.meal_components ?? [],
+      is_complete_meal: recipe.is_complete_meal ?? false,
+      cooking_level: recipe.cooking_level ?? null,
+      leftovers_friendly: recipe.leftovers_friendly ?? null,
+      max_household_size_supported: recipe.max_household_size_supported ?? null,
+      batch_friendly: recipe.batch_friendly ?? null,
     })
     .select('id')
     .single();
@@ -416,6 +414,8 @@ export async function insertRecipeSteps(
     thermomix_temperature: s.thermomix_temperature,
     thermomix_temperature_unit: s.thermomix_temperature_unit,
     thermomix_is_blade_reversed: s.thermomix_is_blade_reversed,
+    thermomix_mode: s.thermomix_mode,
+    timer_seconds: s.timer_seconds,
   }));
 
   const { data: inserted, error } = await supabase
@@ -604,6 +604,9 @@ export async function upsertIngredientNutrition(
     protein: number;
     fat: number;
     carbohydrates: number;
+    fiber?: number | null;
+    sugar?: number | null;
+    sodium?: number | null;
     source: string;
   },
 ): Promise<void> {
@@ -615,6 +618,9 @@ export async function upsertIngredientNutrition(
       protein: data.protein,
       fat: data.fat,
       carbohydrates: data.carbohydrates,
+      fiber: data.fiber ?? null,
+      sugar: data.sugar ?? null,
+      sodium: data.sodium ?? null,
       source: data.source,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'ingredient_id' });

@@ -4,13 +4,13 @@
  * Tests for diet step component covering:
  * - Diet type options display
  * - Single and multiple selection
- * - "None" option behavior
- * - "Other" option with custom input
+ * - Empty selection as no preference
  * - Navigation to next step
  */
 
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react-native';
+import { screen, fireEvent } from '@testing-library/react-native';
+import { renderWithProviders } from '@/test/utils/render';
 import { DietStep } from '../steps/DietStep';
 
 // Create stable references for mocks
@@ -43,20 +43,15 @@ jest.mock('@/i18n', () => ({
       const translations: Record<string, string> = {
         'onboarding.steps.diet.title': 'Dietary preferences?',
         'onboarding.steps.diet.subtitle': 'Select all that apply',
-        'onboarding.steps.diet.options.none': 'No specific diet',
-        'onboarding.steps.diet.options.keto': 'Keto',
-        'onboarding.steps.diet.options.lactoVegetarian': 'Lacto-Vegetarian',
-        'onboarding.steps.diet.options.mediterranean': 'Mediterranean',
-        'onboarding.steps.diet.options.ovoVegetarian': 'Ovo-Vegetarian',
-        'onboarding.steps.diet.options.paleo': 'Paleo',
-        'onboarding.steps.diet.options.pescatarian': 'Pescatarian',
-        'onboarding.steps.diet.options.sugarFree': 'Sugar Free',
-        'onboarding.steps.diet.options.vegan': 'Vegan',
         'onboarding.steps.diet.options.vegetarian': 'Vegetarian',
-        'onboarding.steps.diet.options.other': 'Other',
-        'onboarding.steps.diet.otherPlaceholder': 'Enter other diet',
-        'onboarding.common.addAnother': 'Add another',
-        'validation.otherDietRequired': 'Please enter your other diet',
+        'onboarding.steps.diet.options.vegan': 'Vegan',
+        'onboarding.steps.diet.options.keto': 'Keto',
+        'onboarding.steps.diet.options.low_carb': 'Low Carb',
+        'onboarding.steps.diet.options.paleo': 'Paleo',
+        'onboarding.steps.diet.options.low_sodium': 'Low Sodium',
+        'onboarding.steps.diet.options.low_sugar': 'Low Sugar',
+        'onboarding.steps.diet.options.high_protein': 'High Protein',
+        'onboarding.steps.diet.options.pescatarian': 'Pescatarian',
       };
       return translations[key] || key;
     },
@@ -96,38 +91,9 @@ jest.mock('@/components/onboarding/StepNavigationButtons', () => ({
   },
 }));
 
-// Mock OtherInputField
-jest.mock('@/components/form/OtherInputField', () => ({
-  OtherInputField: ({ items, onItemsChange, placeholder, error }: any) => {
-    const { TextInput, Text, View } = require('react-native');
-    return (
-      <View testID="other-input-container">
-        {items.map((item: string, index: number) => (
-          <TextInput
-            key={index}
-            testID={`other-input-${index}`}
-            value={item}
-            onChangeText={(text: string) => {
-              const newItems = [...items];
-              newItems[index] = text;
-              onItemsChange(newItems);
-            }}
-            placeholder={placeholder}
-          />
-        ))}
-        {error && <Text testID="error-message">{error}</Text>}
-      </View>
-    );
-  },
-}));
-
 // Mock dietary icons
 jest.mock('@/constants/dietaryIcons', () => ({
   getDietTypeIcon: () => null,
-  DIETARY_RESTRICTION_ICONS: {
-    none: 1,
-    other: 2,
-  },
 }));
 
 describe('DietStep', () => {
@@ -142,26 +108,29 @@ describe('DietStep', () => {
 
   describe('rendering', () => {
     it('displays title', () => {
-      render(<DietStep />);
+      renderWithProviders(<DietStep />);
       expect(screen.getByText('Dietary preferences?')).toBeTruthy();
     });
 
     it('displays subtitle', () => {
-      render(<DietStep />);
+      renderWithProviders(<DietStep />);
       expect(screen.getByText('Select all that apply')).toBeTruthy();
     });
 
     it('displays diet options', () => {
-      render(<DietStep />);
+      renderWithProviders(<DietStep />);
       expect(screen.getByText('Vegan')).toBeTruthy();
       expect(screen.getByText('Vegetarian')).toBeTruthy();
       expect(screen.getByText('Keto')).toBeTruthy();
-      expect(screen.getByText('No specific diet')).toBeTruthy();
+      expect(screen.getByText('Low Sugar')).toBeTruthy();
     });
 
-    it('does not display legacy mediterranean as a diet option', () => {
-      render(<DietStep />);
+    it('does not display legacy sentinel or diet values', () => {
+      renderWithProviders(<DietStep />);
+      expect(screen.queryByText('No specific diet')).toBeNull();
+      expect(screen.queryByText('Other')).toBeNull();
       expect(screen.queryByText('Mediterranean')).toBeNull();
+      expect(screen.queryByText('Sugar Free')).toBeNull();
     });
   });
 
@@ -171,87 +140,61 @@ describe('DietStep', () => {
 
   describe('selection', () => {
     it('selects a diet option', () => {
-      render(<DietStep />);
+      renderWithProviders(<DietStep />);
 
       const veganOption = screen.getByTestId('diet-option-vegan');
       fireEvent.press(veganOption);
 
       expect(mockUpdateFormData).toHaveBeenCalledWith({
         dietTypes: ['vegan'],
+        otherDiet: [],
       });
     });
 
     it('allows multiple selections', () => {
       mockFormData = { dietTypes: ['vegan'] };
-      render(<DietStep />);
+      renderWithProviders(<DietStep />);
 
       const vegetarianOption = screen.getByTestId('diet-option-vegetarian');
       fireEvent.press(vegetarianOption);
 
       expect(mockUpdateFormData).toHaveBeenCalledWith({
         dietTypes: ['vegan', 'vegetarian'],
+        otherDiet: [],
       });
     });
 
     it('deselects a diet option', () => {
       mockFormData = { dietTypes: ['vegan', 'vegetarian'] };
-      render(<DietStep />);
+      renderWithProviders(<DietStep />);
 
       const veganOption = screen.getByTestId('diet-option-vegan');
       fireEvent.press(veganOption);
 
       expect(mockUpdateFormData).toHaveBeenCalledWith({
         dietTypes: ['vegetarian'],
-      });
-    });
-  });
-
-  // ============================================================
-  // "NONE" OPTION TESTS
-  // ============================================================
-
-  describe('"none" option', () => {
-    it('clears other selections when "none" is selected', () => {
-      mockFormData = { dietTypes: ['vegan', 'vegetarian'] };
-      render(<DietStep />);
-
-      const noneOption = screen.getByTestId('diet-option-no-specific-diet');
-      fireEvent.press(noneOption);
-
-      expect(mockUpdateFormData).toHaveBeenCalledWith({
-        dietTypes: ['none'],
         otherDiet: [],
       });
     });
-
-    it('removes "none" when selecting another option', () => {
-      mockFormData = { dietTypes: ['none'] };
-      render(<DietStep />);
-
-      const veganOption = screen.getByTestId('diet-option-vegan');
-      fireEvent.press(veganOption);
-
-      expect(mockUpdateFormData).toHaveBeenCalledWith({
-        dietTypes: ['vegan'],
-      });
-    });
   });
 
   // ============================================================
-  // "OTHER" OPTION TESTS
+  // EMPTY SELECTION TESTS
   // ============================================================
 
-  describe('"other" option', () => {
-    it('shows input field when "other" is selected', () => {
-      mockFormData = { dietTypes: ['other'] };
-      render(<DietStep />);
-      expect(screen.getByTestId('other-input-container')).toBeTruthy();
-    });
+  describe('empty selection', () => {
+    it('treats no selection as no preference and allows next step', () => {
+      mockFormData = { dietTypes: [] };
+      renderWithProviders(<DietStep />);
 
-    it('does not show input field when "other" is not selected', () => {
-      mockFormData = { dietTypes: ['vegan'] };
-      render(<DietStep />);
-      expect(screen.queryByTestId('other-input-container')).toBeNull();
+      const nextButton = screen.getByTestId('next-button');
+      fireEvent.press(nextButton);
+
+      expect(mockUpdateFormData).toHaveBeenCalledWith({
+        dietTypes: [],
+        otherDiet: [],
+      });
+      expect(mockGoToNextStep).toHaveBeenCalled();
     });
   });
 
@@ -260,28 +203,22 @@ describe('DietStep', () => {
   // ============================================================
 
   describe('navigation', () => {
-    it('does not go to next step when no selection', () => {
-      mockFormData = { dietTypes: [] };
-      render(<DietStep />);
-
-      const nextButton = screen.getByTestId('next-button');
-      fireEvent.press(nextButton);
-
-      expect(mockGoToNextStep).not.toHaveBeenCalled();
-    });
-
     it('goes to next step when selection made', () => {
       mockFormData = { dietTypes: ['vegan'] };
-      render(<DietStep />);
+      renderWithProviders(<DietStep />);
 
       const nextButton = screen.getByTestId('next-button');
       fireEvent.press(nextButton);
 
+      expect(mockUpdateFormData).toHaveBeenCalledWith({
+        dietTypes: ['vegan'],
+        otherDiet: [],
+      });
       expect(mockGoToNextStep).toHaveBeenCalled();
     });
 
     it('goes to previous step', () => {
-      render(<DietStep />);
+      renderWithProviders(<DietStep />);
 
       const backButton = screen.getByTestId('back-button');
       fireEvent.press(backButton);

@@ -143,7 +143,20 @@ deno task pipeline:nutrition --local       # Fetch missing nutritional data
 deno task pipeline:upload-images --local --dir /path/to/images
 deno task pipeline:audit --local           # Audit data quality
 deno task pipeline:translate --local       # Translate content
+deno task pipeline:apply-recipe-metadata --local --recipe <slug> --dry-run  # Apply YAML-driven recipe edits (Plan 12)
+deno task pipeline:apply-recipe-metadata --list-missing                     # Recipes that still need a YAML
+deno task pipeline:apply-recipe-metadata --list-authoring                   # Committed YAMLs flagged requires_authoring
 ```
+
+The `apply-recipe-metadata` pipeline is Plan 12's declarative recipe-curation
+workflow. Despite the "metadata" name, it edits ingredients, steps, kitchen
+tools, pairings, tags, descriptions, and planner config — basically anything
+the rubric ([docs/agent-guidelines/RECIPE-REVIEW.md](../docs/agent-guidelines/RECIPE-REVIEW.md))
+covers. Pairs with the `/review-recipe` skill (Claude and Codex), which writes
+the YAML at `--effort high` and re-decides `planner_role` from scratch every
+time. The dry-run shows a recipe snapshot, a grouped diff, per-layer row counts
+for `cleanup.delete_locales`, and any `requires_authoring` notes. See
+`data-pipeline/data/recipe-metadata/README.md` for the workflow diagram.
 
 All tools require `--local` or `--production` to select the target environment.
 

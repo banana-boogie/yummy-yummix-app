@@ -1,0 +1,74 @@
+recipe_match:
+  id: '9efe6751-3081-426d-836c-1a650cc5c24e'
+  name_en: 'Steamed Rice'
+  expected_recipe_updated_at: '2026-04-29T21:02:03.958834+00:00'
+
+review:
+  reviewed_by_label: 'claude-opus-4-7'
+  reviewed_at: '2026-04-29T21:30:00Z'
+
+planner:
+  role: side
+  meal_components: [ carb ]
+  is_complete_meal: false
+  batch_friendly: true
+  max_household_size_supported: 8
+
+description:
+  en: 'Foolproof white rice steamed in the Thermomix® simmering basket — the rice cooks above seasoned water for fluffy, separate grains every time. The classic neutral side that pairs with everything from grilled chicken to picadillo to stir-fries.'
+  es: 'Arroz blanco al vapor a prueba de errores cocinado en el cestillo de la Thermomix® — el arroz se cuece al vapor sobre agua sazonada para obtener granos esponjosos y sueltos siempre. La guarnición neutra clásica que combina con todo, desde pollo asado hasta picadillo o salteados.'
+
+tips_and_tricks:
+  en: 'Rinse the rice well in step 1 — clearer water means fluffier, less starchy grains. The bowl water steams the rice in the basket above; do not let the basket dip into the water before cooking. Do not lift the lid mid-cook — the steam is doing the work. Keeps 4 days in the fridge; reheat with a splash of water in a covered pan over low heat to fluff back up.'
+  es: 'Enjuaga bien el arroz en el primer paso — entre más clara salga el agua, más esponjados quedan los granos y menos almidón sueltan. El agua del vaso cuece el arroz al vapor en el cestillo; cuida que el cestillo no toque el agua antes de empezar la cocción. No levantes la tapa a media cocción — el vapor hace el trabajo. Se conserva 4 días en el refrigerador; recalienta con un chorrito de agua en una sartén tapada a fuego bajo para que recupere su esponjosidad.'
+
+scaling_notes:
+  en: 'Yields 8 servings as a side. Halves cleanly. Doubling exceeds the simmering basket''s capacity — for more, run two batches. Keeps 4 days in the fridge.'
+  es: 'Rinde 8 porciones como guarnición. Se reduce a la mitad sin problema. Duplicar excede la capacidad del cestillo — para más, prepara dos tandas. Se conserva 4 días en el refrigerador.'
+
+# DB has diet:[vegetarian], dish_type:[side_dish]. Adding vegan (rice+water+salt+oil
+# all plant-based), gluten_free (no wheat), rice_dish, primary_ingredient:rice,
+# meal_type lunch+dinner, and a practical set anchored on thermomix_basics + pantry_staple.
+tags:
+  meal_type: [ lunch, dinner ]
+  diet: [ vegetarian, vegan, gluten_free ]
+  dish_type: [ side_dish, rice_dish ]
+  primary_ingredient: [ rice ]
+  practical: [ thermomix_basics, beginner_friendly, batch_cook, make_ahead, leftover_friendly, pantry_staple ]
+
+# DB tools: Thermomix® spatula, Airtight container, Thermomix® simmering basket.
+# Adding Thermomix® itself (the cooking happens in the bowl in step 2) and
+# Kitchen scale (precise weights — 300 g rice, 1000 g water, 10 g oil).
+kitchen_tools:
+  set:
+    - name_en: 'Thermomix®'
+    - name_en: 'Thermomix® simmering basket'
+    - name_en: 'Thermomix® spatula'
+    - name_en: 'Kitchen scale'
+    - name_en: 'Airtight container'
+
+step_text_overrides:
+  # Step 2 ES: Spanglish "el bowl de tu Thermomix®" → canonical "el vaso de la Thermomix®"
+  # to match the rest of the catalog's voice.
+  - match: { order: 2 }
+    translations:
+      es:
+        instruction: 'Coloca el aceite, el agua y la sal en el vaso de la Thermomix®, introduce el cestillo con el arroz y cocina %thermomix%.'
+  # Step 3 ES: missing comma before "sirve caliente" creates a comma splice
+  # ("...para esponjarlo sirve caliente"). Inserting the comma.
+  - match: { order: 3 }
+    translations:
+      es:
+        instruction: 'Retira el cestillo con ayuda de la espátula, vierte el arroz en un refractario, muévelo con la espátula para esponjarlo y sirve caliente.'
+applied:
+  - applied_at: 2026-04-29T21:02:04.191Z
+    applied_by: ian@local
+    pre_recipe_updated_at: 2026-04-17T14:02:42.178131+00:00
+    post_recipe_updated_at: 2026-04-29T21:02:03.958834+00:00
+    sections_changed:
+      - planner
+      - translations
+      - kitchen_tools
+      - step_text
+      - tags
+    environment: local

@@ -1,0 +1,80 @@
+recipe_match:
+  id: 'e50b81a2-b7e3-4802-b276-2a84cf8946e9'
+  name_en: 'Chicken Tinga'
+  expected_recipe_updated_at: '2026-04-29T05:13:31.353744+00:00'
+
+review:
+  reviewed_by_label: 'codex-gpt-5'
+  reviewed_at: '2026-04-29T04:42:53Z'
+
+planner:
+  role: main
+  alternate_planner_roles: []
+  meal_components: [ protein, carb ]
+  is_complete_meal: false
+  equipment_tags: [ thermomix ]
+  cooking_level: beginner
+  leftovers_friendly: true
+  batch_friendly: true
+  max_household_size_supported: 6
+
+description:
+  en: 'Shredded chicken simmered in a smoky tomato-chipotle sauce, made in the Thermomix® and served on crisp tostadas with sour cream and panela cheese.'
+  es: 'Pollo deshebrado en una salsa ahumada de jitomate y chipotle, preparado en la Thermomix® y servido sobre tostadas crujientes con crema y queso panela.'
+
+tips_and_tricks:
+  en: 'Adjust the chipotle to taste for a milder or smokier tinga. The filling keeps well, so you can cook it ahead and assemble the tostadas just before serving.'
+  es: 'Ajusta el chipotle al gusto para una tinga más suave o más ahumada. El relleno se conserva bien, así que puedes cocinarlo con anticipación y montar las tostadas justo antes de servir.'
+
+scaling_notes:
+  en: 'The 1 kg chicken batch serves 6 generously. For smaller households, refrigerate leftovers up to 3 days or freeze the tinga filling without the tostadas, cream, or cheese.'
+  es: 'La tanda con 1 kg de pollo rinde 6 porciones generosas. Para hogares más pequeños, refrigera las sobras hasta 3 días o congela el relleno de tinga sin las tostadas, la crema ni el queso.'
+
+tags:
+  meal_type: [ lunch, dinner ]
+  diet: [ high_protein ]
+  dish_type: [ main_dish ]
+  occasion: [ weeknight, comfort_food ]
+  practical: [ thermomix_basics, leftover_friendly, batch_cook, make_ahead, beginner_friendly, quick ]
+
+ingredient_updates:
+  - match: { ingredient_slug: chicken_bouillon, display_order: 5 }
+    unit: unit
+    notes_en: 'or to taste'
+  - match: { ingredient_slug: canned_chipotle_pepper, display_order: 6 }
+    unit: g
+    notes_en: 'or to taste'
+  - match: { ingredient_slug: bay_leaf, display_order: 7 }
+    unit: leaf
+    notes_en: 'dried'
+  - match: { ingredient_slug: tostada, display_order: 8 }
+    unit: unit
+    notes_en: 'for serving'
+
+kitchen_tools:
+  set:
+    - name_en: 'Thermomix®'
+    - name_en: 'Thermomix® spatula'
+
+# Step 4 has a temperature unit with no temperature. Step 5 is plating,
+# not a Thermomix timed action.
+step_overrides:
+  - match: { order: 4 }
+    thermomix_temperature_unit: null
+  - match: { order: 5 }
+    thermomix_time: null
+    thermomix_speed: null
+
+applied:
+  - applied_at: 2026-04-29T05:06:42.218Z
+    applied_by: ian@local
+    pre_recipe_updated_at: 2026-04-17T22:15:59.157074+00:00
+    post_recipe_updated_at: 2026-04-29T05:06:41.732191+00:00
+    sections_changed:
+      - planner
+      - translations
+      - ingredients
+      - kitchen_tools
+      - step_overrides
+      - tags
+    environment: local

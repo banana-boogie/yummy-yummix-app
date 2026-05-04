@@ -366,7 +366,7 @@ function makeRawRecipeRow(
 function mealTypeTag(name: string): Record<string, unknown> {
   return {
     recipe_tags: {
-      categories: ["MEAL_TYPE"],
+      categories: ["meal_type"],
       recipe_tag_translations: [{ locale: "en", name }],
     },
   };

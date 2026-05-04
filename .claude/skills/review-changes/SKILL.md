@@ -119,17 +119,22 @@ The report has **two sections**: a short human-readable summary, and a detailed 
 
 ### Highlights
 
-- <good pattern acknowledged>
-- <good pattern acknowledged>
+Concept-first, with an indented technical pointer. Top-level bullet = plain-language user/product/architectural value (max ~20 words, no file paths or API names). Sub-bullet = file pointer + the mechanic. Drop highlights you can only express technically.
 
-### Issues
+- <plain-language value: what's good about this and why it matters>
+  - `file:line` — <the technical mechanic that delivers it>
+- <plain-language value>
+  - `file:line` — <mechanic>
 
-**Must fix**
-- [Critical] `file:line` — one-sentence description
-- [Warning] `file:line` — one-sentence description
+### Issues at a Glance
 
-**Recommended**
-- [Suggestion] `file:line` — one-sentence description
+One row per finding, sorted Critical → Warning → Suggestion. Numbers (#) are reused in Next Steps. Area is one of: Frontend, Backend, Database, AI, Infra, Docs, i18n, Tests. If zero findings, write *No issues found.* and omit the table.
+
+| # | Sev        | Area     | File                       | Issue                              |
+|---|------------|----------|----------------------------|------------------------------------|
+| 1 | Critical   | <area>   | `file:line`                | <6-12 word headline>               |
+| 2 | Warning    | <area>   | `file:line`                | <6-12 word headline>               |
+| 3 | Suggestion | <area>   | `file:line`                | <6-12 word headline>               |
 
 ---
 
@@ -142,22 +147,24 @@ You are the implementation agent for branch <branch-name>.
 
 ## Review Findings — Fix All
 
+Finding numbers (#N) match the "Issues at a Glance" table in the review.
+
 ### Critical
-- [Critical] `file:line` — description
+- **#1** [Critical] `file:line` — description
   - Recommendation: <specific recommendation>
   - Options:
     1. **A (Recommended)** <option> — Effort: S/M/L, Risk: <...>, Impact: <...>
     2. **B** <option> — Effort: S/M/L, Risk: <...>, Impact: <...>
 
 ### Warning
-- [Warning] `file:line` — description
+- **#2** [Warning] `file:line` — description
   - Recommendation: <specific recommendation>
 
 ## Recommended Improvements
 
 Only include suggestions the reviewer actively recommends. If it's not worth doing, don't list it.
 
-- `file:line` — description. Do: <specific action>
+- **#3** `file:line` — description. Do: <specific action>
 
 ## Potential Misses
 

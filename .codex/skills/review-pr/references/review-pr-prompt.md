@@ -16,8 +16,8 @@ Collection behavior:
 - If GitHub API/GraphQL calls fail (throttling/deprecation/transient errors), fallback to git-based comparison using fetched base/head branches.
 
 Output requirements:
-- Human-readable summary: Verdict (APPROVE/COMMENT/REQUEST CHANGES with severity counts), Highlights, flat Issues list by severity
-- Detailed Next Steps prompt for implementation AI: full findings with categories, options/tradeoffs, recommendations, potential misses
+- Human-readable summary: Verdict (APPROVE/COMMENT/REQUEST CHANGES with severity counts), Highlights, "Issues at a Glance" table (one row per finding: # | Sev | Area | File | Issue)
+- Detailed Next Steps prompt for implementation AI: full findings (numbered to match the table) with categories, options/tradeoffs, recommendations, potential misses
 - Keep the human section short — all detail goes in Next Steps
 ```
 

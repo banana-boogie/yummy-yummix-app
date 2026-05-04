@@ -5,6 +5,7 @@ import {
 } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import { clearAllergenCache } from "../allergen-filter.ts";
 import type { RecipeCard } from "../irmixy-schemas.ts";
+import { _resetTagSlugCacheForTests } from "../tag-slug.ts";
 import {
   filterByAllKeywords,
   formatRestrictionLabel,
@@ -33,6 +34,7 @@ function createMockSupabase(config: {
   allergenGroupsError?: unknown;
   matchingTagsData?: unknown[];
   recipeTagJoinsData?: unknown[];
+  recipeTagsAliasData?: unknown[];
 }) {
   const calls = {
     recipeNameOr: [] as string[],
@@ -115,6 +117,16 @@ function createMockSupabase(config: {
                 error: null,
               }) as MockResult,
           }),
+        };
+      }
+
+      if (table === "recipe_tags") {
+        return {
+          select: () =>
+            Promise.resolve({
+              data: config.recipeTagsAliasData ?? [],
+              error: null,
+            } as MockResult),
         };
       }
 
@@ -378,6 +390,7 @@ function makeRecipeWithTags(
     portions: 4,
     recipe_to_tag: tags.map((t) => ({
       recipe_tags: {
+        slug: t.en?.toLowerCase().replace(/\s+/g, "_") ?? null,
         recipe_tag_translations: [
           ...(t.en ? [{ locale: "en", name: t.en }] : []),
           ...(t.es ? [{ locale: "es", name: t.es }] : []),
@@ -712,4 +725,115 @@ Deno.test("searchRecipes filters out already-shown recipes", async () => {
 
   assertEquals(result.length, 1);
   assertEquals(result[0].recipeId, "recipe-2");
+});
+
+// Regression: the tag rebuild migration (20260427022448) lowercased the
+// recipe_tag_category enum (CULTURAL_CUISINE -> cuisine, MEAL_TYPE -> meal_type,
+// etc.). Cuisine filtering must compare against the lowercase value or every
+// AI cuisine search silently returns zero matches. See PR #53 / #54.
+Deno.test("searchRecipes filterByCuisine matches the lowercase 'cuisine' category", async () => {
+  _resetTagSlugCacheForTests();
+  const supabase = createMockSupabase({
+    searchRecipesData: [
+      {
+        id: "recipe-mexican",
+        recipe_translations: [
+          { locale: "en", name: "Tacos al Pastor" },
+          { locale: "es", name: "Tacos al Pastor" },
+        ],
+        image_url: null,
+        total_time: 30,
+        difficulty: "easy",
+        portions: 4,
+        recipe_to_tag: [
+          {
+            recipe_tags: {
+              slug: "mexican",
+              categories: ["cuisine"],
+              recipe_tag_translations: [
+                { locale: "en", name: "Mexican" },
+                { locale: "es", name: "Mexicana" },
+              ],
+            },
+          },
+        ],
+      },
+      {
+        id: "recipe-italian",
+        recipe_translations: [
+          { locale: "en", name: "Spaghetti" },
+          { locale: "es", name: "Espagueti" },
+        ],
+        image_url: null,
+        total_time: 25,
+        difficulty: "easy",
+        portions: 4,
+        recipe_to_tag: [
+          {
+            recipe_tags: {
+              slug: "italian",
+              categories: ["cuisine"],
+              recipe_tag_translations: [
+                { locale: "en", name: "Italian" },
+                { locale: "es", name: "Italiana" },
+              ],
+            },
+          },
+        ],
+      },
+    ],
+  });
+
+  const result = asRecipeCards(
+    await searchRecipes(
+      supabase,
+      { cuisine: "mexican", limit: 5 },
+      createUserContext("en"),
+    ),
+  );
+
+  assertEquals(result.length, 1);
+  assertEquals(result[0].recipeId, "recipe-mexican");
+});
+
+Deno.test("searchRecipes filterByCuisine ignores tags whose category is not 'cuisine'", async () => {
+  _resetTagSlugCacheForTests();
+  const supabase = createMockSupabase({
+    searchRecipesData: [
+      {
+        id: "recipe-1",
+        recipe_translations: [
+          { locale: "en", name: "Mexican-style Bowl" },
+          { locale: "es", name: "Tazón Mexicano" },
+        ],
+        image_url: null,
+        total_time: 30,
+        difficulty: "easy",
+        portions: 2,
+        // Tag has slug "mexican" but is mis-categorized — should NOT match.
+        recipe_to_tag: [
+          {
+            recipe_tags: {
+              slug: "mexican",
+              categories: ["meal_type"],
+              recipe_tag_translations: [
+                { locale: "en", name: "Mexican" },
+                { locale: "es", name: "Mexicana" },
+              ],
+            },
+          },
+        ],
+      },
+    ],
+  });
+
+  const result = asRecipeCards(
+    await searchRecipes(
+      supabase,
+      { cuisine: "mexican", limit: 5 },
+      createUserContext("en"),
+    ),
+  );
+
+  assertEquals(result.length, 0);
 });

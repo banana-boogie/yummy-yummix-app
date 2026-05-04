@@ -1,0 +1,78 @@
+recipe_match:
+  id: '3fbebf1c-0ff1-4a16-a53c-f8a5ff02baa5'
+  name_en: 'Hummus'
+  expected_recipe_updated_at: '2026-04-29T06:40:05.030775+00:00'
+
+review:
+  reviewed_by_label: 'claude-opus-4-7'
+  reviewed_at: '2026-04-29T07:30:00Z'
+
+planner:
+  role: side
+  alternate_planner_roles: [ snack ]
+  meal_components: []
+  is_complete_meal: false
+  batch_friendly: true
+  max_household_size_supported: 8
+
+# DB has portions=1 which is wrong — 400g chickpeas + extras yields ~600g of
+# hummus, ≈8 servings of 75g.
+timings:
+  portions: 8
+
+description:
+  en: 'Creamy chickpea hummus blitzed in the Thermomix® in 60 seconds — garlic, lemon, tahini, and olive oil. Naturally gluten-free, holds for a week in the fridge, ideal for entertaining or weekday snacks.'
+  es: 'Hummus cremoso de garbanzo, hecho en la Thermomix® en 60 segundos — ajo, limón, tahini y aceite de oliva. Naturalmente sin gluten, dura una semana en el refrigerador, ideal para reuniones o como snack entre semana.'
+
+scaling_notes:
+  en: 'Yields ~600 g (about 8 servings of 75 g). Halves cleanly. Doubling crowds the Thermomix® bowl — for more, run two batches. Stores 5-7 days in an airtight container in the fridge.'
+  es: 'Rinde ~600 g (alrededor de 8 porciones de 75 g). Se reduce a la mitad sin problema. Duplicar satura el vaso de la Thermomix® — para más, prepáralo en dos tandas. Se conserva 5-7 días en un recipiente hermético en el refrigerador.'
+
+tags:
+  cuisine: [ middle_eastern ]
+  occasion: [ entertaining ]
+  practical: [ quick, make_ahead, batch_cook, leftover_friendly, thermomix_basics, beginner_friendly ]
+
+# DB tools list is missing the Thermomix® itself. Adding it; keeping the rest
+# of the existing accessory list as-is.
+kitchen_tools:
+  set:
+    - name_en: 'Thermomix®'
+    - name_en: 'Bowl'
+    - name_en: 'Citrus reamer'
+    - name_en: 'Cutting board'
+    - name_en: 'Spoon'
+    - name_en: 'Spatula'
+
+# Steps 1 and 2 carry orphan thermomix_temperature_unit='C' with no
+# temperature value. Step 1 is a speed-range blend, step 2 is plate-up.
+step_overrides:
+  - match: { order: 1 }
+    thermomix_temperature_unit: null
+  - match: { order: 2 }
+    thermomix_temperature_unit: null
+
+# Step 1's per-locale tip is the placeholder "🙋🏽‍♀️ tip" in en/es/es-ES.
+# The actual useful tip already lives in the recipe's tips_and_tricks.
+# Clearing the placeholder so the step doesn't render a broken tip card.
+step_text_overrides:
+  - match: { order: 1 }
+    translations:
+      en:
+        tip: ''
+      es:
+        tip: ''
+applied:
+  - applied_at: 2026-04-29T06:40:05.258Z
+    applied_by: ian@local
+    pre_recipe_updated_at: 2026-04-17T22:17:26.293295+00:00
+    post_recipe_updated_at: 2026-04-29T06:40:05.030775+00:00
+    sections_changed:
+      - planner
+      - timings
+      - translations
+      - kitchen_tools
+      - step_overrides
+      - step_text
+      - tags
+    environment: local

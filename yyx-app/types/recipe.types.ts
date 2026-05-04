@@ -132,6 +132,7 @@ export interface RecipeStepIngredient {
 // Tag Related Types
 export interface RecipeTag {
   id: string;
+  slug: string | null;
   name: string;
   categories: string[];
 }

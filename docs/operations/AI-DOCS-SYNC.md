@@ -31,6 +31,7 @@ npm run dev:docs-check   # Verify managed sections match canonical sources (exit
 | `shared/development-setup` | `docs/agent-guidelines/shared/development-setup.md` | Prerequisites, setup, workflow, commands, env vars, troubleshooting |
 | `shared/architecture` | `docs/agent-guidelines/shared/architecture.md` | Tech stack, AI gateway, app structure, platform providers |
 | `shared/conventions` | `docs/agent-guidelines/shared/conventions.md` | Imports, components, i18n, styling, layouts, services |
+| `shared/context-and-decisions` | `docs/agent-guidelines/shared/context-and-decisions.md` | CONTEXT.md ubiquitous-language rules and `docs/decisions/` ADR conventions |
 | `shared/testing` | `docs/agent-guidelines/shared/testing.md` | Testing requirements, patterns, commands, pre-commit hooks |
 | `shared/git-conventions` | `docs/agent-guidelines/shared/git-conventions.md` | Branch naming, commit message format |
 | `shared/analytics` | `docs/agent-guidelines/shared/analytics.md` | Analytics philosophy and event tracking |

@@ -1,0 +1,57 @@
+recipe_match:
+  id: '4e497a1e-4245-4efb-bc3a-0b7a1d116e3e'
+  name_en: 'Fruit Sorbet'
+  expected_recipe_updated_at: '2026-04-29T06:04:18.683407+00:00'
+
+review:
+  reviewed_by_label: 'claude-opus-4-7'
+  reviewed_at: '2026-04-29T05:00:00Z'
+
+planner:
+  role: dessert
+  alternate_planner_roles: []
+  meal_components: []
+  is_complete_meal: false
+  equipment_tags: [ thermomix ]
+  cooking_level: beginner
+  leftovers_friendly: false
+
+description:
+  en: 'Five-minute fruit sorbet made entirely in the Thermomix® — pulverized sugar, fresh fruit, and crushed ice blitzed into a bright, naturally gluten-free frozen dessert.'
+  es: 'Nieve de fruta lista en cinco minutos, hecha completamente en la Thermomix® — azúcar pulverizada, fruta fresca y hielo triturado se convierten en un postre congelado brillante y naturalmente sin gluten.'
+
+scaling_notes:
+  en: 'Recipe yields 8 servings and uses the full ice load (1 kg) — do not scale up further in a single Thermomix® bowl. For more servings, run the recipe in successive batches and serve immediately; refrozen sorbet turns icy.'
+  es: 'La receta rinde 8 porciones y usa la carga completa de hielo (1 kg) — no la dupliques en un solo vaso de Thermomix®. Para más porciones, repite la receta en tandas y sirve de inmediato; al recongelarse, la nieve se vuelve quebradiza.'
+
+tags:
+  practical: [ quick, beginner_friendly, thermomix_basics ]
+
+# Step 4 calls for the spatula explicitly; every step uses the Thermomix®
+# bowl. Canonical names per taxonomy.kitchen_tool_names_en.
+kitchen_tools:
+  set:
+    - name_en: 'Thermomix®'
+    - name_en: 'Thermomix® spatula'
+
+# Step 2 EN says "lemon juice" but the recipe ingredient is canonically
+# "Lime juice" (Mexican Spanish "limón" = lime). Fixing EN to match the
+# ingredient. ES + es-ES are correct ("jugo de limón" / "zumo de limón").
+step_text_overrides:
+  - match:
+      order: 2
+    translations:
+      en:
+        instruction: 'Add the lime juice and the fruit in pieces, mix %thermomix%.'
+applied:
+  - applied_at: 2026-04-29T06:04:18.970Z
+    applied_by: ian@local
+    pre_recipe_updated_at: 2026-04-29T05:36:38.932985+00:00
+    post_recipe_updated_at: 2026-04-29T06:04:18.683407+00:00
+    sections_changed:
+      - planner
+      - translations
+      - kitchen_tools
+      - step_text
+      - tags
+    environment: local

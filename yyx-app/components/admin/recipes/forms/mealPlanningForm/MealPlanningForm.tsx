@@ -37,10 +37,6 @@ import { ToggleCard } from "./ToggleCard";
 import { VerificationCard } from "./VerificationCard";
 import { PairingsSection } from "./PairingsSection";
 
-// Tag category name convention: meal types are any tags whose categories include this string
-// (case-insensitive match against TAG category labels like "Meal Type"/"MEAL_TYPE").
-const MEAL_TYPE_CATEGORY_MATCH = /meal\s*type/i;
-
 interface MealPlanningFormProps {
   recipe: Partial<AdminRecipe>;
   onUpdateRecipe: (updates: Partial<AdminRecipe>) => void;
@@ -131,7 +127,7 @@ export function MealPlanningForm({
   const mealTypeTags = useMemo(
     () =>
       allTags.filter((t) =>
-        (t.categories || []).some((c) => MEAL_TYPE_CATEGORY_MATCH.test(c)),
+        (t.categories || []).includes("meal_type"),
       ),
     [allTags],
   );
