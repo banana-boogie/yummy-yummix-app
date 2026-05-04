@@ -39,23 +39,31 @@ Example: **QUICK FIXES THEN PR** — 0 critical, 2 warnings, 4 suggestions
 
 2-4 bullet points of what's done well. Keep it genuine — skip if nothing stands out.
 
-### 5. Issues
+### 5. Issues at a Glance
 
-A **flat list** of findings grouped by severity (not by category). Each finding is one line: severity tag, file reference, and a short description. No options, no recommendations, no sub-bullets.
+A **single table** of all findings — one row per finding, sorted by severity (Critical → Warning → Suggestion). This is the scannable overview: the reader should be able to see every issue, where it lives, and how bad it is in one glance, without reading any prose.
+
+Columns:
+- `#` — sequential ID (1, 2, 3…). Reused in Next Steps so detail can be matched back to the table row.
+- `Sev` — `Critical`, `Warning`, or `Suggestion`.
+- `Area` — one of: Frontend, Backend, Database, AI, Infra, Docs, i18n, Tests. Pick the dominant area for the finding.
+- `File` — `path:line` (or just `path` when no specific line).
+- `Issue` — a 6–12 word headline. No recommendation, no options, no sub-bullets.
 
 Format:
 ```
-**Must fix**
-- [Critical] `file:line` — description (one sentence)
-- [Warning] `file:line` — description (one sentence)
-
-**Recommended**
-- [Suggestion] `file:line` — description (one sentence)
+| # | Sev        | Area     | File                          | Issue                                  |
+|---|------------|----------|-------------------------------|----------------------------------------|
+| 1 | Critical   | Backend  | meal-planner/index.ts:142     | Missing auth check on swap action      |
+| 2 | Warning    | Frontend | useMealPlan.ts:88             | Stale cache after skip mutation        |
+| 3 | Suggestion | Tests    | mealPlanService.test.ts       | No error-path coverage                 |
 ```
 
 Only include suggestions you actively recommend. If it's not worth doing, don't list it.
 
-If there are zero findings in a severity group, omit that group. If there are zero findings total, write *No issues found.*
+If there are zero findings, omit the table and write *No issues found.*
+
+This table **replaces** the older flat-bulleted Issues section. Do not duplicate the same findings as both a table and a bulleted list in the human section.
 
 ### 6. Next Steps
 
@@ -103,26 +111,28 @@ You are the implementation agent for [PR #N / branch-name].
 
 ## Review Findings — Fix All
 
+Finding numbers (#1, #2…) match the "Issues at a Glance" table in the review.
+
 ### Critical
-- [Critical] `file:line` — description
+- **#1** [Critical] `file:line` — description
   - Recommendation: <specific recommendation>
   - Options:
     1. **A (Recommended)** <option> — Effort: S/M/L, Risk: <...>, Impact: <...>
     2. **B** <option> — Effort: S/M/L, Risk: <...>, Impact: <...>
 
 ### High
-- [High] `file:line` — description
+- **#2** [High] `file:line` — description
   - Recommendation: <specific recommendation>
 
 ### Warning
-- [Warning] `file:line` — description
+- **#3** [Warning] `file:line` — description
   - Recommendation: <specific recommendation>
 
 ## Recommended Improvements
 
 Only include suggestions the reviewer actively recommends. If it's not worth doing, don't list it.
 
-- `file:line` — description. Do: <specific action>
+- **#4** `file:line` — description. Do: <specific action>
 
 ## Potential Misses
 
@@ -143,6 +153,7 @@ Constraints:
 ```
 
 Key rules:
+- Finding numbers (#N) must match the "Issues at a Glance" table row IDs so the human can cross-reference.
 - Critical/High/Warning findings are required fixes — include full detail and options.
 - Suggestions are either recommended (include with clear action) or not worth mentioning (omit entirely). No "if worthwhile" hedging.
 - The prompt never references the review report — it is the complete instruction set.
@@ -169,7 +180,7 @@ For review categories, severity levels, and recommendation logic specific to pla
 
 Plan reviews follow the same two-tier philosophy:
 
-**Human section:** Header, verdict, highlights, flat issues list by severity.
+**Human section:** Header, verdict, highlights, "Issues at a Glance" table.
 
 **Detail section:** Since plan reviews don't have a "Next Steps" prompt (the output IS the feedback), the detailed findings with options/tradeoffs go into a collapsible "Detailed Findings" section after the issues list. Also includes Unverified Assumptions.
 
