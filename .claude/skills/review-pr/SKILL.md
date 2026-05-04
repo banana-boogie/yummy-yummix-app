@@ -99,12 +99,13 @@ The report has **two sections**: a short human-readable summary, and a detailed 
 
 ### Highlights
 
-Concept-first, with an indented technical pointer. Top-level bullet = plain-language user/product/architectural value (max ~20 words, no file paths or API names). Sub-bullet = file pointer + the mechanic. Drop highlights you can only express technically.
+Bold-label paragraph blocks. Each highlight is two lines, no list syntax. The intro line carries the plain-language user/product/architectural value (max ~20 words, no file paths or API names). The `**Where:**` line carries the file pointer and the mechanic. A blank line separates entries. Drop highlights you can only express technically.
 
-- <plain-language value: what's good about this and why it matters>
-  - `file:line` — <the technical mechanic that delivers it>
-- <plain-language value>
-  - `file:line` — <mechanic>
+**Highlight 1.** <plain-language value: what's good about this and why it matters>
+**Where:** `file:line` — <the technical mechanic that delivers it>
+
+**Highlight 2.** <plain-language value>
+**Where:** `file:line` — <mechanic>
 
 ### Issues at a Glance
 
