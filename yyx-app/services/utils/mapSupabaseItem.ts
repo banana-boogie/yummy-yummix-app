@@ -53,8 +53,12 @@ export function mapIngredient(
     fallbackName?: string,
 ): MappedIngredientFields {
     const t = pickByLocale(ingredient?.translations, locale);
+    // Prefer a non-empty fallbackName (the row's name_custom on shopping/pantry
+    // items) over the canonical translation. Otherwise an edit to a canonical
+    // ingredient's name reverts on refetch.
+    const overrideName = fallbackName && fallbackName.trim().length > 0 ? fallbackName : undefined;
     return {
-        name: t?.name ?? fallbackName ?? '',
+        name: overrideName ?? t?.name ?? '',
         pluralName: t?.plural_name ?? undefined,
         pictureUrl: ingredient?.image_url,
     };
