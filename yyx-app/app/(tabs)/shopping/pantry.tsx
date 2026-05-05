@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, FlatList } from 'react-native';
 import { Stack } from 'expo-router';
 import { Text } from '@/components/common';
@@ -11,23 +11,23 @@ import { useToast } from '@/hooks/useToast';
 export default function PantryScreen() {
     const [data, setData] = useState<(ShoppingCategory & { localizedName: string; items: PantryItem[] })[]>([]);
     const [loading, setLoading] = useState(true);
-    const toast = useToast();
+    const { showError } = useToast();
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         try {
             const { categories } = await pantryService.getPantryItems();
             setData(categories);
         } catch (error) {
             console.error(error);
-            toast.showError(i18n.t('common.errors.title'), i18n.t('common.errors.default'));
+            showError(i18n.t('common.errors.title'), i18n.t('common.errors.default'));
         } finally {
             setLoading(false);
         }
-    };
+    }, [showError]);
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [fetchData]);
 
     // Reuse CategorySection but adapt props for pantry (simplified for now)
     // Pantry items might not need "check" logic in the same way, but checking could deplete them?

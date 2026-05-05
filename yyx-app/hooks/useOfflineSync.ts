@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNetworkStatus } from './useNetworkStatus';
 import { mutationQueue, MutationType, MutationPayloads, PendingMutation } from '@/services/offlineQueue/mutationQueue';
 import { shoppingListService } from '@/services/shoppingListService';
@@ -49,7 +49,7 @@ interface UseOfflineSyncReturn {
 export function useOfflineSync(options: UseOfflineSyncOptions = {}): UseOfflineSyncReturn {
     const { onSyncComplete, autoSync = true } = options;
     const { isConnected } = useNetworkStatus();
-    const toast = useToast();
+    const { showSuccess, showWarning, showError } = useToast();
 
     const [isSyncing, setIsSyncing] = useState(false);
     const [pendingCount, setPendingCount] = useState(0);
@@ -152,24 +152,24 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): UseOfflineS
             await refreshPendingCount();
 
             if (result.success > 0) {
-                toast.showSuccess(i18n.t('shoppingList.syncComplete'));
+                showSuccess(i18n.t('shoppingList.syncComplete'));
                 onSyncComplete?.();
             }
 
             if (result.failed > 0) {
-                toast.showWarning(
+                showWarning(
                     i18n.t('shoppingList.syncPartial'),
                     i18n.t('shoppingList.syncPartialDesc', { count: result.failed })
                 );
             }
         } catch (error) {
             logger.error('Sync failed:', error);
-            toast.showError(i18n.t('common.errors.title'), i18n.t('shoppingList.syncError'));
+            showError(i18n.t('common.errors.title'), i18n.t('shoppingList.syncError'));
         } finally {
             isSyncingRef.current = false;
             setIsSyncing(false);
         }
-    }, [isOffline, toast, onSyncComplete, refreshPendingCount, executeMutation]);
+    }, [isOffline, showSuccess, showWarning, showError, onSyncComplete, refreshPendingCount, executeMutation]);
 
     // Queue a mutation
     const queueMutation = useCallback(async <T extends MutationType>(type: T, payload: MutationPayloads[T]): Promise<string> => {
@@ -241,14 +241,14 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): UseOfflineS
         wasOfflineRef.current = !isConnected;
     }, [isConnected, autoSync, syncNow]);
 
-    return {
+    return useMemo(() => ({
         isOffline,
         isSyncing,
         pendingCount,
         syncNow,
         queueMutation,
         refreshPendingCount,
-    };
+    }), [isOffline, isSyncing, pendingCount, syncNow, queueMutation, refreshPendingCount]);
 }
 
 export default useOfflineSync;

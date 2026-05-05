@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/useToast';
 export default function ShoppingListsScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
-    const toast = useToast();
+    const { showSuccess, showError } = useToast();
     const [lists, setLists] = useState<ShoppingList[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -28,12 +28,12 @@ export default function ShoppingListsScreen() {
             setLists(data);
         } catch (error) {
             console.error('Error fetching lists:', error);
-            toast.showError(i18n.t('common.errors.title'), i18n.t('shoppingList.loadListsError'));
+            showError(i18n.t('common.errors.title'), i18n.t('shoppingList.loadListsError'));
         } finally {
             setLoading(false);
             setRefreshing(false);
         }
-    }, [toast]);
+    }, [showError]);
 
     useEffect(() => {
         fetchLists();
@@ -57,12 +57,12 @@ export default function ShoppingListsScreen() {
             setIsCreating(true);
             const newList = await shoppingListService.createShoppingList(trimmedName);
             setLists(prev => [newList, ...prev]);
-            toast.showSuccess(i18n.t('shoppingList.listCreated'));
+            showSuccess(i18n.t('shoppingList.listCreated'));
             closeCreateModal();
             router.push(`/shopping/${newList.id}`);
         } catch (error) {
             console.error('Error creating list:', error);
-            toast.showError(i18n.t('common.errors.title'), i18n.t('shoppingList.createListError'));
+            showError(i18n.t('common.errors.title'), i18n.t('shoppingList.createListError'));
         } finally {
             setIsCreating(false);
         }

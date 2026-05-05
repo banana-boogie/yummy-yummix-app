@@ -67,7 +67,7 @@ interface UseShoppingListDataReturn {
  * Hook for managing shopping list data, fetching, and item operations.
  */
 export function useShoppingListData({ listId }: UseShoppingListDataOptions): UseShoppingListDataReturn {
-    const toast = useToast();
+    const { showSuccess, showError } = useToast();
     const [list, setList] = useState<ShoppingListWithItems | null>(null);
     const [loading, setLoading] = useState(true);
     const [categories, setCategories] = useState<ShoppingCategory[]>([]);
@@ -83,9 +83,13 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
     // Forward declare fetchList for use in onSyncComplete
     const fetchListRef = useRef<((forceRefresh?: boolean) => Promise<void>) | undefined>(undefined);
 
+    const handleSyncComplete = useCallback(() => {
+        void fetchListRef.current?.(true);
+    }, []);
+
     // Offline sync hook
     const { isOffline, isSyncing, pendingCount, queueMutation } = useOfflineSync({
-        onSyncComplete: () => fetchListRef.current?.(true),
+        onSyncComplete: handleSyncComplete,
     });
 
     // Undoable delete hook
@@ -123,10 +127,10 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
                         checkedCount: item.isChecked ? current.checkedCount + 1 : current.checkedCount,
                     };
                 });
-                toast.showSuccess(i18n.t('shoppingList.itemRestored'));
+                showSuccess(i18n.t('shoppingList.itemRestored'));
             },
             onError: () => {
-                toast.showError(i18n.t('common.errors.title'), i18n.t('common.errors.default'));
+                showError(i18n.t('common.errors.title'), i18n.t('common.errors.default'));
                 void fetchListRef.current?.(true);
             },
         }
@@ -173,12 +177,12 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
                 )
             }))
             .filter(cat => cat.items.length > 0);
-    }, [list?.categories, searchQuery]);
+    }, [list, searchQuery]);
 
     // Calculate progress
     const progressPercentage = useMemo(() =>
         list ? Math.round((list.checkedCount / Math.max(list.itemCount, 1)) * 100) : 0,
-        [list?.checkedCount, list?.itemCount]
+        [list]
     );
 
     // Fetch list data
@@ -192,11 +196,11 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
             setCategories(cats);
         } catch (error) {
             console.error('Error fetching list:', error);
-            toast.showError(i18n.t('common.errors.title'), i18n.t('shoppingList.loadError'));
+            showError(i18n.t('common.errors.title'), i18n.t('shoppingList.loadError'));
         } finally {
             setLoading(false);
         }
-    }, [listId, toast]);
+    }, [listId, showError]);
 
     // Assign to ref for use in onSyncComplete
     useEffect(() => {
@@ -234,10 +238,10 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
             }
         } catch (error) {
             setList(previousList);
-            toast.showError(i18n.t('common.errors.title'), i18n.t('shoppingList.checkError'));
+            showError(i18n.t('common.errors.title'), i18n.t('shoppingList.checkError'));
             console.error('Error toggling item:', error);
         }
-    }, [isOffline, queueMutation, toast, listId, setList]);
+    }, [isOffline, queueMutation, showError, listId, setList]);
 
     // Delete item handler
     const handleDeleteItem = useCallback((itemId: string) => {
@@ -346,7 +350,7 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
         try {
             if (isOffline) {
                 await queueMutation('ADD_ITEM', { item: { ...itemData, shoppingListId: listId }, listId });
-                toast.showSuccess(i18n.t('shoppingList.itemAdded'));
+                showSuccess(i18n.t('shoppingList.itemAdded'));
                 return;
             }
 
@@ -357,7 +361,7 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
                     setTimeout(() => reject(new Error('addItem timed out after 15s')), 15000)
                 ),
             ]);
-            toast.showSuccess(i18n.t('shoppingList.itemAdded'));
+            showSuccess(i18n.t('shoppingList.itemAdded'));
             // Replace temp item with real item instead of full refetch
             setList(current => {
                 if (!current) return null;
@@ -373,9 +377,9 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
             // Rollback on error
             setList(previousList);
             console.error('Error adding item:', error);
-            toast.showError(i18n.t('common.errors.title'), i18n.t('shoppingList.addError'));
+            showError(i18n.t('common.errors.title'), i18n.t('shoppingList.addError'));
         }
-    }, [listId, categories, toast, isOffline, queueMutation, setList]);
+    }, [listId, categories, showSuccess, showError, isOffline, queueMutation, setList]);
 
     // Edit item handler with optimistic update
     const handleEditItem = useCallback(async (itemId: string, updates: EditItemUpdates) => {
@@ -448,15 +452,15 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
                     notes: updates.notes,
                 }, listId);
             }
-            toast.showSuccess(i18n.t('shoppingList.listUpdated'));
+            showSuccess(i18n.t('shoppingList.listUpdated'));
         } catch (error) {
             setList(previousList);
             console.error('Error editing item:', error);
-            toast.showError(i18n.t('common.errors.title'), i18n.t('shoppingList.checkError'));
+            showError(i18n.t('common.errors.title'), i18n.t('shoppingList.checkError'));
         }
-    }, [isOffline, queueMutation, toast, listId, setList, categories]);
+    }, [isOffline, queueMutation, showSuccess, showError, listId, setList, categories]);
 
-    return {
+    return useMemo(() => ({
         list,
         categories,
         loading,
@@ -476,7 +480,25 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
         isSyncing,
         pendingCount,
         queueMutation,
-    };
+    }), [
+        list,
+        categories,
+        loading,
+        filteredCategories,
+        searchQuery,
+        collapsedCategories,
+        toggleCategoryCollapse,
+        progressPercentage,
+        fetchList,
+        handleCheckItem,
+        handleDeleteItem,
+        handleAddItem,
+        handleEditItem,
+        isOffline,
+        isSyncing,
+        pendingCount,
+        queueMutation,
+    ]);
 }
 
 export default useShoppingListData;
