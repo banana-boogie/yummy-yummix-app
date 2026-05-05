@@ -5,6 +5,7 @@ import { Text } from '@/components/common';
 import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 import { shoppingListService } from '@/services/shoppingListService';
+import { logger } from '@/services/logger';
 import type { MeasurementUnit } from '@/types/recipe.types';
 
 interface UnitPickerProps {
@@ -22,7 +23,7 @@ export function UnitPicker({ value, onChange }: UnitPickerProps) {
         shoppingListService.getMeasurementUnits()
             .then(setUnits)
             .catch((err) => {
-                console.error('[UnitPicker] fetch failed:', err);
+                logger.error('[UnitPicker] fetch failed:', err);
                 setUnits([]);
             });
     }, [open, units.length]);
