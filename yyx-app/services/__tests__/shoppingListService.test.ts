@@ -95,4 +95,93 @@ describe('shoppingListService', () => {
 
     expect(updateCalls).toEqual([{ id: 'existing-item', quantity: 9 }]);
   });
+
+  describe('searchIngredientsLocal', () => {
+    const fixtures = [
+      { id: '1', name: 'Banana', pluralName: 'Bananas', categoryId: 'produce' },
+      { id: '2', name: 'Plantain', pluralName: 'Plantains', categoryId: 'produce' },
+      { id: '3', name: 'Apple', pluralName: 'Apples', categoryId: 'produce' },
+      { id: '4', name: 'Brown sugar', categoryId: 'baking' },
+    ];
+
+    it('matches plural names so "bananas" finds the canonical "banana" row', () => {
+      const results = shoppingListService.searchIngredientsLocal('bananas', fixtures);
+      expect(results.map((r) => r.id)).toEqual(['1']);
+    });
+
+    it('case-insensitive contains match', () => {
+      const results = shoppingListService.searchIngredientsLocal('PLAN', fixtures);
+      expect(results.map((r) => r.id)).toEqual(['2']);
+    });
+
+    it('sorts starts-with matches before contains matches', () => {
+      const rows = [
+        { id: 'a', name: 'Strawberry', categoryId: 'produce' },
+        { id: 'b', name: 'Berry', categoryId: 'produce' },
+      ];
+      const results = shoppingListService.searchIngredientsLocal('berry', rows);
+      // "Berry" starts with the query — it should rank above "Strawberry".
+      expect(results.map((r) => r.id)).toEqual(['b', 'a']);
+    });
+
+    it('honours the limit argument', () => {
+      const many = Array.from({ length: 25 }, (_, i) => ({
+        id: `i${i}`,
+        name: `apple${i}`,
+        categoryId: 'produce',
+      }));
+      const results = shoppingListService.searchIngredientsLocal('apple', many, 5);
+      expect(results).toHaveLength(5);
+    });
+
+    it('returns empty array for blank query', () => {
+      expect(shoppingListService.searchIngredientsLocal('   ', fixtures)).toEqual([]);
+    });
+  });
+
+  describe('getAllIngredients', () => {
+    it('caches results so a second call does not hit the network', async () => {
+      const user = userFactory.createSupabaseUser({ id: 'user-cache' });
+      mockSupabaseAuthSuccess(user);
+
+      const mockClient = getMockSupabaseClient();
+      let fromCalls = 0;
+      mockClient.from.mockImplementation((table: string) => {
+        if (table === 'ingredient_translations') fromCalls += 1;
+        const builder: any = {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          then: jest.fn((resolve: any) =>
+            resolve({
+              data: [
+                {
+                  ingredient_id: 'ing-1',
+                  name: 'Banana',
+                  plural_name: 'Bananas',
+                  ingredient: { id: 'ing-1', image_url: null, default_category_id: 'produce' },
+                },
+              ],
+              error: null,
+            }),
+          ),
+        };
+        return builder;
+      });
+
+      // Force cache reset via useCache=false on the first call (in case a
+      // prior test populated the module cache).
+      const first = await shoppingListService.getAllIngredients(false);
+      const second = await shoppingListService.getAllIngredients();
+
+      expect(first).toEqual(second);
+      expect(first[0]).toMatchObject({
+        id: 'ing-1',
+        name: 'Banana',
+        pluralName: 'Bananas',
+        categoryId: 'produce',
+      });
+      // Only the first call should have hit ingredient_translations.
+      expect(fromCalls).toBe(1);
+    });
+  });
 });

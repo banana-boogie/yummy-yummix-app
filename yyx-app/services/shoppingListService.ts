@@ -20,6 +20,11 @@ import type { MeasurementUnit } from '@/types/recipe.types';
 
 // Module-scope cache — units are static, ~30 rows; no need for AsyncStorage.
 let measurementUnitsCache: MeasurementUnit[] | null = null;
+// Module-scope cache for the full ingredient catalogue. ingredient_translations
+// is a few hundred rows per locale — fetching once per session and filtering
+// in memory beats per-keystroke ilike queries. Keyed by locale so a language
+// switch doesn't serve stale Spanish names to an English-language user.
+const ingredientsCache = new Map<string, IngredientSuggestion[]>();
 
 const ITEM_SELECT = `
   id, shopping_list_id, ingredient_id, category_id, name_custom, quantity, unit_id, notes, is_checked, checked_at, recipe_id, display_order, created_at, updated_at,
@@ -366,11 +371,68 @@ export const shoppingListService = {
                 translations:measurement_unit_translations (locale, name, name_plural, symbol, symbol_plural)
             `);
         if (error) throw new Error(`Error fetching units: ${error.message}`);
-        // Temporary diagnostic — investigating "only No unit shown" report.
-        console.log('[shoppingListService] measurement_units rows:', data?.length ?? 0, 'locale:', locale);
         const units = (data ?? []).map((row: any) => mapMeasurementUnit(row, locale)).filter((u: MeasurementUnit | undefined): u is MeasurementUnit => Boolean(u));
         measurementUnitsCache = units;
         return units;
+    },
+
+    /**
+     * Fetches every ingredient translation for the current locale and caches
+     * the result for the session. Used to power instant client-side search in
+     * AddItemModal. Set useCache=false to force a refetch (e.g. after the
+     * admin tools touch the ingredient catalogue).
+     */
+    async getAllIngredients(useCache = true): Promise<IngredientSuggestion[]> {
+        const locale = getCurrentLocale();
+        if (useCache) {
+            const cached = ingredientsCache.get(locale);
+            if (cached) return cached;
+        }
+        const { data, error } = await supabase
+            .from('ingredient_translations')
+            .select(`
+                ingredient_id,
+                name,
+                plural_name,
+                ingredient:ingredients (id, image_url, default_category_id)
+            `)
+            .eq('locale', locale);
+        if (error) throw new Error(`Error loading ingredients: ${error.message}`);
+        const rows: IngredientSuggestion[] = (data ?? []).map((row: any) => ({
+            id: row.ingredient_id,
+            name: row.name,
+            pluralName: row.plural_name ?? undefined,
+            pictureUrl: row.ingredient?.image_url,
+            categoryId: row.ingredient?.default_category_id ?? 'other',
+        }));
+        ingredientsCache.set(locale, rows);
+        return rows;
+    },
+
+    /**
+     * Pure in-memory filter over an ingredient list. Matches singular and
+     * plural names case-insensitively. Sort: starts-with hits first (Lupita
+     * typed the start of the word she means), then contains, capped at limit.
+     */
+    searchIngredientsLocal(
+        query: string,
+        ingredients: IngredientSuggestion[],
+        limit = 10,
+    ): IngredientSuggestion[] {
+        const q = query.trim().toLowerCase();
+        if (!q) return [];
+        const startsWith: IngredientSuggestion[] = [];
+        const contains: IngredientSuggestion[] = [];
+        for (const ing of ingredients) {
+            const name = ing.name.toLowerCase();
+            const plural = ing.pluralName?.toLowerCase() ?? '';
+            if (name.startsWith(q) || (plural && plural.startsWith(q))) {
+                startsWith.push(ing);
+            } else if (name.includes(q) || (plural && plural.includes(q))) {
+                contains.push(ing);
+            }
+        }
+        return [...startsWith, ...contains].slice(0, limit);
     },
 
     async searchIngredients(query: string, limit = 10): Promise<IngredientSuggestion[]> {
