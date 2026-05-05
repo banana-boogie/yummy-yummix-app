@@ -67,7 +67,7 @@ interface UseShoppingListDataReturn {
  * Hook for managing shopping list data, fetching, and item operations.
  */
 export function useShoppingListData({ listId }: UseShoppingListDataOptions): UseShoppingListDataReturn {
-    const { showSuccess, showError } = useToast();
+    const { showError } = useToast();
     const [list, setList] = useState<ShoppingListWithItems | null>(null);
     const [loading, setLoading] = useState(true);
     const [categories, setCategories] = useState<ShoppingCategory[]>([]);
@@ -127,7 +127,6 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
                         checkedCount: item.isChecked ? current.checkedCount + 1 : current.checkedCount,
                     };
                 });
-                showSuccess(i18n.t('shoppingList.itemRestored'));
             },
             onError: () => {
                 showError(i18n.t('common.errors.title'), i18n.t('common.errors.default'));
@@ -350,7 +349,6 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
         try {
             if (isOffline) {
                 await queueMutation('ADD_ITEM', { item: { ...itemData, shoppingListId: listId }, listId });
-                showSuccess(i18n.t('shoppingList.itemAdded'));
                 return;
             }
 
@@ -361,7 +359,6 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
                     setTimeout(() => reject(new Error('addItem timed out after 15s')), 15000)
                 ),
             ]);
-            showSuccess(i18n.t('shoppingList.itemAdded'));
             // Replace temp item with real item instead of full refetch
             setList(current => {
                 if (!current) return null;
@@ -379,7 +376,7 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
             console.error('Error adding item:', error);
             showError(i18n.t('common.errors.title'), i18n.t('shoppingList.addError'));
         }
-    }, [listId, categories, showSuccess, showError, isOffline, queueMutation, setList]);
+    }, [listId, categories, showError, isOffline, queueMutation, setList]);
 
     // Edit item handler with optimistic update
     const handleEditItem = useCallback(async (itemId: string, updates: EditItemUpdates) => {
@@ -452,13 +449,12 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
                     notes: updates.notes,
                 }, listId);
             }
-            showSuccess(i18n.t('shoppingList.listUpdated'));
         } catch (error) {
             setList(previousList);
             console.error('Error editing item:', error);
             showError(i18n.t('common.errors.title'), i18n.t('shoppingList.checkError'));
         }
-    }, [isOffline, queueMutation, showSuccess, showError, listId, setList, categories]);
+    }, [isOffline, queueMutation, showError, listId, setList, categories]);
 
     return useMemo(() => ({
         list,

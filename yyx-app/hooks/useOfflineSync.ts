@@ -49,7 +49,7 @@ interface UseOfflineSyncReturn {
 export function useOfflineSync(options: UseOfflineSyncOptions = {}): UseOfflineSyncReturn {
     const { onSyncComplete, autoSync = true } = options;
     const { isConnected } = useNetworkStatus();
-    const { showSuccess, showWarning, showError } = useToast();
+    const { showError } = useToast();
 
     const [isSyncing, setIsSyncing] = useState(false);
     const [pendingCount, setPendingCount] = useState(0);
@@ -152,12 +152,11 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): UseOfflineS
             await refreshPendingCount();
 
             if (result.success > 0) {
-                showSuccess(i18n.t('shoppingList.syncComplete'));
                 onSyncComplete?.();
             }
 
             if (result.failed > 0) {
-                showWarning(
+                showError(
                     i18n.t('shoppingList.syncPartial'),
                     i18n.t('shoppingList.syncPartialDesc', { count: result.failed })
                 );
@@ -169,7 +168,7 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): UseOfflineS
             isSyncingRef.current = false;
             setIsSyncing(false);
         }
-    }, [isOffline, showSuccess, showWarning, showError, onSyncComplete, refreshPendingCount, executeMutation]);
+    }, [isOffline, showError, onSyncComplete, refreshPendingCount, executeMutation]);
 
     // Queue a mutation
     const queueMutation = useCallback(async <T extends MutationType>(type: T, payload: MutationPayloads[T]): Promise<string> => {

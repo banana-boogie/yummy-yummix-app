@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/useToast';
 export default function ShoppingListsScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
-    const { showSuccess, showError } = useToast();
+    const { showError } = useToast();
     const [lists, setLists] = useState<ShoppingList[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -57,7 +57,6 @@ export default function ShoppingListsScreen() {
             setIsCreating(true);
             const newList = await shoppingListService.createShoppingList(trimmedName);
             setLists(prev => [newList, ...prev]);
-            showSuccess(i18n.t('shoppingList.listCreated'));
             closeCreateModal();
             router.push(`/shopping/${newList.id}`);
         } catch (error) {

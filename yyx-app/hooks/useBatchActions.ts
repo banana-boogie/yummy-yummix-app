@@ -48,7 +48,7 @@ export function useBatchActions({
     queueMutation,
     categories,
 }: UseBatchActionsOptions): UseBatchActionsReturn {
-    const { showSuccess, showError } = useToast();
+    const { showError } = useToast();
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isBatchChecking, setIsBatchChecking] = useState(false);
     const [isBatchUnchecking, setIsBatchUnchecking] = useState(false);
@@ -111,7 +111,6 @@ export function useBatchActions({
                         checkedCount: current.checkedCount + checkedCount,
                     };
                 });
-                showSuccess(i18n.t('shoppingList.itemsRestored', { count: items.length }));
             },
             onError: () => {
                 showError(i18n.t('common.errors.title'), i18n.t('shoppingList.batchError'));
@@ -153,8 +152,6 @@ export function useBatchActions({
             } else {
                 await shoppingListService.batchUpdateItems(itemIds, { isChecked }, listId);
             }
-            const toastKey = isChecked ? 'shoppingList.batchCheckSuccess' : 'shoppingList.batchUncheckSuccess';
-            showSuccess(i18n.t(toastKey, { count: itemIds.length }));
             clearSelection();
         } catch {
             setList(previousList);
@@ -162,7 +159,7 @@ export function useBatchActions({
         } finally {
             setLoading(false);
         }
-    }, [list, selectedItems, isOffline, queueMutation, showSuccess, showError, clearSelection, setList]);
+    }, [list, selectedItems, isOffline, queueMutation, showError, clearSelection, setList]);
 
     const handleBatchCheck = useCallback(() => handleBatchToggle(true), [handleBatchToggle]);
     const handleBatchUncheck = useCallback(() => handleBatchToggle(false), [handleBatchToggle]);
