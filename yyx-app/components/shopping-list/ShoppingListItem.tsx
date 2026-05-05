@@ -89,8 +89,9 @@ export const ShoppingListItemRow = React.memo(function ShoppingListItemRow({
                 </View>
             </TouchableOpacity>
 
-            {/* Item image */}
-            {item.pictureUrl && (
+            {/* Item image — placeholder icon for custom items (no canonical
+                ingredient = no pictureUrl) keeps row heights vertically aligned. */}
+            {item.pictureUrl ? (
                 <View className="w-12 h-12 rounded-sm overflow-hidden mr-sm bg-grey-light">
                     <Image
                         source={{ uri: item.pictureUrl }}
@@ -98,6 +99,10 @@ export const ShoppingListItemRow = React.memo(function ShoppingListItemRow({
                         contentFit="cover"
                         transition={200}
                     />
+                </View>
+            ) : (
+                <View className="w-12 h-12 rounded-sm mr-sm bg-grey-lightest items-center justify-center">
+                    <Ionicons name="cube-outline" size={22} color={COLORS.grey.medium} />
                 </View>
             )}
 
