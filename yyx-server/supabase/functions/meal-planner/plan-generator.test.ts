@@ -268,6 +268,44 @@ Deno.test("isCoverageComplete: returns true when components together cover expec
   assertEquals(isCoverageComplete(slot, complete), true);
 });
 
+Deno.test("isCoverageComplete: leftover dinner is complete when placeholder carries source coverage", () => {
+  const slot = mkSlot({
+    slotId: "1-dinner",
+    slotKind: "leftover_target_slot",
+    structureTemplate: "main_plus_two_components",
+    expectedMealComponents: ["protein", "carb", "veg"],
+  });
+  const assignment: AssembledSlot = {
+    slot,
+    effectiveSlotKind: "leftover_target_slot",
+    components: [{
+      role: "main",
+      sourceKind: "leftover",
+      recipeId: null,
+      sourceComponentId: "source-component-id",
+      sourceSlotIdRef: "0-dinner",
+      mealComponentsSnapshot: ["protein", "carb", "veg"],
+      pairingBasis: "leftover_carry",
+      isPrimary: true,
+      candidate: null,
+      displayOrder: 0,
+      titleSnapshot: "Leftover dinner",
+      imageSnapshot: null,
+      totalTimeSnapshot: null,
+      difficultySnapshot: null,
+      portionsSnapshot: null,
+      equipmentSnapshot: [],
+      selectionReason: null,
+    }],
+    slotScore: 80,
+    selectionReason: "Leftovers",
+    contributionScore: 80,
+    warnings: [],
+  };
+
+  assertEquals(isCoverageComplete(slot, assignment), true);
+});
+
 Deno.test("isCoverageComplete: returns false when only a beverage fills the side slot", () => {
   const slot = mkSlot({ structureTemplate: "main_plus_one_component" });
   // main covers protein; beverage contributes nothing → carb + veg unmet

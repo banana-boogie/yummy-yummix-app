@@ -71,6 +71,7 @@ export interface WeekState {
       sourceSlotId: string; // in-memory ref; persistence resolves to DB UUID
       primaryRecipeId: string;
       primaryTitle: string;
+      sourceMealComponents: string[];
       portionsAvailable: number;
       transformRecipeIds: string[];
     }
@@ -111,6 +112,7 @@ function cloneState(state: WeekState): WeekState {
         slotId,
         {
           ...source,
+          sourceMealComponents: [...source.sourceMealComponents],
           transformRecipeIds: [...source.transformRecipeIds],
         },
       ]),
@@ -278,6 +280,9 @@ function registerLeftoverSource(
     sourceSlotId: slot.slotId,
     primaryRecipeId: primary.candidate.id,
     primaryTitle: primary.titleSnapshot,
+    sourceMealComponents: [
+      ...new Set(components.flatMap((c) => c.mealComponentsSnapshot)),
+    ],
     portionsAvailable: available,
     transformRecipeIds: leftoverTransformByRecipe.get(primary.candidate.id) ??
       [],
@@ -453,6 +458,7 @@ function expandLeftoverTargetSlot(
     slot,
     source.sourceSlotId,
     source.primaryTitle,
+    source.sourceMealComponents,
   );
   const contribution = leftoverResolutionScore(
     LEFTOVER_PLAN_QUALITY.genericCarryForward,

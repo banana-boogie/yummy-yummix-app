@@ -451,6 +451,7 @@ export function buildLeftoverPlaceholder(
   _slot: MealSlot,
   sourceSlotId: string,
   sourceTitle: string,
+  sourceMealComponents: string[],
 ): SlotComponent {
   return {
     role: "main",
@@ -458,7 +459,7 @@ export function buildLeftoverPlaceholder(
     recipeId: null,
     sourceComponentId: null,
     sourceSlotIdRef: sourceSlotId,
-    mealComponentsSnapshot: [],
+    mealComponentsSnapshot: [...sourceMealComponents],
     pairingBasis: "leftover_carry",
     isPrimary: true,
     candidate: null,
