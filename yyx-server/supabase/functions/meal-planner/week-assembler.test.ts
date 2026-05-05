@@ -661,7 +661,9 @@ Deno.test("assembleWeek: no recipe ID appears more than once across primaries, p
     leftoverTransformByRecipe: new Map([[source.id, [duplicate.id]]]),
   });
 
-  const recipeIds = [...result.best.assignments.values()].flatMap((assignment) =>
+  const recipeIds = [...result.best.assignments.values()].flatMap((
+    assignment,
+  ) =>
     assignment.components
       .map((component) => component.recipeId)
       .filter((id): id is string => id !== null)
@@ -756,7 +758,10 @@ Deno.test("assembleWeek: coverage-complete bonus beats a modest base-score edge 
   const result = assembleWeek({
     slots: [slot],
     planningOrder: [slot],
-    candidates: new Map([[slot.slotId, [incompleteButStrong, completeViaPairing]]]),
+    candidates: new Map([[slot.slotId, [
+      incompleteButStrong,
+      completeViaPairing,
+    ]]]),
     pairings,
     user: mkUser({ skillLevel: "beginner" }),
     leftoverTransformByRecipe: new Map(),
@@ -771,10 +776,10 @@ Deno.test("assembleWeek: coverage-complete bonus beats a modest base-score edge 
   );
 });
 
-Deno.test("assembleWeek: coverage-complete partial tier awards +2 (not +5) when 2 of 3 expected components are covered", () => {
+Deno.test("assembleWeek: coverage-complete partial tier awards +2 when 2 of 3 expected components are covered", () => {
   // Bundle covers protein + carb but not veg → 2 of 3 expected, partial
   // tier (>= half but not all) should fire with +2 — and notably NOT the
-  // full +5 bonus.
+  // full bonus.
   const slot: MealSlot = mkSlot({
     slotId: "0-lunch",
     canonicalMealType: "lunch",
@@ -797,7 +802,7 @@ Deno.test("assembleWeek: coverage-complete partial tier awards +2 (not +5) when 
     leftoverTransformByRecipe: new Map(),
   });
 
-  // Partial bonus should be exactly +2 — not the full +5.
+  // Partial bonus should be exactly +2 — not the full bonus.
   assertEquals(result.best.assemblyBonus, 2);
 });
 
