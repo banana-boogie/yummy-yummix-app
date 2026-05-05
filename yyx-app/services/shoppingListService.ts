@@ -42,9 +42,12 @@ const ITEM_SELECT = `
   )
 `;
 
+// getSession() reads the locally cached session — no network roundtrip.
+// supabase.auth.getUser() hits /auth/v1/user every call, which produced a
+// duplicate /user request on every read and mutation in this file.
 const getCurrentUserId = async (): Promise<string | undefined> => {
-    const { data: { user } } = await supabase.auth.getUser();
-    return user?.id;
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.user?.id;
 };
 
 const invalidateShoppingCaches = async (userId: string | undefined, listId?: string): Promise<void> => {
@@ -193,18 +196,18 @@ export const shoppingListService = {
     },
 
     async createShoppingList(name: string): Promise<ShoppingList> {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('User not authenticated');
+        const userId = await getCurrentUserId();
+        if (!userId) throw new Error('User not authenticated');
 
         const { data, error } = await supabase
             .from('shopping_lists')
-            .insert({ user_id: user.id, name })
+            .insert({ user_id: userId, name })
             .select()
             .single();
 
         if (error) throw new Error(`Error creating shopping list: ${error.message}`);
 
-        await shoppingListsSummaryCache.invalidateLists(user.id);
+        await shoppingListsSummaryCache.invalidateLists(userId);
 
         return {
             id: data.id,
@@ -308,8 +311,7 @@ export const shoppingListService = {
 
     async getCategories(useCache = true): Promise<ShoppingCategory[]> {
         // Try cache first (categories are static)
-        const { data: { user } } = await supabase.auth.getUser();
-        const userId = user?.id;
+        const userId = await getCurrentUserId();
 
         if (useCache && userId) {
             const cached = await shoppingCategoryCache.getCategories(userId);
@@ -327,11 +329,11 @@ export const shoppingListService = {
 
         let result: ShoppingCategory[];
 
-        if (user) {
+        if (userId) {
             const { data: userOrder } = await supabase
                 .from('user_category_order')
                 .select('category_id, display_order')
-                .eq('user_id', user.id);
+                .eq('user_id', userId);
 
             if (userOrder && userOrder.length > 0) {
                 const orderMap = new Map(userOrder.map(o => [o.category_id, o.display_order]));

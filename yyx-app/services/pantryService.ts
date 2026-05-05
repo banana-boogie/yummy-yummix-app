@@ -30,7 +30,8 @@ const FAVORITE_SELECT = `
 export const pantryService = {
     async getPantryItems(): Promise<{ categories: (ShoppingCategory & { localizedName: string; items: PantryItem[] })[] }> {
         const locale = getCurrentLocale();
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+        const user = session?.user ?? null;
         if (!user) throw new Error('User not authenticated');
 
         const { data, error } = await supabase
@@ -68,7 +69,8 @@ export const pantryService = {
 
     async addPantryItem(item: PantryItemCreate): Promise<PantryItem> {
         const locale = getCurrentLocale();
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+        const user = session?.user ?? null;
         if (!user) throw new Error('User not authenticated');
 
         const { data, error } = await supabase
@@ -118,7 +120,8 @@ export const pantryService = {
 
     async getFavorites(): Promise<FavoriteShoppingItem[]> {
         const locale = getCurrentLocale();
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+        const user = session?.user ?? null;
         if (!user) throw new Error('User not authenticated');
 
         const { data, error } = await supabase
@@ -148,7 +151,8 @@ export const pantryService = {
 
     async addToFavorites(item: FavoriteShoppingItemCreate): Promise<FavoriteShoppingItem> {
         const locale = getCurrentLocale();
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+        const user = session?.user ?? null;
         if (!user) throw new Error('User not authenticated');
 
         const { data, error } = await supabase

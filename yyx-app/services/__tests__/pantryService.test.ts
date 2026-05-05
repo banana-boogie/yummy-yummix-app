@@ -76,7 +76,7 @@ describe('pantryService', () => {
 
         it('throws when user not authenticated', async () => {
             const mockClient = getMockSupabaseClient();
-            mockClient.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
+            mockClient.auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
 
             await expect(pantryService.getPantryItems()).rejects.toThrow('User not authenticated');
         });
