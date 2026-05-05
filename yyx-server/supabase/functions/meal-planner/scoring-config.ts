@@ -248,11 +248,12 @@ export const ASSEMBLY_ADJUSTMENTS = {
   // cook slots so time pressure beats balance.
   //
   // Tiered to give partial credit when the catalog can't go all the way:
-  //   - Full coverage (every expected component achieved): +5
-  //     (matches `strongLeftoverTransform` tier — meaningful but not dominant)
+  //   - Full coverage (every expected component achieved): +12
+  //     (enough to overcome a modest ~10-point base-score edge from a bare
+  //     primary, so balanced bundles win when the catalog has usable pairings)
   //   - Partial coverage (≥ half of expected achieved, but not all): +2
   //   - Less than half: 0
-  coverageCompleteFull: 5,
+  coverageCompleteFull: 12,
   coverageCompletePartial: 2,
 } as const;
 
