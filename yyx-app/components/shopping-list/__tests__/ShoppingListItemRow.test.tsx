@@ -63,6 +63,30 @@ describe('ShoppingListItemRow', () => {
     expect(onCheck).toHaveBeenCalledTimes(1);
   });
 
+  it('calls onMore when the per-row action icon is pressed', async () => {
+    const item = shoppingListFactory.createItem({ name: 'Bread' });
+    const onMore = jest.fn();
+
+    render(
+      <ShoppingListItemRow
+        item={item}
+        onCheck={jest.fn()}
+        onPress={jest.fn()}
+        onMore={onMore}
+      />
+    );
+
+    await act(async () => {
+      fireEvent.press(
+        screen.getByLabelText(
+          i18n.t('shoppingList.accessibility.itemActions', { name: 'Bread' })
+        )
+      );
+    });
+
+    expect(onMore).toHaveBeenCalledTimes(1);
+  });
+
   it('calls onQuantityChange when plus and minus pressed', async () => {
     const item = shoppingListFactory.createItem({ name: 'Milk', quantity: 2 });
     const onQuantityChange = jest.fn();
