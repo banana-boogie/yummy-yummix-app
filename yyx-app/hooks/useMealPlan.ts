@@ -225,6 +225,15 @@ export function useMealPlan(): UseMealPlanReturn {
     onSuccess: () => invalidatePlan(),
   });
 
+  const { mutateAsync: generatePlanAsync, isPending: isGenerating } = generateMutation;
+  const { mutateAsync: updatePreferencesAsync } = updatePreferencesMutation;
+  const { mutateAsync: swapMealAsync } = swapMutation;
+  const { mutateAsync: applySwapAsync } = applySwapMutation;
+  const { mutateAsync: skipMealAsync } = skipMutation;
+  const { mutateAsync: markCookedAsync } = markCookedMutation;
+  const { mutateAsync: generateShoppingListAsync } = shoppingListMutation;
+  const { refetch: refetchPlan } = planQuery;
+
   const todayIndex = todayDayIndex();
   const todayISO = todayLocalISO();
   const todaysSlots = useMemo(
@@ -253,28 +262,87 @@ export function useMealPlan(): UseMealPlanReturn {
     (generateMutation.error as Error | undefined)?.message ??
     null;
 
-  return {
+  const generatePlan = useCallback(
+    (options?: GeneratePlanOptions) => generatePlanAsync(options ?? {}),
+    [generatePlanAsync],
+  );
+
+  const updatePreferences = useCallback(
+    (payload: UpdatePreferencesPayload) =>
+      updatePreferencesAsync(payload),
+    [updatePreferencesAsync],
+  );
+
+  const swapSlot = useCallback(
+    (slotId: string, reason?: string) =>
+      swapMealAsync({ slotId, reason }),
+    [swapMealAsync],
+  );
+
+  const applySwap = useCallback(
+    (slotId: string, recipeId: string) =>
+      applySwapAsync({ slotId, recipeId }),
+    [applySwapAsync],
+  );
+
+  const skipSlot = useCallback(
+    (slotId: string) => skipMealAsync(slotId).then(() => undefined),
+    [skipMealAsync],
+  );
+
+  const markCooked = useCallback(
+    (slotId: string) =>
+      markCookedAsync(slotId).then(() => undefined),
+    [markCookedAsync],
+  );
+
+  const generateShoppingList = useCallback(
+    () => generateShoppingListAsync(),
+    [generateShoppingListAsync],
+  );
+
+  const refetch = useCallback(
+    () => refetchPlan().then(() => undefined),
+    [refetchPlan],
+  );
+
+  return useMemo(() => ({
     activePlan,
     preferences,
     isLoading: planQuery.isLoading || prefsQuery.isLoading,
-    isGenerating: generateMutation.isPending,
+    isGenerating,
     error,
-    generatePlan: (options) => generateMutation.mutateAsync(options ?? {}),
-    updatePreferences: (payload) =>
-      updatePreferencesMutation.mutateAsync(payload),
-    swapSlot: (slotId, reason) => swapMutation.mutateAsync({ slotId, reason }),
-    applySwap: (slotId, recipeId) =>
-      applySwapMutation.mutateAsync({ slotId, recipeId }),
-    skipSlot: (slotId) => skipMutation.mutateAsync(slotId).then(() => undefined),
-    markCooked: (slotId) =>
-      markCookedMutation.mutateAsync(slotId).then(() => undefined),
-    generateShoppingList: () => shoppingListMutation.mutateAsync(),
+    generatePlan,
+    updatePreferences,
+    swapSlot,
+    applySwap,
+    skipSlot,
+    markCooked,
+    generateShoppingList,
     todaysSlots,
     planProgress,
     // Stub backend can return `{ plan: null }` after generate; that's not a
     // useful cache to fall back on, so the blocking-error path should still
     // fire. Only treat the query as cached when there's an actual plan.
     hasCachedPlan: planQuery.data?.plan != null,
-    refetch: () => planQuery.refetch().then(() => undefined),
-  };
+    refetch,
+  }), [
+    activePlan,
+    preferences,
+    planQuery.isLoading,
+    prefsQuery.isLoading,
+    isGenerating,
+    error,
+    generatePlan,
+    updatePreferences,
+    swapSlot,
+    applySwap,
+    skipSlot,
+    markCooked,
+    generateShoppingList,
+    todaysSlots,
+    planProgress,
+    planQuery.data?.plan,
+    refetch,
+  ]);
 }

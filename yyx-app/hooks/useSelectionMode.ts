@@ -185,7 +185,7 @@ export function useSelectionMode({ listId, categories }: UseSelectionModeOptions
         setSelectedItems(new Set());
     }, []);
 
-    return {
+    return useMemo(() => ({
         isSelectMode,
         selectedItems,
         selectedItemsInfo,
@@ -197,7 +197,18 @@ export function useSelectionMode({ listId, categories }: UseSelectionModeOptions
         handleSelectAllInCategory,
         clearSelection,
         setSelectedItems,
-    };
+    }), [
+        isSelectMode,
+        selectedItems,
+        selectedItemsInfo,
+        allItemIds,
+        toggleSelectMode,
+        toggleItemSelection,
+        handleSelectAll,
+        handleDeselectAll,
+        handleSelectAllInCategory,
+        clearSelection,
+    ]);
 }
 
 export default useSelectionMode;

@@ -151,7 +151,7 @@ export const useRecipes = (initialFilters: RecipeFilters = { isPublished: true }
     setFilters(prev => ({ ...prev, ...newFilters }));
   }, []);
 
-  return {
+  return useMemo(() => ({
     recipes,
     loading: isFetchingNextPage,
     initialLoading: isLoading && !data,
@@ -161,5 +161,16 @@ export const useRecipes = (initialFilters: RecipeFilters = { isPublished: true }
     refresh,
     setSearch,
     updateFilters,
-  };
+  }), [
+    recipes,
+    isFetchingNextPage,
+    isLoading,
+    data,
+    error,
+    hasNextPage,
+    loadMore,
+    refresh,
+    setSearch,
+    updateFilters,
+  ]);
 };

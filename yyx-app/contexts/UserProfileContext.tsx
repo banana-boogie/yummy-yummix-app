@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useCallback, useContext, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { UserProfile } from '@/types/user';
 import { useAuth } from '@/contexts/AuthContext';
@@ -32,10 +32,10 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
   } = useUserProfileQuery();
 
   // Use TanStack Query mutation for updates
-  const updateMutation = useUpdateProfileMutation();
+  const { mutateAsync: updateProfileAsync } = useUpdateProfileMutation();
 
   // Wrapper to maintain backward compatibility with existing API
-  const fetchUserProfile = async () => {
+  const fetchUserProfile = useCallback(async () => {
     if (!user?.id) return;
 
     // Invalidate and refetch to get fresh data
@@ -43,13 +43,13 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
       queryKey: userProfileKeys.detail(user.id),
     });
     await refetch();
-  };
+  }, [queryClient, refetch, user?.id]);
 
   // Wrapper to maintain backward compatibility with existing API
-  const updateUserProfile = async (updates: Partial<UserProfile>): Promise<UserProfile> => {
-    const result = await updateMutation.mutateAsync(updates);
+  const updateUserProfile = useCallback(async (updates: Partial<UserProfile>): Promise<UserProfile> => {
+    const result = await updateProfileAsync(updates);
     return result;
-  };
+  }, [updateProfileAsync]);
 
   // Compute isAdmin from profile
   const isAdmin = !!userProfile?.isAdmin;
@@ -57,16 +57,18 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
   // Convert query error to Error type for backward compatibility
   const error = queryError instanceof Error ? queryError : null;
 
+  const value = useMemo<UserProfileContextType>(() => ({
+    userProfile: userProfile ?? null,
+    loading: isLoading,
+    error,
+    isAdmin,
+    updateUserProfile,
+    fetchUserProfile
+  }), [userProfile, isLoading, error, isAdmin, updateUserProfile, fetchUserProfile]);
+
   return (
     <UserProfileContext.Provider
-      value={{
-        userProfile: userProfile ?? null,
-        loading: isLoading,
-        error,
-        isAdmin,
-        updateUserProfile,
-        fetchUserProfile
-      }}
+      value={value}
     >
       {children}
     </UserProfileContext.Provider>

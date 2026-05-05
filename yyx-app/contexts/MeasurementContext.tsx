@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { MeasurementSystem } from '@/types/user';
 import { Storage } from '@/utils/storage';
 
@@ -21,13 +21,18 @@ export function MeasurementProvider({ children }: { children: React.ReactNode })
       });
   }, []);
 
-  const setMeasurementSystem = async (newMeasurementSystem: MeasurementSystem) => {
+  const setMeasurementSystem = useCallback(async (newMeasurementSystem: MeasurementSystem) => {
     setMeasurementSystemState(newMeasurementSystem);
     await Storage.setItem('measurementSystem', newMeasurementSystem);
-  };
+  }, []);
+
+  const value = useMemo<MeasurementContextType>(() => ({
+    measurementSystem,
+    setMeasurementSystem,
+  }), [measurementSystem, setMeasurementSystem]);
 
   return (
-    <MeasurementContext.Provider value={{ measurementSystem, setMeasurementSystem }}>
+    <MeasurementContext.Provider value={value}>
       {children}
     </MeasurementContext.Provider>
   );
@@ -39,4 +44,4 @@ export function useMeasurement() {
     throw new Error('useMeasurement must be used within a MeasurementProvider');
   }
   return context;
-} 
+}

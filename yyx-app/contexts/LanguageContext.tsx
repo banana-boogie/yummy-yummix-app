@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState, useEffect } from 'react';
 import { getLocales } from 'expo-localization';
 import i18n from '../i18n';
 import { Platform } from 'react-native';
@@ -97,7 +97,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // setLanguage - backward compatible: sets language and derives locale
-  const handleSetLanguage = async (newLanguage: Language) => {
+  const handleSetLanguage = useCallback(async (newLanguage: Language) => {
     try {
       if (newLanguage === language) return;
 
@@ -110,10 +110,10 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       logger.error('Error saving language preference:', error);
     }
-  };
+  }, [language]);
 
   // setLocale - sets the full locale and derives language
-  const handleSetLocale = async (newLocale: string) => {
+  const handleSetLocale = useCallback(async (newLocale: string) => {
     try {
       if (newLocale === locale) return;
 
@@ -126,19 +126,21 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       logger.error('Error saving locale preference:', error);
     }
-  };
+  }, [locale]);
+
+  const value = useMemo<LanguageContextType>(() => ({
+    language,
+    locale,
+    setLanguage: handleSetLanguage,
+    setLocale: handleSetLocale,
+  }), [language, locale, handleSetLanguage, handleSetLocale]);
 
   if (isLoading) {
     return null;
   }
 
   return (
-    <LanguageContext.Provider value={{
-      language,
-      locale,
-      setLanguage: handleSetLanguage,
-      setLocale: handleSetLocale,
-    }}>
+    <LanguageContext.Provider value={value}>
       {children}
     </LanguageContext.Provider>
   );

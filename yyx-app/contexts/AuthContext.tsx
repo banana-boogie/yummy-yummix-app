@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
 import { AppState, Linking, Platform } from 'react-native';
@@ -125,29 +125,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const navigateToHome = () => {
+  const navigateToHome = useCallback(() => {
     setTimeout(() => {
       router.replace('/');
     }, 300);
-  };
+  }, [router]);
 
-  const navigateToInvalidLink = () => {
+  const navigateToInvalidLink = useCallback(() => {
     setTimeout(() => {
       router.replace('/auth/invalid-link');
     }, 300);
-  };
+  }, [router]);
 
-  const navigateToRecipe = (id: string) => {
+  const navigateToRecipe = useCallback((id: string) => {
     setTimeout(() => {
       router.replace({
         pathname: "/(tabs)/recipes/[id]",
         params: { id }
       });
     }, 300);
-  };
+  }, [router]);
 
   // Handle a deep link by extracting the route information
-  const handleDeepLink = (url: string) => {
+  const handleDeepLink = useCallback((url: string) => {
     try {
       // Skip handling if this is an auth callback URL - those are handled separately
       if (url.includes('/auth/callback')) {
@@ -167,7 +167,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     return false;
-  };
+  }, [navigateToRecipe]);
 
   // Process any stored deep links
   const processPendingDeepLink = async () => {
@@ -233,7 +233,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const createSessionFromUrl = async (url: string) => {
+  const createSessionFromUrl = useCallback(async (url: string) => {
     if (!url.includes('/auth/callback')) {
       return null;
     }
@@ -272,10 +272,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logger.error('🔗 Magic Link Flow - Error in createSessionFromUrl:', error);
       throw error;
     }
-  };
+  }, []);
 
 
-  const checkForPendingDeepLink = async (): Promise<boolean> => {
+  const checkForPendingDeepLink = useCallback(async (): Promise<boolean> => {
     try {
       const pendingUrl = await Storage.getItem('pendingDeepLink');
       if (pendingUrl) {
@@ -285,10 +285,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logger.error('Error checking for pending deep link:', error);
     }
     return false;
-  };
+  }, []);
 
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -319,10 +319,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  return (
-    <AuthContext.Provider value={{
+  const value = useMemo<AuthContextType>(() => ({
       user,
       session,
       loading,
@@ -332,7 +331,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       navigateToInvalidLink,
       handleDeepLink,
       checkForPendingDeepLink,
-    }}>
+    }), [
+      user,
+      session,
+      loading,
+      signOut,
+      createSessionFromUrl,
+      navigateToHome,
+      navigateToInvalidLink,
+      handleDeepLink,
+      checkForPendingDeepLink,
+    ]);
+
+  return (
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
