@@ -148,7 +148,6 @@ export default function ShoppingListDetailScreen() {
         handleDeleteItem,
         handleAddItem,
         handleEditItem,
-        handleReorderItems,
         setList,
         isOffline,
         isSyncing,
@@ -260,11 +259,6 @@ export default function ShoppingListDetailScreen() {
         setSearchQuery('');
         setModalVisible(true);
     }, [debouncedSearchQuery, setSearchQuery]);
-
-    // Stable callback for reorder that binds category ID
-    const handleCategoryReorder = useCallback((categoryId: string, items: ShoppingListItem[]) => {
-        handleReorderItems(categoryId, items);
-    }, [handleReorderItems]);
 
     // Extract contentContainerStyle to avoid object re-creation
     const listContentContainerStyle = useMemo(() => ({
@@ -422,7 +416,6 @@ export default function ShoppingListDetailScreen() {
                             onCheckItem={handleCheckItem}
                             onPressItem={handlePressItem}
                             onLongPressItem={handleLongPressItem}
-                            onReorderItems={(items) => handleCategoryReorder(item.id, items)}
                             isExpanded={!collapsedCategories.has(item.id)}
                             onToggleExpand={() => toggleCategoryCollapse(item.id)}
                             isSelectMode={isSelectMode}

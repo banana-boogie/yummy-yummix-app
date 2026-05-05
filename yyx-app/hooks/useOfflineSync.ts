@@ -86,8 +86,6 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): UseOfflineS
                 return Array.isArray(p?.itemIds) && typeof p?.isChecked === 'boolean';
             case 'BATCH_DELETE':
                 return Array.isArray(p?.itemIds) && (p.itemIds as unknown[]).length > 0;
-            case 'REORDER_ITEMS':
-                return Array.isArray(p?.updates);
             default:
                 return false;
         }
@@ -128,11 +126,6 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): UseOfflineS
             case 'BATCH_DELETE': {
                 const p = mutation.payload as MutationPayloads['BATCH_DELETE'];
                 await shoppingListService.batchDeleteItems(p.itemIds, p.listId);
-                break;
-            }
-            case 'REORDER_ITEMS': {
-                const p = mutation.payload as MutationPayloads['REORDER_ITEMS'];
-                await shoppingListService.updateItemsOrder(p.updates, p.listId);
                 break;
             }
             default:

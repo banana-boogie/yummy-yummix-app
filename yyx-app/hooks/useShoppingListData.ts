@@ -1,7 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { LayoutAnimation } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Haptics from 'expo-haptics';
 import * as Crypto from 'expo-crypto';
 import { shoppingListService } from '@/services/shoppingListService';
 import {
@@ -53,7 +52,6 @@ interface UseShoppingListDataReturn {
     handleDeleteItem: (itemId: string) => void;
     handleAddItem: (itemData: Omit<ShoppingListItemCreate, 'shoppingListId'>) => Promise<void>;
     handleEditItem: (itemId: string, updates: EditItemUpdates) => Promise<void>;
-    handleReorderItems: (categoryId: string, reorderedItems: ShoppingListItem[]) => Promise<void>;
 
     // For optimistic updates from parent
     setList: React.Dispatch<React.SetStateAction<ShoppingListWithItems | null>>;
@@ -448,47 +446,6 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
         }
     }, [isOffline, queueMutation, toast, listId, setList, categories]);
 
-    // Reorder items handler
-    const handleReorderItems = useCallback(async (categoryId: string, reorderedItems: ShoppingListItem[]) => {
-        const previousList = listRef.current;
-
-        const updates = reorderedItems.map((item, index) => ({
-            id: item.id,
-            displayOrder: index + 1,
-        }));
-
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setList(current => {
-            if (!current) return null;
-            const updatedCategories = current.categories.map(cat => {
-                if (cat.id === categoryId) {
-                    return {
-                        ...cat,
-                        items: reorderedItems.map((item, index) => ({
-                            ...item,
-                            displayOrder: index + 1,
-                        })),
-                    };
-                }
-                return cat;
-            });
-            return { ...current, categories: updatedCategories };
-        });
-
-        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-        try {
-            if (isOffline) {
-                await queueMutation('REORDER_ITEMS', { updates, listId });
-            } else {
-                await shoppingListService.updateItemsOrder(updates, listId);
-            }
-        } catch {
-            setList(previousList);
-            toast.showError(i18n.t('common.errors.title'), i18n.t('shoppingList.reorderError'));
-        }
-    }, [isOffline, queueMutation, toast, listId, setList]);
-
     return {
         list,
         categories,
@@ -504,7 +461,6 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
         handleDeleteItem,
         handleAddItem,
         handleEditItem,
-        handleReorderItems,
         setList,
         isOffline,
         isSyncing,

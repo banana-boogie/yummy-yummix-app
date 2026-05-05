@@ -1,20 +1,21 @@
 import React, { useState, useCallback } from 'react';
 import { View, TouchableOpacity, LayoutAnimation, Platform, UIManager } from 'react-native';
-import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
 import { Text } from '@/components/common';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
 import { ShoppingCategoryWithItems, ShoppingListItem, CATEGORY_ICONS } from '@/types/shopping-list.types';
 import { ShoppingListItemRow } from './ShoppingListItem';
-import { DraggableShoppingListItem } from './DraggableShoppingListItem';
 import i18n from '@/i18n';
 
-// Wrapper to avoid inline closures per item in the .map() render
-const CheckedItemRow = React.memo(function CheckedItemRow({
+// Wrapper to avoid inline closures per item in the .map() render.
+// Checkbox semantics: in select mode the checkbox toggles selection, otherwise
+// it toggles isChecked. The branching lives here so the row stays dumb.
+const ItemRow = React.memo(function ItemRow({
     item,
     onCheckItem,
     onPressItem,
     onLongPressItem,
+    onMoreItem,
     onQuantityChange,
     isSelectMode,
     onToggleSelection,
@@ -24,6 +25,7 @@ const CheckedItemRow = React.memo(function CheckedItemRow({
     onCheckItem: (itemId: string, isChecked: boolean) => void;
     onPressItem: (itemId: string) => void;
     onLongPressItem?: (itemId: string) => void;
+    onMoreItem?: (itemId: string) => void;
     onQuantityChange?: (itemId: string, quantity: number) => void;
     isSelectMode: boolean;
     onToggleSelection?: (itemId: string) => void;
@@ -49,6 +51,10 @@ const CheckedItemRow = React.memo(function CheckedItemRow({
         onLongPressItem?.(item.id);
     }, [onLongPressItem, item.id]);
 
+    const handleMore = useCallback(() => {
+        onMoreItem?.(item.id);
+    }, [onMoreItem, item.id]);
+
     const handleQuantityChange = useCallback(
         (qty: number) => onQuantityChange?.(item.id, qty),
         [onQuantityChange, item.id]
@@ -60,6 +66,7 @@ const CheckedItemRow = React.memo(function CheckedItemRow({
             onCheck={handleCheck}
             onPress={handlePress}
             onLongPress={onLongPressItem ? handleLongPress : undefined}
+            onMore={!isSelectMode && onMoreItem ? handleMore : undefined}
             onQuantityChange={isSelectMode ? undefined : (onQuantityChange ? handleQuantityChange : undefined)}
             isSelectMode={isSelectMode}
             isSelected={selectedItems?.has(item.id)}
@@ -76,8 +83,8 @@ interface CategorySectionProps {
     onCheckItem: (itemId: string, isChecked: boolean) => void;
     onPressItem: (itemId: string) => void;
     onLongPressItem?: (itemId: string) => void;
+    onMoreItem?: (itemId: string) => void;
     onQuantityChange?: (itemId: string, quantity: number) => void;
-    onReorderItems?: (items: ShoppingListItem[]) => void;
     defaultExpanded?: boolean;
     isExpanded?: boolean;
     onToggleExpand?: () => void;
@@ -88,7 +95,7 @@ interface CategorySectionProps {
     onSelectAllInCategory?: (itemIds: string[]) => void;
 }
 
-export const CategorySection = React.memo(function CategorySection({ category, onCheckItem, onPressItem, onLongPressItem, onQuantityChange, onReorderItems, defaultExpanded = true, isExpanded: controlledExpanded, onToggleExpand, isSelectMode = false, selectedItems, onToggleSelection, onSelectAllInCategory }: CategorySectionProps) {
+export const CategorySection = React.memo(function CategorySection({ category, onCheckItem, onPressItem, onLongPressItem, onMoreItem, onQuantityChange, defaultExpanded = true, isExpanded: controlledExpanded, onToggleExpand, isSelectMode = false, selectedItems, onToggleSelection, onSelectAllInCategory }: CategorySectionProps) {
     const [localExpanded, setLocalExpanded] = useState(defaultExpanded);
 
     // Use controlled state if provided, otherwise use local state
@@ -127,43 +134,6 @@ export const CategorySection = React.memo(function CategorySection({ category, o
 
     const iconName = CATEGORY_ICONS[category.id] || 'ellipsis-horizontal-outline';
 
-    const handleDragEnd = useCallback(
-        ({ data }: { data: ShoppingListItem[] }) => {
-            if (!onReorderItems) return;
-            const merged = [...data, ...checkedItems];
-            onReorderItems(merged);
-        },
-        [onReorderItems, checkedItems],
-    );
-
-    const renderDraggableItem = useCallback(
-        ({ item, drag, isActive }: RenderItemParams<ShoppingListItem>) => {
-            const handleCheck = () => {
-                if (isSelectMode && onToggleSelection) onToggleSelection(item.id);
-                else onCheckItem(item.id, !item.isChecked);
-            };
-            const handlePress = () => {
-                if (isSelectMode && onToggleSelection) onToggleSelection(item.id);
-                else onPressItem(item.id);
-            };
-            const handleLongPress = onLongPressItem ? () => onLongPressItem(item.id) : undefined;
-            return (
-                <DraggableShoppingListItem
-                    item={item}
-                    drag={drag}
-                    isActive={isActive}
-                    onCheck={handleCheck}
-                    onPress={handlePress}
-                    onLongPress={handleLongPress}
-                    onQuantityChange={onQuantityChange ? (qty) => onQuantityChange(item.id, qty) : undefined}
-                    isSelectMode={isSelectMode}
-                    isSelected={selectedItems?.has(item.id)}
-                />
-            );
-        },
-        [isSelectMode, onToggleSelection, onCheckItem, onPressItem, onLongPressItem, onQuantityChange, selectedItems],
-    );
-
     return (
         <View className="mb-md">
             <TouchableOpacity
@@ -185,11 +155,13 @@ export const CategorySection = React.memo(function CategorySection({ category, o
                         <View className={`w-8 h-8 rounded-full items-center justify-center mr-sm ${
                             allItemsSelected ? 'bg-primary-default' : 'bg-primary-light'
                         }`}>
-                            <Ionicons
-                                name={allItemsSelected ? 'checkmark' : 'ellipsis-horizontal'}
-                                size={18}
-                                color={allItemsSelected ? COLORS.neutral.white : COLORS.primary.darkest}
-                            />
+                            {allItemsSelected && (
+                                <Ionicons
+                                    name="checkmark"
+                                    size={18}
+                                    color={COLORS.neutral.white}
+                                />
+                            )}
                         </View>
                     ) : (
                         <View className="w-8 h-8 rounded-full bg-primary-light items-center justify-center mr-sm">
@@ -216,37 +188,28 @@ export const CategorySection = React.memo(function CategorySection({ category, o
 
             {isExpanded && (
                 <View className="mt-xs">
-                    {onReorderItems && !isSelectMode ? (
-                        <DraggableFlatList
-                            data={uncheckedItems}
-                            keyExtractor={(item) => item.id}
-                            renderItem={renderDraggableItem}
-                            onDragEnd={handleDragEnd}
-                            scrollEnabled={false}
-                            activationDistance={20}
-                        />
-                    ) : (
-                        uncheckedItems.map(item => (
-                            <CheckedItemRow
-                                key={item.id}
-                                item={item}
-                                onCheckItem={onCheckItem}
-                                onPressItem={onPressItem}
-                                onLongPressItem={onLongPressItem}
-                                onQuantityChange={onQuantityChange}
-                                isSelectMode={isSelectMode}
-                                onToggleSelection={onToggleSelection}
-                                selectedItems={selectedItems}
-                            />
-                        ))
-                    )}
-                    {checkedItems.map(item => (
-                        <CheckedItemRow
+                    {uncheckedItems.map(item => (
+                        <ItemRow
                             key={item.id}
                             item={item}
                             onCheckItem={onCheckItem}
                             onPressItem={onPressItem}
                             onLongPressItem={onLongPressItem}
+                            onMoreItem={onMoreItem}
+                            onQuantityChange={onQuantityChange}
+                            isSelectMode={isSelectMode}
+                            onToggleSelection={onToggleSelection}
+                            selectedItems={selectedItems}
+                        />
+                    ))}
+                    {checkedItems.map(item => (
+                        <ItemRow
+                            key={item.id}
+                            item={item}
+                            onCheckItem={onCheckItem}
+                            onPressItem={onPressItem}
+                            onLongPressItem={onLongPressItem}
+                            onMoreItem={onMoreItem}
                             onQuantityChange={onQuantityChange}
                             isSelectMode={isSelectMode}
                             onToggleSelection={onToggleSelection}

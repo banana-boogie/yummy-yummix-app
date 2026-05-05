@@ -9,8 +9,7 @@ export type MutationType =
     | 'DELETE_ITEM'
     | 'CHECK_ITEM'
     | 'BATCH_CHECK'
-    | 'BATCH_DELETE'
-    | 'REORDER_ITEMS';
+    | 'BATCH_DELETE';
 
 // Strongly typed mutation payloads
 export interface MutationPayloads {
@@ -20,7 +19,6 @@ export interface MutationPayloads {
     CHECK_ITEM: { itemId: string; isChecked: boolean; listId?: string };
     BATCH_CHECK: { itemIds: string[]; isChecked: boolean; listId?: string };
     BATCH_DELETE: { itemIds: string[]; listId?: string };
-    REORDER_ITEMS: { updates: { id: string; displayOrder: number }[]; listId?: string };
 }
 
 export type MutationPayload = MutationPayloads[MutationType];

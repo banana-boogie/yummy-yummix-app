@@ -402,24 +402,6 @@ export const shoppingListService = {
         }));
     },
 
-    async updateItemsOrder(updates: { id: string; displayOrder: number }[], listId?: string): Promise<void> {
-        if (updates.length === 0) return;
-        if (!listId) throw new Error('Shopping list ID is required to update item order');
-
-        const { error } = await supabase.rpc('update_shopping_list_item_orders', {
-            p_list_id: listId,
-            updates: updates.map(({ id, displayOrder }) => ({
-                id,
-                display_order: displayOrder,
-            })),
-        });
-
-        if (error) throw new Error(`Error updating item order: ${error.message}`);
-
-        const userId = await getCurrentUserId();
-        await invalidateShoppingCaches(userId, listId);
-    },
-
     async batchDeleteItems(itemIds: string[], listId?: string): Promise<void> {
         if (itemIds.length === 0) return;
 
