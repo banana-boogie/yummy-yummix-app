@@ -408,6 +408,7 @@ function expandLeftoverTargetSlot(
   for (const transformId of source.transformRecipeIds) {
     const transform = pairings.candidatesById.get(transformId);
     if (!transform) continue;
+    if (state.assignedRecipeIds.has(transform.id)) continue;
     if (transform.hasAllergenConflict) continue;
     if (transform.hasDislikeConflict) continue;
     const successor = cloneState(state);
@@ -457,7 +458,8 @@ function expandLeftoverTargetSlot(
     next.push(successor);
   }
 
-  // Always also consider a generic carry-forward leftover.
+  // Always also consider a generic carry-forward leftover. It has no recipe ID
+  // because it references already-cooked food, so recipe dedup does not apply.
   const successor = cloneState(state);
   const placeholder = buildLeftoverPlaceholder(
     slot,
