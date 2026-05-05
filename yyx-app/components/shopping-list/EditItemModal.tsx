@@ -38,8 +38,6 @@ export function EditItemModal({ visible, onClose, item, categories, onSave, onDe
     const [notes, setNotes] = useState('');
     const [saving, setSaving] = useState(false);
 
-    const isCanonical = !!item?.ingredientId;
-
     useEffect(() => {
         if (!item) return;
         setName(item.name ?? '');
@@ -54,7 +52,7 @@ export function EditItemModal({ visible, onClose, item, categories, onSave, onDe
         setSaving(true);
         try {
             await onSave({
-                nameCustom: isCanonical ? undefined : name.trim() || undefined,
+                nameCustom: name.trim() || undefined,
                 quantity: parseFloat(quantity) || 1,
                 unitId,
                 categoryId,
@@ -83,10 +81,13 @@ export function EditItemModal({ visible, onClose, item, categories, onSave, onDe
                 <View className="flex-row items-center justify-between px-lg py-md border-b border-grey-lightest">
                     <TouchableOpacity onPress={onClose}><Text preset="body" className="text-primary-dark">{i18n.t('common.cancel')}</Text></TouchableOpacity>
                     <Text preset="h3">{i18n.t('shoppingList.editItem')}</Text>
-                    <TouchableOpacity onPress={handleSave} disabled={saving}>
-                        <Text preset="body" className={saving ? 'text-grey-medium' : 'text-primary-dark font-medium'}>
-                            {saving ? i18n.t('shoppingList.saving') : i18n.t('common.save')}
-                        </Text>
+                    <TouchableOpacity
+                        onPress={handleDelete}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        accessibilityRole="button"
+                        accessibilityLabel={i18n.t('shoppingList.deleteItem')}
+                    >
+                        <Ionicons name="trash-outline" size={22} color={COLORS.status.error} />
                     </TouchableOpacity>
                 </View>
 
@@ -98,8 +99,7 @@ export function EditItemModal({ visible, onClose, item, categories, onSave, onDe
                             <TextInput
                                 value={name}
                                 onChangeText={setName}
-                                editable={!isCanonical}
-                                className={`bg-grey-lightest rounded-xl px-md py-md text-text-default text-base ${isCanonical ? 'opacity-60' : ''}`}
+                                className="bg-grey-lightest rounded-xl px-md py-md text-text-default text-base"
                                 returnKeyType="done"
                                 blurOnSubmit
                             />
@@ -165,18 +165,6 @@ export function EditItemModal({ visible, onClose, item, categories, onSave, onDe
                             />
                         </View>
 
-                        {/* Delete button at bottom */}
-                        <TouchableOpacity
-                            onPress={handleDelete}
-                            className="mt-lg flex-row items-center justify-center py-md rounded-xl bg-status-error/10"
-                            accessibilityRole="button"
-                            accessibilityLabel={i18n.t('shoppingList.deleteItem')}
-                        >
-                            <Ionicons name="trash-outline" size={20} color={COLORS.status.error} />
-                            <Text preset="body" className="ml-sm font-semibold" style={{ color: COLORS.status.error }}>
-                                {i18n.t('shoppingList.deleteItem')}
-                            </Text>
-                        </TouchableOpacity>
                     </ScrollView>
                 </Pressable>
 
