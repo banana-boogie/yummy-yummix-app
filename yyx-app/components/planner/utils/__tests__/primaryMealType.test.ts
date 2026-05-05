@@ -12,7 +12,7 @@ function buildPreferences(
     busyDays: [],
     activeDayIndexes: [0, 1, 2, 3, 4],
     defaultMaxWeeknightMinutes: 30,
-    preferLeftoversForLunch: false,
+    autoLeftovers: false,
     preferredEatTimes: {},
         setupCompletedAt: null,
     ...overrides,

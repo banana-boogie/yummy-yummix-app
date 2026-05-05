@@ -6,7 +6,11 @@ import {
   createAuthenticatedRequest,
   createMockRequest,
 } from "../_shared/test-helpers/mocks.ts";
-import { DEFAULT_PREFERENCES, handleMealPlannerRequest } from "./index.ts";
+import {
+  DEFAULT_PREFERENCES,
+  handleMealPlannerRequest,
+  parseGeneratePlanPayload,
+} from "./index.ts";
 import { MEAL_PLAN_ACTIONS, type MealPlanAction } from "./types.ts";
 
 const expectedActions: MealPlanAction[] = [
@@ -132,6 +136,28 @@ Deno.test("generate_plan accepts comida without raising INVALID_INPUT", async ()
 
   assertEquals(response.status, 422);
   assertEquals(body.error.code, "INSUFFICIENT_RECIPES");
+});
+
+Deno.test("generate_plan parser accepts autoLeftovers and preserves it for generation", () => {
+  const parsed = parseGeneratePlanPayload({
+    weekStart: "2026-04-13",
+    dayIndexes: [0, 1, 2, 3, 4],
+    mealTypes: ["dinner"],
+    busyDays: [2],
+    autoLeftovers: false,
+    replaceExisting: true,
+    debug: true,
+  });
+
+  assertEquals(parsed.includeDebugTrace, true);
+  assertEquals(parsed.typedPayload, {
+    weekStart: "2026-04-13",
+    dayIndexes: [0, 1, 2, 3, 4],
+    mealTypes: ["dinner"],
+    busyDays: [2],
+    autoLeftovers: false,
+    replaceExisting: true,
+  });
 });
 
 // A minimal recipe row that satisfies `meal_components` non-empty and has an

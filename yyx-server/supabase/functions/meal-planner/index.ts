@@ -341,6 +341,57 @@ async function handleGetCurrentPlan(
   return jsonResponse(response);
 }
 
+export function parseGeneratePlanPayload(
+  payload: Record<string, unknown>,
+): { typedPayload: GeneratePlanPayload; includeDebugTrace: boolean } {
+  const weekStart = parseWeekStart(payload);
+  const dayIndexes = parseDayIndexArray(payload.dayIndexes, "dayIndexes");
+
+  const rawMealTypes = payload.mealTypes;
+  if (!Array.isArray(rawMealTypes) || rawMealTypes.length === 0) {
+    throw new Error("mealTypes is required and must be a non-empty array");
+  }
+  if (rawMealTypes.some((entry) => typeof entry !== "string")) {
+    throw new Error("mealTypes entries must be strings");
+  }
+  // Validate canonical mapping; we keep raw labels so comida displays as comida.
+  normalizeMealTypes(rawMealTypes as string[]);
+
+  const busyDays = payload.busyDays !== undefined
+    ? parseDayIndexArray(payload.busyDays, "busyDays")
+    : undefined;
+
+  if (
+    payload.autoLeftovers !== undefined &&
+    typeof payload.autoLeftovers !== "boolean"
+  ) {
+    throw new Error("autoLeftovers must be a boolean");
+  }
+
+  if (
+    payload.replaceExisting !== undefined &&
+    typeof payload.replaceExisting !== "boolean"
+  ) {
+    throw new Error("replaceExisting must be a boolean");
+  }
+
+  if (payload.debug !== undefined && typeof payload.debug !== "boolean") {
+    throw new Error("debug must be a boolean");
+  }
+
+  return {
+    typedPayload: {
+      weekStart,
+      dayIndexes,
+      mealTypes: rawMealTypes as string[],
+      busyDays,
+      autoLeftovers: payload.autoLeftovers as boolean | undefined,
+      replaceExisting: payload.replaceExisting as boolean | undefined,
+    },
+    includeDebugTrace: payload.debug === true,
+  };
+}
+
 async function handleGeneratePlan(
   payload: Record<string, unknown>,
   userId: string,
@@ -349,50 +400,9 @@ async function handleGeneratePlan(
   let typedPayload: GeneratePlanPayload;
   let includeDebugTrace = false;
   try {
-    const weekStart = parseWeekStart(payload);
-    const dayIndexes = parseDayIndexArray(payload.dayIndexes, "dayIndexes");
-
-    const rawMealTypes = payload.mealTypes;
-    if (!Array.isArray(rawMealTypes) || rawMealTypes.length === 0) {
-      throw new Error("mealTypes is required and must be a non-empty array");
-    }
-    if (rawMealTypes.some((entry) => typeof entry !== "string")) {
-      throw new Error("mealTypes entries must be strings");
-    }
-    // Validate canonical mapping; we keep raw labels so comida displays as comida.
-    normalizeMealTypes(rawMealTypes as string[]);
-
-    const busyDays = payload.busyDays !== undefined
-      ? parseDayIndexArray(payload.busyDays, "busyDays")
-      : undefined;
-
-    if (
-      payload.autoLeftovers !== undefined &&
-      typeof payload.autoLeftovers !== "boolean"
-    ) {
-      throw new Error("autoLeftovers must be a boolean");
-    }
-
-    if (
-      payload.replaceExisting !== undefined &&
-      typeof payload.replaceExisting !== "boolean"
-    ) {
-      throw new Error("replaceExisting must be a boolean");
-    }
-
-    if (payload.debug !== undefined && typeof payload.debug !== "boolean") {
-      throw new Error("debug must be a boolean");
-    }
-    includeDebugTrace = payload.debug === true;
-
-    typedPayload = {
-      weekStart,
-      dayIndexes,
-      mealTypes: rawMealTypes as string[],
-      busyDays,
-      autoLeftovers: payload.autoLeftovers as boolean | undefined,
-      replaceExisting: payload.replaceExisting as boolean | undefined,
-    };
+    const parsed = parseGeneratePlanPayload(payload);
+    typedPayload = parsed.typedPayload;
+    includeDebugTrace = parsed.includeDebugTrace;
   } catch (error) {
     return errorResponse("INVALID_INPUT", (error as Error).message);
   }

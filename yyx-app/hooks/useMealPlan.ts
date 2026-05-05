@@ -111,7 +111,7 @@ export function useMealPlan(): UseMealPlanReturn {
         dayIndexes,
         mealTypes,
         busyDays: options.busyDays,
-        preferLeftoversForLunch: options.preferLeftoversForLunch,
+        autoLeftovers: options.autoLeftovers,
         replaceExisting: options.replaceExisting,
       });
     },
