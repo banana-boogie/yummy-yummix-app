@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/common';
 import { ShoppingListItem } from '@/types/shopping-list.types';
 import { COLORS } from '@/constants/design-tokens';
+import { formatQuantity } from '@/utils/formatQuantity';
 import i18n from '@/i18n';
 
 interface ShoppingListItemRowProps {
@@ -53,10 +54,8 @@ export const ShoppingListItemRow = React.memo(function ShoppingListItemRow({
     };
 
     const displayQuantity = () => {
-        const qty = item.quantity;
         const unit = item.unit?.symbol || '';
-        const formattedQty = qty % 1 === 0 ? qty.toString() : qty.toFixed(1);
-        return `${formattedQty} ${unit}`.trim();
+        return `${formatQuantity(item.quantity)} ${unit}`.trim();
     };
 
     return (
