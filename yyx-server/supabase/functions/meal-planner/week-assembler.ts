@@ -331,7 +331,12 @@ function expandRecipeCandidates(
 
   for (const entry of scored) {
     const successor = cloneState(state);
-    const components = buildBundle(slot, entry.candidate, pairings);
+    const components = buildBundle(
+      slot,
+      entry.candidate,
+      pairings,
+      state.assignedRecipeIds,
+    );
     const contribution = entry.detail.total;
     const adjustments = assemblyAdjustments(successor, slot, components);
     const reason = buildSelectionReason(

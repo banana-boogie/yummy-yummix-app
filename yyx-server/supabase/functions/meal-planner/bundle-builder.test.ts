@@ -91,6 +91,55 @@ Deno.test("buildBundle: non-conflicted pairing target is included", () => {
   assertEquals(components[1].recipeId, side.id);
 });
 
+Deno.test("buildBundle: paired side excluded when already assigned; next valid pairing in same role is used", () => {
+  const primary = mkCandidate("primary-exclude", {
+    mealComponents: ["protein"],
+  });
+  const duplicateSide = mkCandidate("duplicate-side", {
+    plannerRole: "side",
+    mealComponents: ["carb"],
+  });
+  const nextSide = mkCandidate("next-side", {
+    plannerRole: "side",
+    mealComponents: ["veg"],
+  });
+  const pairings: PairingLookup = {
+    byRole: new Map([[
+      primary.id,
+      new Map([[
+        "side",
+        [
+          {
+            source_recipe_id: primary.id,
+            target_recipe_id: duplicateSide.id,
+            pairing_role: "side",
+            reason: "first but already used",
+          },
+          {
+            source_recipe_id: primary.id,
+            target_recipe_id: nextSide.id,
+            pairing_role: "side",
+            reason: "second valid option",
+          },
+        ],
+      ]]),
+    ]]),
+    candidatesById: new Map([
+      [duplicateSide.id, duplicateSide],
+      [nextSide.id, nextSide],
+    ]),
+  };
+
+  const components = buildBundle(
+    mkSlot(),
+    primary,
+    pairings,
+    new Set([duplicateSide.id]),
+  );
+
+  assertEquals(components.map((c) => c.recipeId), [primary.id, nextSide.id]);
+});
+
 Deno.test("buildBundle: allergen-conflicted pairing target is dropped", () => {
   const primary = mkCandidate("primary-2", { mealComponents: ["protein"] });
   const unsafeSide = mkCandidate("unsafe-side", {

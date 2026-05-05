@@ -298,6 +298,7 @@ export function buildBundle(
   slot: MealSlot,
   primary: RecipeCandidate,
   pairings: PairingLookup,
+  excludeRecipeIds: ReadonlySet<string> = new Set(),
 ): SlotComponent[] {
   const components: SlotComponent[] = [];
   components.push(
@@ -346,6 +347,7 @@ export function buildBundle(
       if (components.length >= coverageBudget) break;
       const target = pairings.candidatesById.get(pairing.target_recipe_id);
       if (!target) continue;
+      if (excludeRecipeIds.has(target.id)) continue;
       if (target.hasAllergenConflict) continue; // hard dietary filter
       if (target.hasDislikeConflict) continue; // explicit dislike hard filter
       const targetComponents = target.mealComponents;
@@ -385,6 +387,7 @@ export function buildBundle(
     if (!CONDIMENT_RULES.explicitPairingOnly) break; // always true per config
     const target = pairings.candidatesById.get(c.target_recipe_id);
     if (!target) continue;
+    if (excludeRecipeIds.has(target.id)) continue;
     if (target.hasAllergenConflict) continue; // hard dietary filter
     if (target.hasDislikeConflict) continue; // explicit dislike hard filter
     addComponent("condiment", target, "explicit_pairing", c.reason, {
