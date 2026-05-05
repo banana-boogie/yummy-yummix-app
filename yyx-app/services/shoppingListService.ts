@@ -19,7 +19,8 @@ import { getCurrentLocale, mapIngredient, mapMeasurementUnit, getLocalizedCatego
 import type { MeasurementUnit } from '@/types/recipe.types';
 
 // Module-scope cache — units are static, ~30 rows; no need for AsyncStorage.
-let measurementUnitsCache: MeasurementUnit[] | null = null;
+// Keyed by locale so an in-session language switch doesn't serve stale names.
+const measurementUnitsCache = new Map<string, MeasurementUnit[]>();
 // Module-scope cache for the full ingredient catalogue. ingredient_translations
 // is a few hundred rows per locale — fetching once per session and filtering
 // in memory beats per-keystroke ilike queries. Keyed by locale so a language
@@ -368,8 +369,11 @@ export const shoppingListService = {
     },
 
     async getMeasurementUnits(useCache = true): Promise<MeasurementUnit[]> {
-        if (useCache && measurementUnitsCache) return measurementUnitsCache;
         const locale = getCurrentLocale();
+        if (useCache) {
+            const cached = measurementUnitsCache.get(locale);
+            if (cached) return cached;
+        }
         const { data, error } = await supabase
             .from('measurement_units')
             .select(`
@@ -378,7 +382,7 @@ export const shoppingListService = {
             `);
         if (error) throw new Error(`Error fetching units: ${error.message}`);
         const units = (data ?? []).map((row: any) => mapMeasurementUnit(row, locale)).filter((u: MeasurementUnit | undefined): u is MeasurementUnit => Boolean(u));
-        measurementUnitsCache = units;
+        measurementUnitsCache.set(locale, units);
         return units;
     },
 
