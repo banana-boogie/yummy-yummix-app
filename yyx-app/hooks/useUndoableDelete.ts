@@ -1,15 +1,6 @@
 import { useRef, useCallback, useEffect } from 'react';
-import * as Haptics from 'expo-haptics';
+import { showUndoToast, hideUndoToast } from '@/components/common';
 import i18n from '@/i18n';
-
-// Minimal local stand-in for react-native-toast-message to avoid adding a
-// dependency. Replace with the real toast library once the port stabilises.
-const Toast = {
-  show: (opts: { text1?: string; text2?: string; [k: string]: unknown }) => {
-    if (__DEV__) console.log('[toast]', opts.text1 ?? '', opts.text2 ?? '');
-  },
-  hide: () => {},
-};
 
 interface PendingDeletion<T> {
     item: T;
@@ -90,7 +81,7 @@ export function useUndoableDelete<T>(
             pendingDeletions.current.delete(itemId);
 
             // Hide the toast
-            Toast.hide();
+            hideUndoToast();
 
             onRestore?.(pending.item);
             return pending.item;
@@ -127,28 +118,17 @@ export function useUndoableDelete<T>(
                 onConfirm,
             });
 
-            // Show undo toast
-            Toast.show({
-                type: 'undo',
-                text1: i18n.t('shoppingList.itemDeleted'),
-                text2: displayName,
-                position: 'bottom',
-                visibilityTime: duration,
-                bottomOffset: 100,
-                props: {
-                    itemId,
-                    duration,
-                    onUndo: () => {
-                        const restored = undoDeletion(itemId);
-                        if (restored) {
-                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                        }
-                    },
+            // Show undo toast — UndoToastHost handles haptics for both show and undo.
+            const message = displayName
+                ? `${i18n.t('shoppingList.itemDeleted')}: ${displayName}`
+                : i18n.t('shoppingList.itemDeleted');
+            showUndoToast({
+                message,
+                duration,
+                onUndo: () => {
+                    undoDeletion(itemId);
                 },
             });
-
-            // Haptic feedback for deletion
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         },
         [duration, getItemId, onCommit, onError, undoDeletion]
     );
@@ -162,7 +142,7 @@ export function useUndoableDelete<T>(
             clearTimeout(pending.timeoutId);
         });
         pendingDeletions.current.clear();
-        Toast.hide();
+        hideUndoToast();
     }, []);
 
     return {
