@@ -60,7 +60,6 @@ export const planner = {
     swap: "Cambiar",
     remove: "Quitar",
     cooked: "Cocinada",
-    removed: "Quitada",
     leftover: "Sobras de antes en la semana",
     untitled: "Comida sin título",
     minutes: "{{n}} min",

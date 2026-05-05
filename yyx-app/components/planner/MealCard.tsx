@@ -27,9 +27,7 @@ export function MealCard({ slot, mode, onCook, onRemove }: MealCardProps) {
     .sort((a, b) => a.displayOrder - b.displayOrder);
   const isLeftover = slot.slotType === 'leftover_target_slot';
   const isCooked = slot.status === 'cooked';
-  const isRemoved = slot.status === 'skipped';
 
-  const opacity = isRemoved ? 0.5 : 1;
   const cardClass = isLeftover
     ? 'bg-background-secondary border border-grey-light'
     : 'bg-neutral-white border border-grey-light';
@@ -43,7 +41,6 @@ export function MealCard({ slot, mode, onCook, onRemove }: MealCardProps) {
   return (
     <View
       className={`rounded-lg p-md ${cardClass}`}
-      style={{ opacity }}
       accessibilityLabel={a11yLabel}
     >
       <Text preset="caption" className="text-text-secondary mb-xs uppercase">
@@ -107,11 +104,7 @@ export function MealCard({ slot, mode, onCook, onRemove }: MealCardProps) {
         </Text>
       )}
 
-      {isRemoved ? (
-        <Text preset="bodySmall" className="text-text-secondary mt-md">
-          {i18n.t('planner.card.removed')}
-        </Text>
-      ) : isCooked ? (
+      {isCooked ? (
         <Text preset="bodySmall" className="text-status-success mt-md">
           {i18n.t('planner.card.cooked')}
         </Text>

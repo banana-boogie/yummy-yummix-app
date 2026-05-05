@@ -48,6 +48,10 @@ export function MealPlanView({
   const slotsByDay = useMemo(() => {
     const grouped = new Map<number, MealPlanSlotResponse[]>();
     for (const slot of plan.slots) {
+      // Removed slots (status='skipped') are hidden entirely — design decision
+      // per BUGS.md B-20260504-03. The skip_meal action persists to the
+      // server, so the slot stays out on refetch.
+      if (slot.status === 'skipped') continue;
       const arr = grouped.get(slot.dayIndex) ?? [];
       arr.push(slot);
       grouped.set(slot.dayIndex, arr);
