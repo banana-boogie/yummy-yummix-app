@@ -20,11 +20,7 @@ export function UnitPicker({ value, onChange }: UnitPickerProps) {
     useEffect(() => {
         if (!open || units.length > 0) return;
         shoppingListService.getMeasurementUnits()
-            .then((data) => {
-                // Logging count helps diagnose the "only No unit shown" report.
-                console.log('[UnitPicker] fetched units:', data.length);
-                setUnits(data);
-            })
+            .then(setUnits)
             .catch((err) => {
                 console.error('[UnitPicker] fetch failed:', err);
                 setUnits([]);
