@@ -7,7 +7,7 @@
  * the plan gains a linked list and flips to active.
  */
 
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useRef } from 'react';
 import { View, ScrollView, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -91,6 +91,11 @@ export function MealPlanView({
     });
   }, []);
 
+  // Track each day section's vertical offset inside the ScrollView so tapping
+  // a day tab can scroll the corresponding section into view (B-20260504-07).
+  const scrollViewRef = useRef<ScrollView>(null);
+  const dayOffsets = useRef<Map<number, number>>(new Map());
+
   const handleSelectDay = useCallback(
     (i: number) => {
       setSelectedDay(i);
@@ -98,6 +103,15 @@ export function MealPlanView({
         const next = new Set(prev);
         next.delete(i);
         return next;
+      });
+      // Defer scroll until after the expand state commits and onLayout
+      // refreshes the offsets — otherwise the y for sections after a
+      // newly-expanded day is stale.
+      requestAnimationFrame(() => {
+        const y = dayOffsets.current.get(i);
+        if (y != null) {
+          scrollViewRef.current?.scrollTo({ y, animated: true });
+        }
       });
     },
     [],
@@ -136,6 +150,7 @@ export function MealPlanView({
       <MealPlanProgressBar progress={progress} />
 
       <ScrollView
+        ref={scrollViewRef}
         className="flex-1"
         contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 48 }}
       >
@@ -146,6 +161,9 @@ export function MealPlanView({
           return (
             <View
               key={i}
+              onLayout={(e) => {
+                dayOffsets.current.set(i, e.nativeEvent.layout.y);
+              }}
               className={`rounded-lg ${isSelected ? 'bg-primary-lightest' : ''}`}
             >
               <Pressable
