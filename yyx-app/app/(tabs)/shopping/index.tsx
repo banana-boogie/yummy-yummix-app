@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, FlatList, TouchableOpacity, RefreshControl, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -34,10 +34,6 @@ export default function ShoppingListsScreen() {
             setRefreshing(false);
         }
     }, [showError]);
-
-    useEffect(() => {
-        fetchLists();
-    }, [fetchLists]);
 
     // Refetch when the tab regains focus — covers "user generated a meal plan
     // elsewhere, navigated back here" without waiting for pull-to-refresh.
