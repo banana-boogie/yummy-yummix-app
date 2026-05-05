@@ -98,6 +98,10 @@ CREATE INDEX idx_<table>_user_id ON public.<table_name>(user_id);
 | Functions | snake_case, verb_noun | `find_closest_ingredient`, `batch_find_ingredients` |
 | Migration files | `TIMESTAMP_verb_noun.sql` | `20260206_create_food_safety_rules.sql` |
 
+### Display-content casing
+
+User-facing names stored in translation tables (ingredient names, recipe titles, category labels, etc.) use **Sentence case** — capitalize the first word and proper nouns only. Examples: `"Granny Smith apple"`, `"Olive oil"`, `"Bell pepper"`. Avoid Title Case (`"Olive Oil"`) and avoid all-lowercase (`"olive oil"`). The admin ingredient form should normalize on save; one-off bad rows can be fixed via SQL.
+
 ---
 
 ## Current Schema (key tables)
