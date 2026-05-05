@@ -366,6 +366,8 @@ export const shoppingListService = {
                 translations:measurement_unit_translations (locale, name, name_plural, symbol, symbol_plural)
             `);
         if (error) throw new Error(`Error fetching units: ${error.message}`);
+        // Temporary diagnostic — investigating "only No unit shown" report.
+        console.log('[shoppingListService] measurement_units rows:', data?.length ?? 0, 'locale:', locale);
         const units = (data ?? []).map((row: any) => mapMeasurementUnit(row, locale)).filter((u: MeasurementUnit | undefined): u is MeasurementUnit => Boolean(u));
         measurementUnitsCache = units;
         return units;
