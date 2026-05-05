@@ -15,7 +15,8 @@ import {
     shoppingCategoryCache,
     invalidateAllShoppingListCaches,
 } from './cache/shoppingListCache';
-import { getCurrentLocale, mapIngredient, mapMeasurementUnit, getLocalizedCategoryName } from './utils/mapSupabaseItem';
+import { getBaseLocale, getCurrentLocale, mapIngredient, mapMeasurementUnit, getLocalizedCategoryName } from './utils/mapSupabaseItem';
+import { consolidationKey, convertQuantity, isConvertible, type ConvertibleUnit } from './utils/unitConversion';
 import type { MeasurementUnit } from '@/types/recipe.types';
 
 // Module-scope cache — units are static, ~30 rows; no need for AsyncStorage.
@@ -38,6 +39,7 @@ const ITEM_SELECT = `
     id,
     type,
     system,
+    base_factor,
     translations:measurement_unit_translations (locale, name, name_plural, symbol, symbol_plural)
   )
 `;
@@ -351,7 +353,7 @@ export const shoppingListService = {
         const { data, error } = await supabase
             .from('measurement_units')
             .select(`
-                id, type, system,
+                id, type, system, base_factor,
                 translations:measurement_unit_translations (locale, name, name_plural, symbol, symbol_plural)
             `);
         if (error) throw new Error(`Error fetching units: ${error.message}`);
@@ -367,11 +369,16 @@ export const shoppingListService = {
      * admin tools touch the ingredient catalogue).
      */
     async getAllIngredients(useCache = true): Promise<IngredientSuggestion[]> {
-        const locale = getCurrentLocale();
+        // Cache key is the full locale (e.g. "en-US"), but the DB query uses
+        // the base locale ("en") because ingredient_translations only stores
+        // base-language rows. Without this fallback, a device set to en-US
+        // would see zero suggestions.
+        const cacheKey = getCurrentLocale();
         if (useCache) {
-            const cached = ingredientsCache.get(locale);
+            const cached = ingredientsCache.get(cacheKey);
             if (cached) return cached;
         }
+        const queryLocale = getBaseLocale();
         const { data, error } = await supabase
             .from('ingredient_translations')
             .select(`
@@ -380,7 +387,7 @@ export const shoppingListService = {
                 plural_name,
                 ingredient:ingredients (id, image_url, default_category_id)
             `)
-            .eq('locale', locale);
+            .eq('locale', queryLocale);
         if (error) throw new Error(`Error loading ingredients: ${error.message}`);
         const rows: IngredientSuggestion[] = (data ?? []).map((row: any) => ({
             id: row.ingredient_id,
@@ -389,7 +396,7 @@ export const shoppingListService = {
             pictureUrl: row.ingredient?.image_url,
             categoryId: row.ingredient?.default_category_id ?? 'other',
         }));
-        ingredientsCache.set(locale, rows);
+        ingredientsCache.set(cacheKey, rows);
         return rows;
     },
 
@@ -420,7 +427,9 @@ export const shoppingListService = {
     },
 
     async searchIngredients(query: string, limit = 10): Promise<IngredientSuggestion[]> {
-        const locale = getCurrentLocale();
+        // Network fallback when the in-memory cache hasn't warmed yet. Queries
+        // base locale for the same reason getAllIngredients does.
+        const queryLocale = getBaseLocale();
 
         const sanitizedQuery = query
             .replace(/[%_\\]/g, '\\$&')
@@ -436,7 +445,7 @@ export const shoppingListService = {
                 plural_name,
                 ingredient:ingredients (id, image_url)
             `)
-            .eq('locale', locale)
+            .eq('locale', queryLocale)
             .ilike('name', `%${sanitizedQuery}%`)
             .limit(limit);
 
@@ -487,9 +496,10 @@ export const shoppingListService = {
 
     /**
      * Adds a batch of recipe ingredients to a shopping list, consolidating
-     * with any existing rows that share the same ingredient_id + unit_id by
-     * summing quantities. Rows with different units stay as separate entries.
-     * Items without an ingredient_id fall back to insert-only (no dedupe).
+     * by (ingredient_id, dimension) when units are convertible (mass, volume).
+     * Compatible different units (g+kg, ml+cup) merge into one row, with
+     * later quantities converted to the existing row's unit. Discrete units
+     * (clove, piece, etc.) and incompatible dimensions (g+ml) stay separate.
      */
     async addRecipeIngredients(
         listId: string,
@@ -504,6 +514,16 @@ export const shoppingListService = {
     ): Promise<void> {
         if (ingredients.length === 0) return;
 
+        // Load the unit catalogue once. Cached after first call so subsequent
+        // recipe-add flows are free.
+        const units = await this.getMeasurementUnits();
+        const unitById = new Map<string, ConvertibleUnit>();
+        for (const u of units) {
+            unitById.set(u.id, { id: u.id, type: u.type, baseFactor: u.baseFactor });
+        }
+        const lookupUnit = (unitId: string | null | undefined): ConvertibleUnit | undefined =>
+            unitId ? unitById.get(unitId) : undefined;
+
         const { data: existing, error: existingErr } = await supabase
             .from('shopping_list_items')
             .select('id, ingredient_id, unit_id, quantity')
@@ -517,13 +537,23 @@ export const shoppingListService = {
             unit_id: string | null;
             quantity: number | string | null;
         }[];
-        const keyOf = (ingredientId: string | null, unitId: string | null) =>
-            `${ingredientId ?? ''}:${unitId ?? ''}`;
-        const byKey = new Map<string, { id: string; quantity: number }>();
+        // Index existing rows by consolidation key. Each entry remembers the
+        // row's unit so we can convert incoming quantities into it.
+        interface ExistingMatch {
+            id: string;
+            quantity: number;
+            unit: ConvertibleUnit | undefined;
+        }
+        const byKey = new Map<string, ExistingMatch>();
         for (const row of existingRows) {
             if (!row.ingredient_id) continue;
             const qty = parseFloat(String(row.quantity ?? 0)) || 0;
-            byKey.set(keyOf(row.ingredient_id, row.unit_id), { id: row.id, quantity: qty });
+            const unit = lookupUnit(row.unit_id);
+            byKey.set(consolidationKey(row.ingredient_id, unit), {
+                id: row.id,
+                quantity: qty,
+                unit,
+            });
         }
 
         // Batch-load each ingredient's default shopping category so new items
@@ -551,29 +581,59 @@ export const shoppingListService = {
 
         const toInsert: Record<string, any>[] = [];
         const toUpdate = new Map<string, number>();
+        // Pending-insert index — lets two incoming items with the same key
+        // consolidate into one insert before writing to the DB.
+        const pendingInsertByKey = new Map<string, { row: Record<string, any>; unit: ConvertibleUnit | undefined }>();
+
         for (const ing of ingredients) {
             const ingId = ing.ingredientId ?? null;
-            const unitId = ing.unitId ?? null;
-            if (ingId) {
-                const match = byKey.get(keyOf(ingId, unitId));
+            const incomingUnit = lookupUnit(ing.unitId);
+            const key = ingId ? consolidationKey(ingId, incomingUnit) : null;
+
+            // 1. Try to merge into an existing DB row.
+            if (key) {
+                const match = byKey.get(key);
                 if (match) {
-                    match.quantity += ing.quantity;
+                    let qtyToAdd = ing.quantity;
+                    if (isConvertible(incomingUnit) && isConvertible(match.unit) && incomingUnit.id !== match.unit.id) {
+                        const converted = convertQuantity(ing.quantity, incomingUnit, match.unit);
+                        if (converted != null) qtyToAdd = converted;
+                    }
+                    match.quantity += qtyToAdd;
                     toUpdate.set(match.id, match.quantity);
                     continue;
                 }
+
+                // 2. Try to merge into a pending insert from this same batch.
+                const pending = pendingInsertByKey.get(key);
+                if (pending) {
+                    let qtyToAdd = ing.quantity;
+                    if (isConvertible(incomingUnit) && isConvertible(pending.unit) && incomingUnit.id !== pending.unit.id) {
+                        const converted = convertQuantity(ing.quantity, incomingUnit, pending.unit);
+                        if (converted != null) qtyToAdd = converted;
+                    }
+                    pending.row.quantity = (pending.row.quantity as number) + qtyToAdd;
+                    continue;
+                }
             }
+
+            // 3. New row.
             const resolvedCategory =
                 ing.categoryId ?? (ingId ? categoryByIngredient.get(ingId) : undefined) ?? 'other';
-            toInsert.push({
+            const newRow: Record<string, any> = {
                 shopping_list_id: listId,
                 ingredient_id: ingId,
                 name_custom: ingId ? null : ing.name ?? null,
                 category_id: resolvedCategory,
                 quantity: ing.quantity,
-                unit_id: unitId,
+                unit_id: ing.unitId ?? null,
                 recipe_id: ing.recipeId ?? null,
                 is_checked: false,
-            });
+            };
+            toInsert.push(newRow);
+            if (key) {
+                pendingInsertByKey.set(key, { row: newRow, unit: incomingUnit });
+            }
         }
 
         if (toInsert.length > 0) {

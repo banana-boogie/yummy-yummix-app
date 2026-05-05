@@ -26,6 +26,7 @@ interface RawMeasurementUnitJoin {
     id: string;
     type: string;
     system: string;
+    base_factor?: number | string | null;
     translations?: MeasurementUnitTranslationRow[];
 }
 
@@ -45,6 +46,15 @@ function pickByLocale<T extends { locale: string }>(
 
 export function getCurrentLocale(): string {
     return i18n.locale;
+}
+
+/**
+ * Returns the language-only base locale (e.g. "en-US" → "en").
+ * Use when querying tables that only store base-language rows so a
+ * regional locale doesn't fall through to zero results.
+ */
+export function getBaseLocale(): string {
+    return (i18n.locale ?? 'en').split('-')[0] || 'en';
 }
 
 export function mapIngredient(
@@ -74,11 +84,17 @@ export function mapMeasurementUnit(
 ): MeasurementUnit | undefined {
     if (!unit) return undefined;
     const t = pickByLocale(unit.translations, locale);
+    // PostgREST returns numeric columns as strings sometimes; normalize.
+    const rawFactor = unit.base_factor;
+    const baseFactor = rawFactor == null ? undefined :
+        typeof rawFactor === 'number' ? rawFactor :
+        Number.parseFloat(rawFactor);
     return {
         id: unit.id,
         type: unit.type,
         system: unit.system,
         name: t?.name ?? '',
         symbol: t?.symbol ?? '',
+        baseFactor: Number.isFinite(baseFactor) ? baseFactor : undefined,
     } as MeasurementUnit;
 }
