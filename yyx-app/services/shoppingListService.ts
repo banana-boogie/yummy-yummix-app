@@ -327,35 +327,7 @@ export const shoppingListService = {
 
         if (catError) throw new Error(`Error fetching categories: ${catError.message}`);
 
-        let result: ShoppingCategory[];
-
-        if (userId) {
-            const { data: userOrder } = await supabase
-                .from('user_category_order')
-                .select('category_id, display_order')
-                .eq('user_id', userId);
-
-            if (userOrder && userOrder.length > 0) {
-                const orderMap = new Map(userOrder.map(o => [o.category_id, o.display_order]));
-                result = (categories ?? [])
-                    .map(cat => ({
-                        id: cat.id,
-                        nameEn: cat.name_en,
-                        nameEs: cat.name_es,
-                        icon: cat.icon,
-                        displayOrder: orderMap.get(cat.id) ?? cat.display_order,
-                    }))
-                    .sort((a, b) => a.displayOrder - b.displayOrder);
-
-                // Cache the result
-                if (userId) {
-                    await shoppingCategoryCache.setCategories(result, userId);
-                }
-                return result;
-            }
-        }
-
-        result = (categories ?? []).map(cat => ({
+        const result: ShoppingCategory[] = (categories ?? []).map(cat => ({
             id: cat.id,
             nameEn: cat.name_en,
             nameEs: cat.name_es,
