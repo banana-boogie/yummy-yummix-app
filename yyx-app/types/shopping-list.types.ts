@@ -57,7 +57,7 @@ export interface ShoppingListItemCreate {
 export interface ShoppingListItemUpdate {
     nameCustom?: string;
     quantity?: number;
-    unitId?: string;
+    unitId?: string | null;
     notes?: string;
     isChecked?: boolean;
     displayOrder?: number;

@@ -15,6 +15,7 @@ import { useUndoableDelete } from './useUndoableDelete';
 import { useOfflineSync } from './useOfflineSync';
 import i18n from '@/i18n';
 import { getLocalizedCategoryName } from '@/services/utils/mapSupabaseItem';
+import type { MeasurementUnit } from '@/types/recipe.types';
 
 interface UseShoppingListDataOptions {
     listId: string | undefined;
@@ -76,12 +77,15 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
 
     // Ref to track list for rollback without causing re-renders
     const listRef = useRef<ShoppingListWithItems | null>(null);
+    const latestListIdRef = useRef(listId);
+    latestListIdRef.current = listId;
     useEffect(() => {
         listRef.current = list;
     }, [list]);
 
     // Forward declare fetchList for use in onSyncComplete
     const fetchListRef = useRef<((forceRefresh?: boolean) => Promise<void>) | undefined>(undefined);
+    const fetchRequestIdRef = useRef(0);
 
     const handleSyncComplete = useCallback(() => {
         void fetchListRef.current?.(true);
@@ -176,28 +180,35 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
                 )
             }))
             .filter(cat => cat.items.length > 0);
-    }, [list, searchQuery]);
+    }, [list?.categories, searchQuery]);
 
     // Calculate progress
     const progressPercentage = useMemo(() =>
         list ? Math.round((list.checkedCount / Math.max(list.itemCount, 1)) * 100) : 0,
-        [list]
+        [list?.checkedCount, list?.itemCount]
     );
 
     // Fetch list data
     const fetchList = useCallback(async (forceRefresh = false) => {
         if (!listId) return;
+        const requestId = ++fetchRequestIdRef.current;
+        const requestedListId = listId;
         try {
             const useCache = !forceRefresh;
-            const data = await shoppingListService.getShoppingListById(listId, useCache);
+            const data = await shoppingListService.getShoppingListById(requestedListId, useCache);
+            if (requestId !== fetchRequestIdRef.current || requestedListId !== latestListIdRef.current) return;
             setList(data);
             const cats = await shoppingListService.getCategories(useCache);
+            if (requestId !== fetchRequestIdRef.current || requestedListId !== latestListIdRef.current) return;
             setCategories(cats);
         } catch (error) {
+            if (requestId !== fetchRequestIdRef.current || requestedListId !== latestListIdRef.current) return;
             console.error('Error fetching list:', error);
             showError(i18n.t('common.errors.title'), i18n.t('shoppingList.loadError'));
         } finally {
-            setLoading(false);
+            if (requestId === fetchRequestIdRef.current && requestedListId === latestListIdRef.current) {
+                setLoading(false);
+            }
         }
     }, [listId, showError]);
 
@@ -346,6 +357,7 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
             return current;
         });
 
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
         try {
             if (isOffline) {
                 await queueMutation('ADD_ITEM', { item: { ...itemData, shoppingListId: listId }, listId });
@@ -355,9 +367,9 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
             // Hard 15s timeout — a stalled network shouldn't leave the modal hanging.
             const newItem = await Promise.race([
                 shoppingListService.addItem({ ...itemData, shoppingListId: listId }),
-                new Promise<never>((_, reject) =>
-                    setTimeout(() => reject(new Error('addItem timed out after 15s')), 15000)
-                ),
+                new Promise<never>((_, reject) => {
+                    timeoutId = setTimeout(() => reject(new Error('addItem timed out after 15s')), 15000);
+                }),
             ]);
             // Replace temp item with real item instead of full refetch
             setList(current => {
@@ -375,12 +387,32 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
             setList(previousList);
             console.error('Error adding item:', error);
             showError(i18n.t('common.errors.title'), i18n.t('shoppingList.addError'));
+        } finally {
+            if (timeoutId) clearTimeout(timeoutId);
         }
     }, [listId, categories, showError, isOffline, queueMutation, setList]);
 
     // Edit item handler with optimistic update
     const handleEditItem = useCallback(async (itemId: string, updates: EditItemUpdates) => {
         const previousList = listRef.current;
+        const shouldUpdateUnit = updates.unitId !== undefined;
+        let resolvedUnit: MeasurementUnit | undefined;
+        let hasResolvedUnit = false;
+
+        if (updates.unitId === null) {
+            hasResolvedUnit = true;
+        } else if (updates.unitId) {
+            try {
+                const units = await shoppingListService.getMeasurementUnits();
+                const nextUnit = units.find(unit => unit.id === updates.unitId);
+                if (nextUnit) {
+                    resolvedUnit = nextUnit;
+                    hasResolvedUnit = true;
+                }
+            } catch (error) {
+                console.error('Error resolving unit for optimistic edit:', error);
+            }
+        }
 
         // Optimistic update — apply changes locally first.
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -399,6 +431,7 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
                         quantity: updates.quantity ?? item.quantity,
                         notes: updates.notes ?? item.notes,
                         categoryId: updates.categoryId ?? item.categoryId,
+                        unit: shouldUpdateUnit && hasResolvedUnit ? resolvedUnit : item.unit,
                     };
                     return false;
                 }),
@@ -430,21 +463,19 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
         });
 
         try {
-            // null unitId means "clear it"; the service/queue types use undefined,
-            // so coerce here. The optimistic update already shows the new value.
-            const normalizedUnitId = updates.unitId ?? undefined;
             if (isOffline) {
                 await queueMutation('UPDATE_ITEM', { itemId, updates: {
                     nameCustom: updates.nameCustom,
                     quantity: updates.quantity,
-                    unitId: normalizedUnitId,
+                    unitId: updates.unitId,
                     categoryId: updates.categoryId,
                     notes: updates.notes,
                 }, listId });
             } else {
                 await shoppingListService.updateItem(itemId, {
+                    nameCustom: updates.nameCustom,
                     quantity: updates.quantity,
-                    unitId: normalizedUnitId,
+                    unitId: updates.unitId,
                     categoryId: updates.categoryId,
                     notes: updates.notes,
                 }, listId);

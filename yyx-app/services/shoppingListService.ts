@@ -58,6 +58,12 @@ const invalidateShoppingCaches = async (userId: string | undefined, listId?: str
     await invalidateAllShoppingListCaches(userId);
 };
 
+const normalizeSearchText = (value: string): string =>
+    value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+
 export const shoppingListService = {
     async getShoppingLists(includeArchived = false, useCache = true): Promise<ShoppingList[]> {
         const userId = await getCurrentUserId();
@@ -419,13 +425,13 @@ export const shoppingListService = {
         ingredients: IngredientSuggestion[],
         limit = 10,
     ): IngredientSuggestion[] {
-        const q = query.trim().toLowerCase();
+        const q = normalizeSearchText(query.trim());
         if (!q) return [];
         const startsWith: IngredientSuggestion[] = [];
         const contains: IngredientSuggestion[] = [];
         for (const ing of ingredients) {
-            const name = ing.name.toLowerCase();
-            const plural = ing.pluralName?.toLowerCase() ?? '';
+            const name = normalizeSearchText(ing.name);
+            const plural = ing.pluralName ? normalizeSearchText(ing.pluralName) : '';
             if (name.startsWith(q) || (plural && plural.startsWith(q))) {
                 startsWith.push(ing);
             } else if (name.includes(q) || (plural && plural.includes(q))) {

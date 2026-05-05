@@ -1,7 +1,7 @@
 /**
  * shoppingListService Tests
  *
- * Covers cache usage and batch reorder RPC.
+ * Covers shopping-list cache, item updates, and ingredient search helpers.
  */
 
 import { shoppingListService } from '../shoppingListService';
@@ -96,6 +96,49 @@ describe('shoppingListService', () => {
     expect(updateCalls).toEqual([{ id: 'existing-item', quantity: 9 }]);
   });
 
+  it('persists editable item fields including cleared units', async () => {
+    const user = userFactory.createSupabaseUser({ id: 'user-123' });
+    mockSupabaseAuthSuccess(user);
+
+    const mockClient = getMockSupabaseClient();
+    let updatePayload: Record<string, unknown> | undefined;
+    let updatedId: string | undefined;
+
+    mockClient.from.mockImplementation((table: string) => {
+      const builder = {
+        update: jest.fn((value: Record<string, unknown>) => {
+          updatePayload = value;
+          return builder;
+        }),
+        eq: jest.fn((column: string, value: string) => {
+          if (table === 'shopping_list_items' && column === 'id') {
+            updatedId = value;
+          }
+          return builder;
+        }),
+        then: jest.fn((resolve) => resolve({ data: null, error: null })),
+      };
+      return builder;
+    });
+
+    await shoppingListService.updateItem('item-1', {
+      nameCustom: 'Bread flour',
+      quantity: 2,
+      unitId: null,
+      categoryId: 'pantry',
+      notes: 'Organic',
+    }, 'list-1');
+
+    expect(updatedId).toBe('item-1');
+    expect(updatePayload).toEqual({
+      name_custom: 'Bread flour',
+      quantity: 2,
+      unit_id: null,
+      category_id: 'pantry',
+      notes: 'Organic',
+    });
+  });
+
   describe('searchIngredientsLocal', () => {
     const fixtures = [
       { id: '1', name: 'Banana', pluralName: 'Bananas', categoryId: 'produce' },
@@ -112,6 +155,16 @@ describe('shoppingListService', () => {
     it('case-insensitive contains match', () => {
       const results = shoppingListService.searchIngredientsLocal('PLAN', fixtures);
       expect(results.map((r) => r.id)).toEqual(['2']);
+    });
+
+    it('matches accent-insensitive Spanish names and plurals', () => {
+      const rows = [
+        { id: 'azucar', name: 'Azúcar', pluralName: 'Azúcares', categoryId: 'pantry' },
+        { id: 'limon', name: 'Limón', pluralName: 'Limones', categoryId: 'produce' },
+      ];
+
+      expect(shoppingListService.searchIngredientsLocal('azucar', rows).map((r) => r.id)).toEqual(['azucar']);
+      expect(shoppingListService.searchIngredientsLocal('limones', rows).map((r) => r.id)).toEqual(['limon']);
     });
 
     it('sorts starts-with matches before contains matches', () => {
