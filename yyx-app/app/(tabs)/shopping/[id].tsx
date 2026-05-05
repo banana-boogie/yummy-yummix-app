@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { View, FlatList, TouchableOpacity, TextInput, Animated, Keyboard, ActionSheetIOS, Platform, Modal } from 'react-native';
-import { useLocalSearchParams, Stack } from 'expo-router';
+import { useLocalSearchParams, Stack, useFocusEffect } from 'expo-router';
 import { Text, OfflineBanner, AlertModal } from '@/components/common';
 import { CategorySection, AddItemModal, EditItemModal, FloatingActionBar } from '@/components/shopping-list';
 import { Ionicons } from '@expo/vector-icons';
@@ -152,6 +152,7 @@ export default function ShoppingListDetailScreen() {
         collapsedCategories,
         toggleCategoryCollapse,
         progressPercentage,
+        fetchList,
         handleCheckItem,
         handleDeleteItem,
         handleAddItem,
@@ -162,6 +163,16 @@ export default function ShoppingListDetailScreen() {
         pendingCount,
         queueMutation,
     } = useShoppingListData({ listId: id });
+
+    // Refetch when the screen regains focus — covers "user added recipe
+    // ingredients from elsewhere, navigated back here". Forces a fresh fetch
+    // (skip cache) since recipe-add invalidates the cache server-side but
+    // the in-memory list state isn't aware of that.
+    useFocusEffect(
+        useCallback(() => {
+            void fetchList(true);
+        }, [fetchList]),
+    );
 
     // Selection mode
     const {
