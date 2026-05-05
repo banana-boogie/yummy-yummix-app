@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 import { ShoppingListItem } from '@/types/shopping-list.types';
+import { shoppingListService } from '@/services/shoppingListService';
 import { useShoppingListData } from '@/hooks/useShoppingListData';
 import { useSelectionMode } from '@/hooks/useSelectionMode';
 import { useBatchActions } from '@/hooks/useBatchActions';
@@ -133,6 +134,12 @@ export default function ShoppingListDetailScreen() {
     const [actionSheetItemId, setActionSheetItemId] = useState<string | null>(null);
     const searchInputRef = useRef<TextInput>(null);
     const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Warm the ingredient catalogue cache on mount so AddItemModal opens with
+    // suggestions ready — fire-and-forget, errors fall back to network search.
+    useEffect(() => {
+        shoppingListService.getAllIngredients().catch(() => { /* best effort */ });
+    }, []);
 
     // Shopping list data and operations
     const {

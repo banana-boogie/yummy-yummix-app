@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Modal, TouchableOpacity, TextInput, FlatList, KeyboardAvoidingView, Platform, Pressable, Keyboard, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { Text, Button } from '@/components/common';
@@ -30,8 +30,22 @@ export function AddItemModal({ visible, onClose, onAddItem, categories, initialN
     const [selectedCategory, setSelectedCategory] = useState<string>('other');
     const [notes, setNotes] = useState('');
     const [submitting, setSubmitting] = useState(false);
-    const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const searchRequestIdRef = useRef(0);
+    const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+    const [allIngredients, setAllIngredients] = useState<IngredientSuggestion[]>([]);
+
+    // Track keyboard visibility — when up, the bottom Button overlaps the
+    // category chip section with a transparent background. Hiding it keeps
+    // the form readable; the header "Done" button still submits.
+    useEffect(() => {
+        const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+        const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+        const showSub = Keyboard.addListener(showEvent, () => setIsKeyboardOpen(true));
+        const hideSub = Keyboard.addListener(hideEvent, () => setIsKeyboardOpen(false));
+        return () => {
+            showSub.remove();
+            hideSub.remove();
+        };
+    }, []);
 
     useEffect(() => {
         if (!visible) return;
@@ -45,6 +59,21 @@ export function AddItemModal({ visible, onClose, onAddItem, categories, initialN
         setSelectedCategory('other');
         setNotes('');
         setSubmitting(false);
+        // Fire-and-forget: warm the in-memory ingredient cache so search is
+        // synchronous after the user starts typing. Cache is module-scoped
+        // in shoppingListService — repeated opens reuse the first fetch.
+        let cancelled = false;
+        shoppingListService
+            .getAllIngredients()
+            .then((rows) => {
+                if (!cancelled) setAllIngredients(rows);
+            })
+            .catch(() => {
+                /* swallow — falls back to network search if needed */
+            });
+        return () => {
+            cancelled = true;
+        };
     }, [visible, initialName]);
 
     const handleNameChange = useCallback((value: string) => {
@@ -56,27 +85,26 @@ export function AddItemModal({ visible, onClose, onAddItem, categories, initialN
         }
     }, []);
 
+    // Synchronous in-memory filter — no debounce, instant per keystroke.
     useEffect(() => {
-        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
         const trimmed = name.trim();
         if (trimmed.length < 2 || selectedIngredient) {
+            setSuggestions([]);
             return;
         }
-        searchDebounceRef.current = setTimeout(async () => {
-            const requestId = ++searchRequestIdRef.current;
-            try {
-                const results = await shoppingListService.searchIngredients(trimmed);
-                if (requestId === searchRequestIdRef.current) {
-                    setSuggestions(results);
-                }
-            } catch {
-                /* swallow — suggestions are best-effort */
-            }
-        }, 300);
-        return () => {
-            if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-        };
-    }, [name, selectedIngredient]);
+        if (allIngredients.length === 0) {
+            // Cache not warm yet — fall back to a one-shot network search so
+            // suggestions still appear if the user beats the prefetch.
+            let cancelled = false;
+            shoppingListService.searchIngredients(trimmed)
+                .then((rows) => {
+                    if (!cancelled) setSuggestions(rows);
+                })
+                .catch(() => { /* best effort */ });
+            return () => { cancelled = true; };
+        }
+        setSuggestions(shoppingListService.searchIngredientsLocal(trimmed, allIngredients));
+    }, [name, selectedIngredient, allIngredients]);
 
     const handleSelectIngredient = (ingredient: IngredientSuggestion) => {
         setSelectedIngredient(ingredient);
@@ -111,7 +139,7 @@ export function AddItemModal({ visible, onClose, onAddItem, categories, initialN
     };
 
     return (
-        <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+        <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1 bg-background-primary" style={{ paddingTop: insets.top }}>
                 <View className="flex-row items-center justify-between px-lg py-md border-b border-grey-lightest">
                     <TouchableOpacity onPress={onClose}><Text preset="body" className="text-primary-dark">{i18n.t('common.cancel')}</Text></TouchableOpacity>
@@ -227,9 +255,9 @@ export function AddItemModal({ visible, onClose, onAddItem, categories, initialN
                         {/* Category */}
                         <View className="mb-md">
                             <Text preset="caption" className="text-text-secondary mb-xs">{i18n.t('shoppingList.item.category')}</Text>
-                            <View className="flex-row flex-wrap">
+                            <View className="flex-row flex-wrap gap-sm">
                                 {categories.map(cat => (
-                                    <TouchableOpacity key={cat.id} onPress={() => setSelectedCategory(cat.id)} className={`px-md py-sm rounded-xl mr-xs mb-xs ${selectedCategory === cat.id ? 'bg-primary-medium' : 'bg-grey-lightest'}`}>
+                                    <TouchableOpacity key={cat.id} onPress={() => setSelectedCategory(cat.id)} className={`px-md py-sm rounded-xl ${selectedCategory === cat.id ? 'bg-primary-medium' : 'bg-grey-lightest'}`}>
                                         <Text preset="caption" className={selectedCategory === cat.id ? 'text-text-default' : 'text-text-secondary'}>{getCategoryName(cat.id)}</Text>
                                     </TouchableOpacity>
                                 ))}
@@ -254,11 +282,16 @@ export function AddItemModal({ visible, onClose, onAddItem, categories, initialN
                     </View>
                 </Pressable>
 
-                <View className="px-lg" style={{ paddingBottom: insets.bottom + 16 }}>
-                    <Button onPress={handleSubmit} disabled={!canAdd} fullWidth>
-                        {submitting ? i18n.t('shoppingList.adding') : i18n.t('shoppingList.addItem')}
-                    </Button>
-                </View>
+                {/* Hide the bottom Button while the keyboard is up — it
+                    overlaps the category chips with a transparent background.
+                    The header "Done" still submits in this state. */}
+                {!isKeyboardOpen && (
+                    <View className="px-lg bg-background-primary" style={{ paddingBottom: insets.bottom + 16 }}>
+                        <Button onPress={handleSubmit} disabled={!canAdd} fullWidth>
+                            {submitting ? i18n.t('shoppingList.adding') : i18n.t('shoppingList.addItem')}
+                        </Button>
+                    </View>
+                )}
             </KeyboardAvoidingView>
         </Modal>
     );
