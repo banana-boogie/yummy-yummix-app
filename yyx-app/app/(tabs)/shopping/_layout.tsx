@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { COLORS } from '@/constants/design-tokens';
 import { useLanguage } from '@/contexts/LanguageContext';
+import i18n from '@/i18n';
 
 export default function ShoppingLayout() {
     const { language } = useLanguage();
@@ -16,8 +17,14 @@ export default function ShoppingLayout() {
                 headerTitleStyle: { fontFamily: 'Quicksand-Bold', fontSize: 20 },
             }}
         >
-            <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="[id]" options={{ title: '', headerBackTitle: '' }} />
+            <Stack.Screen
+                name="index"
+                options={{ headerShown: false, title: i18n.t('shoppingList.title') }}
+            />
+            <Stack.Screen
+                name="[id]"
+                options={{ title: '', headerBackTitle: '', headerBackTitleVisible: false }}
+            />
             <Stack.Screen name="pantry" />
             <Stack.Screen name="favorites" />
         </Stack>
