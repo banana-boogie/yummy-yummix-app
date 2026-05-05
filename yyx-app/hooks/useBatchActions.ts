@@ -23,22 +23,17 @@ interface UseBatchActionsReturn {
     isBatchChecking: boolean;
     isBatchUnchecking: boolean;
     isBatchDeleting: boolean;
-    isClearingChecked: boolean;
     isAnyBatchOperationInProgress: boolean;
 
     // Confirmation modals
     showDeleteConfirm: boolean;
     setShowDeleteConfirm: (show: boolean) => void;
-    showClearCheckedConfirm: boolean;
-    setShowClearCheckedConfirm: (show: boolean) => void;
 
     // Actions
     handleBatchCheck: () => Promise<void>;
     handleBatchUncheck: () => Promise<void>;
     handleBatchDeleteRequest: () => void;
     handleBatchDeleteConfirm: () => Promise<void>;
-    handleClearCheckedRequest: () => void;
-    handleClearCheckedConfirm: () => Promise<void>;
 }
 
 /**
@@ -55,11 +50,9 @@ export function useBatchActions({
 }: UseBatchActionsOptions): UseBatchActionsReturn {
     const toast = useToast();
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-    const [showClearCheckedConfirm, setShowClearCheckedConfirm] = useState(false);
     const [isBatchChecking, setIsBatchChecking] = useState(false);
     const [isBatchUnchecking, setIsBatchUnchecking] = useState(false);
     const [isBatchDeleting, setIsBatchDeleting] = useState(false);
-    const [isClearingChecked, setIsClearingChecked] = useState(false);
     const currentListId = list?.id;
 
     const refreshListFromServer = useCallback(async () => {
@@ -127,7 +120,7 @@ export function useBatchActions({
         }
     );
 
-    const isAnyBatchOperationInProgress = isBatchChecking || isBatchUnchecking || isBatchDeleting || isClearingChecked;
+    const isAnyBatchOperationInProgress = isBatchChecking || isBatchUnchecking || isBatchDeleting;
 
     // Shared batch toggle handler
     const handleBatchToggle = useCallback(async (isChecked: boolean) => {
@@ -234,84 +227,17 @@ export function useBatchActions({
         );
     }, [list, selectedItems, isOffline, queueMutation, clearSelection, setList, queueBatchDeletion]);
 
-    // Show clear checked confirmation modal
-    const handleClearCheckedRequest = useCallback(() => {
-        setShowClearCheckedConfirm(true);
-    }, []);
-
-    // Clear all checked items (after confirmation)
-    const handleClearCheckedConfirm = useCallback(async () => {
-        setShowClearCheckedConfirm(false);
-        if (!list) return;
-
-        setIsClearingChecked(true);
-        const listId = list?.id;
-
-        // Collect all checked items
-        const checkedItems: ShoppingListItem[] = [];
-        const checkedItemIds: string[] = [];
-        for (const cat of list.categories) {
-            for (const item of cat.items) {
-                if (item.isChecked) {
-                    checkedItems.push(item);
-                    checkedItemIds.push(item.id);
-                }
-            }
-        }
-
-        if (checkedItemIds.length === 0) {
-            setIsClearingChecked(false);
-            return;
-        }
-
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setList(current => {
-            if (!current) return null;
-            const updatedCategories = current.categories.map(cat => ({
-                ...cat,
-                items: cat.items.filter(item => !item.isChecked),
-            })).filter(cat => cat.items.length > 0);
-            return {
-                ...current,
-                categories: updatedCategories,
-                itemCount: current.itemCount - checkedItemIds.length,
-                checkedCount: 0,
-            };
-        });
-
-        // Reset loading state immediately
-        setIsClearingChecked(false);
-
-        // Queue deletion with undo capability
-        queueBatchDeletion(
-            checkedItems,
-            async () => {
-                if (isOffline) {
-                    await queueMutation('BATCH_DELETE', { itemIds: checkedItemIds, listId });
-                } else {
-                    await shoppingListService.batchDeleteItems(checkedItemIds, listId);
-                }
-            },
-            i18n.t('shoppingList.checkedItemsCount', { count: checkedItemIds.length })
-        );
-    }, [list, isOffline, queueMutation, setList, queueBatchDeletion]);
-
     return {
         isBatchChecking,
         isBatchUnchecking,
         isBatchDeleting,
-        isClearingChecked,
         isAnyBatchOperationInProgress,
         showDeleteConfirm,
         setShowDeleteConfirm,
-        showClearCheckedConfirm,
-        setShowClearCheckedConfirm,
         handleBatchCheck,
         handleBatchUncheck,
         handleBatchDeleteRequest,
         handleBatchDeleteConfirm,
-        handleClearCheckedRequest,
-        handleClearCheckedConfirm,
     };
 }
 

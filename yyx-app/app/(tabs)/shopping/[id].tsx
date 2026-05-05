@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { View, FlatList, TouchableOpacity, TextInput, Animated, Keyboard } from 'react-native';
+import { View, FlatList, TouchableOpacity, TextInput, Animated, Keyboard, ActionSheetIOS, Platform, Modal } from 'react-native';
 import { useLocalSearchParams, Stack } from 'expo-router';
 import { Text, OfflineBanner, AlertModal } from '@/components/common';
 import { CategorySection, AddItemModal, EditItemModal, FloatingActionBar } from '@/components/shopping-list';
@@ -130,6 +130,7 @@ export default function ShoppingListDetailScreen() {
     const [editingItem, setEditingItem] = useState<ShoppingListItem | null>(null);
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
     const [prefilledAddName, setPrefilledAddName] = useState<string | undefined>(undefined);
+    const [actionSheetItemId, setActionSheetItemId] = useState<string | null>(null);
     const searchInputRef = useRef<TextInput>(null);
     const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -173,18 +174,13 @@ export default function ShoppingListDetailScreen() {
         isBatchChecking,
         isBatchUnchecking,
         isBatchDeleting,
-        isClearingChecked,
         isAnyBatchOperationInProgress,
         showDeleteConfirm,
         setShowDeleteConfirm,
-        showClearCheckedConfirm,
-        setShowClearCheckedConfirm,
         handleBatchCheck,
         handleBatchUncheck,
         handleBatchDeleteRequest,
         handleBatchDeleteConfirm,
-        handleClearCheckedRequest,
-        handleClearCheckedConfirm,
     } = useBatchActions({
         list,
         setList,
@@ -238,6 +234,35 @@ export default function ShoppingListDetailScreen() {
         }
         toggleItemSelection(itemId);
     }, [isSelectMode, toggleSelectMode, toggleItemSelection]);
+
+    // ⋯ icon on a row → open action sheet (Edit / Delete).
+    const openItemActions = useCallback((itemId: string) => {
+        if (!list) return;
+        const item = list.items.find(i => i.id === itemId);
+        if (!item) return;
+
+        if (Platform.OS === 'ios') {
+            ActionSheetIOS.showActionSheetWithOptions(
+                {
+                    options: [
+                        i18n.t('common.cancel'),
+                        i18n.t('shoppingList.editItem'),
+                        i18n.t('shoppingList.deleteItem'),
+                    ],
+                    destructiveButtonIndex: 2,
+                    cancelButtonIndex: 0,
+                    title: item.name,
+                },
+                (index) => {
+                    if (index === 1) setEditingItem(item);
+                    else if (index === 2) handleDeleteItem(itemId);
+                }
+            );
+        } else {
+            // Android fallback — render a Modal with two buttons (see below).
+            setActionSheetItemId(itemId);
+        }
+    }, [list, handleDeleteItem]);
 
     const handleEditSave = useCallback(async (updates: Parameters<typeof handleEditItem>[1]) => {
         if (!editingItem) return;
@@ -299,38 +324,20 @@ export default function ShoppingListDetailScreen() {
                     ? i18n.t('shoppingList.selectMode', { count: selectedItems.size })
                     : list.name,
                 headerRight: () => (
-                    <View className="flex-row items-center">
-                        {/* Clear checked items button */}
-                        {!isSelectMode && list.checkedCount > 0 && (
-                            <TouchableOpacity
-                                onPress={handleClearCheckedRequest}
-                                className="mr-md"
-                                disabled={isClearingChecked}
-                                accessibilityLabel={i18n.t('shoppingList.clearChecked')}
-                                accessibilityRole="button"
-                            >
-                                <Ionicons
-                                    name="checkmark-done-outline"
-                                    size={24}
-                                    color={isClearingChecked ? COLORS.grey.light : COLORS.status.success}
-                                />
-                            </TouchableOpacity>
-                        )}
-                        {/* In select mode: cancel button takes the place of the toggle.
-                            Out of select mode: long-press a row enters select mode (no header button). */}
-                        {isSelectMode && (
-                            <TouchableOpacity
-                                onPress={toggleSelectMode}
-                                disabled={isAnyBatchOperationInProgress}
-                                accessibilityLabel={i18n.t('shoppingList.exitSelectMode')}
-                                accessibilityRole="button"
-                            >
-                                <Text preset="body" className="text-text-default font-medium">
-                                    {i18n.t('common.cancel')}
-                                </Text>
-                            </TouchableOpacity>
-                        )}
-                    </View>
+                    // In select mode: cancel button replaces all header actions.
+                    // Out of select mode: no header right action — long-press a row to enter select mode.
+                    isSelectMode ? (
+                        <TouchableOpacity
+                            onPress={toggleSelectMode}
+                            disabled={isAnyBatchOperationInProgress}
+                            accessibilityLabel={i18n.t('shoppingList.exitSelectMode')}
+                            accessibilityRole="button"
+                        >
+                            <Text preset="body" className="text-text-default font-medium">
+                                {i18n.t('common.cancel')}
+                            </Text>
+                        </TouchableOpacity>
+                    ) : null
                 )
             }} />
 
@@ -416,6 +423,7 @@ export default function ShoppingListDetailScreen() {
                             onCheckItem={handleCheckItem}
                             onPressItem={handlePressItem}
                             onLongPressItem={handleLongPressItem}
+                            onMoreItem={openItemActions}
                             isExpanded={!collapsedCategories.has(item.id)}
                             onToggleExpand={() => toggleCategoryCollapse(item.id)}
                             isSelectMode={isSelectMode}
@@ -494,17 +502,63 @@ export default function ShoppingListDetailScreen() {
                 onCancel={() => setShowDeleteConfirm(false)}
             />
 
-            {/* Clear checked confirmation modal */}
-            <AlertModal
-                visible={showClearCheckedConfirm}
-                title={i18n.t('shoppingList.clearChecked')}
-                message={i18n.t('shoppingList.clearCheckedConfirm')}
-                confirmText={i18n.t('common.delete')}
-                cancelText={i18n.t('common.cancel')}
-                isDestructive={true}
-                onConfirm={handleClearCheckedConfirm}
-                onCancel={() => setShowClearCheckedConfirm(false)}
-            />
+            {/* Android action sheet fallback (iOS uses ActionSheetIOS). */}
+            {Platform.OS !== 'ios' && (
+                <Modal
+                    visible={actionSheetItemId !== null}
+                    transparent
+                    animationType="fade"
+                    onRequestClose={() => setActionSheetItemId(null)}
+                >
+                    <TouchableOpacity
+                        activeOpacity={1}
+                        onPress={() => setActionSheetItemId(null)}
+                        className="flex-1 justify-end bg-black/40"
+                    >
+                        <View className="bg-neutral-white rounded-t-xl p-md">
+                            <TouchableOpacity
+                                onPress={() => {
+                                    const id = actionSheetItemId;
+                                    setActionSheetItemId(null);
+                                    if (!id || !list) return;
+                                    const found = list.items.find(i => i.id === id);
+                                    if (found) setEditingItem(found);
+                                }}
+                                className="py-md"
+                                accessibilityRole="button"
+                            >
+                                <Text preset="body" className="text-text-default text-center">
+                                    {i18n.t('shoppingList.editItem')}
+                                </Text>
+                            </TouchableOpacity>
+                            <View className="h-px bg-grey-lightest" />
+                            <TouchableOpacity
+                                onPress={() => {
+                                    const id = actionSheetItemId;
+                                    setActionSheetItemId(null);
+                                    if (id) handleDeleteItem(id);
+                                }}
+                                className="py-md"
+                                accessibilityRole="button"
+                            >
+                                <Text preset="body" className="text-center" style={{ color: COLORS.status.error }}>
+                                    {i18n.t('shoppingList.deleteItem')}
+                                </Text>
+                            </TouchableOpacity>
+                            <View className="h-px bg-grey-lightest" />
+                            <TouchableOpacity
+                                onPress={() => setActionSheetItemId(null)}
+                                className="py-md"
+                                accessibilityRole="button"
+                            >
+                                <Text preset="body" className="text-text-secondary text-center">
+                                    {i18n.t('common.cancel')}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </TouchableOpacity>
+                </Modal>
+            )}
         </View>
     );
 }

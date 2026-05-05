@@ -13,16 +13,26 @@ interface ShoppingListItemRowProps {
     onCheck: () => void;
     onPress: () => void;
     onLongPress?: () => void;
+    onMore?: () => void;
     onQuantityChange?: (quantity: number) => void;
     isSelectMode?: boolean;
     isSelected?: boolean;
 }
 
+/**
+ * Row anatomy: [checkbox] [image] Name / qty unit [⋯]
+ *
+ * Tap the checkbox always toggles isChecked (or selection in select mode).
+ * Tap the row body opens the edit modal.
+ * Tap ⋯ opens the per-row action sheet (edit / delete).
+ * Long-press anywhere enters select mode.
+ */
 export const ShoppingListItemRow = React.memo(function ShoppingListItemRow({
     item,
     onCheck,
     onPress,
     onLongPress,
+    onMore,
     onQuantityChange,
     isSelectMode = false,
     isSelected = false,
@@ -30,14 +40,13 @@ export const ShoppingListItemRow = React.memo(function ShoppingListItemRow({
     // Haptic + check fire-and-forget. Awaiting Haptics gives a window where a
     // rapid second tap re-reads `item.isChecked` after re-render and flips back.
     const handleCheck = () => {
-        // Fire-and-forget. Don't await — see comment above. `void` keeps Promise/undefined safe.
+        // Fire-and-forget. Don't await — see comment above.
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         onCheck();
     };
 
     const handleQuantityChange = (increment: boolean) => {
         if (!onQuantityChange) return;
-        // Fire-and-forget. Don't await — see comment above. `void` keeps Promise/undefined safe.
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         const newQuantity = increment ? item.quantity + 1 : Math.max(0.5, item.quantity - 1);
         onQuantityChange(newQuantity);
@@ -118,7 +127,7 @@ export const ShoppingListItemRow = React.memo(function ShoppingListItemRow({
 
             {/* Quantity controls (optional) */}
             {onQuantityChange && !item.isChecked && !isSelectMode && (
-                <View className="flex-row items-center bg-grey-light rounded-lg">
+                <View className="flex-row items-center bg-grey-light rounded-lg mr-sm">
                     <TouchableOpacity
                         onPress={() => handleQuantityChange(false)}
                         className="px-sm py-xs"
@@ -141,6 +150,20 @@ export const ShoppingListItemRow = React.memo(function ShoppingListItemRow({
                         <Ionicons name="add" size={18} color={COLORS.primary.darkest} />
                     </TouchableOpacity>
                 </View>
+            )}
+
+            {/* Per-row action menu trigger (hidden in select mode). */}
+            {!isSelectMode && onMore && (
+                <TouchableOpacity
+                    onPress={onMore}
+                    className="px-xs py-xs"
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={i18n.t('shoppingList.accessibility.itemActions', { name: item.name })}
+                >
+                    <Ionicons name="ellipsis-vertical" size={20} color={COLORS.grey.medium} />
+                </TouchableOpacity>
             )}
         </TouchableOpacity>
     );

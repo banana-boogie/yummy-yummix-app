@@ -1,7 +1,7 @@
 export const shoppingList = {
   addToList: "Agregar a la Lista",
   makeMyList: "Hacer mi lista",
-  title: "Lista de Compras",
+  title: "Compras",
   createNew: "Nueva Lista",
   enterName: "Nombre de la lista",
   empty: "No hay listas de compras",
@@ -82,5 +82,9 @@ export const shoppingList = {
   accessibility: {
     listSummary: "{{name}}, {{checked}} de {{total}} artículos marcados",
     categorySummary: "{{category}}, {{checked}} de {{total}} artículos",
+    toggleItem: "Alternar {{name}}",
+    increaseQuantity: "Aumentar cantidad de {{name}}",
+    decreaseQuantity: "Disminuir cantidad de {{name}}",
+    itemActions: "Acciones para {{name}}",
   },
 };

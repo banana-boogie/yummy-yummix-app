@@ -1,7 +1,7 @@
 export const shoppingList = {
   addToList: "Add to Shopping List",
   makeMyList: "Make My List",
-  title: "Shopping List",
+  title: "Shopping",
   createNew: "New Shopping List",
   enterName: "Enter list name",
   empty: "No shopping lists yet",
@@ -82,5 +82,9 @@ export const shoppingList = {
   accessibility: {
     listSummary: "{{name}}, {{checked}} of {{total}} items checked",
     categorySummary: "{{category}}, {{checked}} of {{total}} items",
+    toggleItem: "Toggle {{name}}",
+    increaseQuantity: "Increase quantity of {{name}}",
+    decreaseQuantity: "Decrease quantity of {{name}}",
+    itemActions: "Actions for {{name}}",
   },
 };

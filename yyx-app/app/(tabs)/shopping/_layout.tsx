@@ -23,7 +23,7 @@ export default function ShoppingLayout() {
             />
             <Stack.Screen
                 name="[id]"
-                options={{ title: '', headerBackTitle: '', headerBackTitleVisible: false }}
+                options={{ title: '', headerBackTitle: '', headerBackButtonDisplayMode: 'minimal' }}
             />
             <Stack.Screen name="pantry" />
             <Stack.Screen name="favorites" />
