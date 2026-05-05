@@ -16,6 +16,7 @@ import { OnboardingProvider } from '@/contexts/OnboardingContext';
 
 import { UserProfileProvider } from '@/contexts/UserProfileContext';
 import { queryClient } from '@/lib/queryClient';
+import { UndoToastHost } from '@/components/common';
 
 // Register NativeWind interops for third-party components
 registerNativeWindInterops();
@@ -82,6 +83,7 @@ export default function RootLayout() {
               <Stack.Screen name="recipe" />
               <Stack.Screen name="(tabs)" />
             </Stack>
+            <UndoToastHost />
           </InnerProviders>
         </LanguageProvider>
       </SafeAreaProvider>
