@@ -350,7 +350,13 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
                 return;
             }
 
-            const newItem = await shoppingListService.addItem({ ...itemData, shoppingListId: listId });
+            // Hard 15s timeout — a stalled network shouldn't leave the modal hanging.
+            const newItem = await Promise.race([
+                shoppingListService.addItem({ ...itemData, shoppingListId: listId }),
+                new Promise<never>((_, reject) =>
+                    setTimeout(() => reject(new Error('addItem timed out after 15s')), 15000)
+                ),
+            ]);
             toast.showSuccess(i18n.t('shoppingList.itemAdded'));
             // Replace temp item with real item instead of full refetch
             setList(current => {

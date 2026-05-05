@@ -129,17 +129,28 @@ export function AddItemModal({ visible, onClose, onAddItem, categories, initialN
 
                 <Pressable onPress={Keyboard.dismiss} className="flex-1">
                     <View className="px-lg pt-md">
-                        <TextInput
-                            value={name}
-                            onChangeText={handleNameChange}
-                            placeholder={i18n.t('shoppingList.itemNamePlaceholder')}
-                            placeholderTextColor={COLORS.grey.medium}
-                            className="bg-grey-lightest rounded-xl px-md py-md text-text-default text-base"
-                            autoFocus
-                            returnKeyType="done"
-                            blurOnSubmit
-                            onSubmitEditing={Keyboard.dismiss}
-                        />
+                        <View className="flex-row items-center">
+                            {/* When the user picks a canonical ingredient, show its image
+                                next to the input so they see the match they made. */}
+                            {selectedIngredient?.pictureUrl && (
+                                <Image
+                                    source={{ uri: selectedIngredient.pictureUrl }}
+                                    style={{ width: 40, height: 40, borderRadius: 8, marginRight: 8 }}
+                                    contentFit="cover"
+                                />
+                            )}
+                            <TextInput
+                                value={name}
+                                onChangeText={handleNameChange}
+                                placeholder={i18n.t('shoppingList.itemNamePlaceholder')}
+                                placeholderTextColor={COLORS.grey.medium}
+                                className="flex-1 bg-grey-lightest rounded-xl px-md py-md text-text-default text-base"
+                                autoFocus
+                                returnKeyType="done"
+                                blurOnSubmit
+                                onSubmitEditing={Keyboard.dismiss}
+                            />
+                        </View>
                     </View>
 
                     {/* Suggestions area: canonical ingredient matches + "+ Add as new" affordance. */}
@@ -148,10 +159,10 @@ export function AddItemModal({ visible, onClose, onAddItem, categories, initialN
                             {showAddAsNewRow && (
                                 <TouchableOpacity
                                     onPress={() => {
-                                        // Keep typed name as-is, clear any picked canonical match.
-                                        setSelectedIngredient(null);
-                                        setSuggestions([]);
+                                        // Submit the typed name as a custom item directly —
+                                        // user shouldn't have to tap Done after this.
                                         Keyboard.dismiss();
+                                        void handleSubmit();
                                     }}
                                     className="flex-row items-center py-sm px-md border-b border-grey-lightest"
                                 >
