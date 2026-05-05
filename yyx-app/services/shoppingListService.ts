@@ -125,8 +125,7 @@ export const shoppingListService = {
         const { data: itemsData, error: itemsError } = await supabase
             .from('shopping_list_items')
             .select(ITEM_SELECT)
-            .eq('shopping_list_id', id)
-            .order('display_order', { ascending: true });
+            .eq('shopping_list_id', id);
 
         if (itemsError) throw new Error(`Error fetching shopping list items: ${itemsError.message}`);
 
@@ -155,7 +154,9 @@ export const shoppingListService = {
         const categoriesWithItems: ShoppingCategoryWithItems[] = categories.map(category => ({
             ...category,
             localizedName: getLocalizedCategoryName(category),
-            items: items.filter(item => item.categoryId === category.id),
+            items: items
+                .filter(item => item.categoryId === category.id)
+                .sort((a, b) => a.name.localeCompare(b.name)),
         })).filter(category => category.items.length > 0);
 
         const result: ShoppingListWithItems = {

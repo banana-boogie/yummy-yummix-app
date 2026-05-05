@@ -98,8 +98,8 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
                     if (!current) return null;
                     const updatedCategories = current.categories.map(cat => {
                         if (cat.id === item.categoryId) {
-                            const newItems = [...cat.items, item].sort(
-                                (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
+                            const newItems = [...cat.items, item].sort((a, b) =>
+                                a.name.localeCompare(b.name)
                             );
                             return { ...cat, items: newItems };
                         }
@@ -313,11 +313,13 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
             const catIndex = current.categories.findIndex(c => c.id === itemData.categoryId);
 
             if (catIndex >= 0) {
-                // Category exists, add item to it
+                // Category exists, add item to it (alphabetical order)
                 const updatedCategories = [...current.categories];
                 updatedCategories[catIndex] = {
                     ...updatedCategories[catIndex],
-                    items: [...updatedCategories[catIndex].items, tempItem],
+                    items: [...updatedCategories[catIndex].items, tempItem].sort((a, b) =>
+                        a.name.localeCompare(b.name)
+                    ),
                 };
                 return {
                     ...current,
@@ -403,7 +405,9 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
             if (existingIdx >= 0) {
                 newCategories[existingIdx] = {
                     ...newCategories[existingIdx],
-                    items: [...newCategories[existingIdx].items, movedItem],
+                    items: [...newCategories[existingIdx].items, movedItem].sort((a, b) =>
+                        a.name.localeCompare(b.name)
+                    ),
                 };
             } else {
                 const cat = categories.find(c => c.id === targetId);
