@@ -103,6 +103,12 @@ export interface MeasurementUnit {
   name: string;
   symbol: string;
   symbolPlural: string;
+  /**
+   * Multiplier to the dimension's base unit (gram for weight, milliliter
+   * for volume). NULL/undefined for discrete units (clove, piece, etc.)
+   * that are not convertible. Populated from `measurement_units.base_factor`.
+   */
+  baseFactor?: number;
 }
 // For transformed/frontend use
 export interface RecipeStep {
