@@ -205,8 +205,8 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): UseOfflineS
         };
 
         const initNamespace = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            const namespace = user?.id ?? null;
+            const { data: { session } } = await supabase.auth.getSession();
+            const namespace = session?.user?.id ?? null;
             mutationQueue.setNamespace(namespace);
             if (isMounted) {
                 await refreshPendingCount();
