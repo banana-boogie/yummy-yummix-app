@@ -577,9 +577,19 @@ function PhotoBlock({ imageUrl, title, cooked, skipped }: PhotoBlockProps) {
       }}
     >
       {imageUrl && (
+        // Absolute fill is more reliable than width/height: '100%' on
+        // expo-image when the parent is sized by aspectRatio — see
+        // BUGS.md B-20260504-09 (today-hero rendered the grey background
+        // with the image collapsed to 0×0).
         <Image
           source={{ uri: imageUrl }}
-          style={{ width: '100%', height: '100%' }}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+          }}
           contentFit="cover"
           accessibilityLabel={title}
         />
