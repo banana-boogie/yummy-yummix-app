@@ -113,10 +113,20 @@ export function UndoToastHost() {
             className="px-md"
         >
             <View
-                className="flex-row items-center bg-text-default rounded-lg px-md py-sm"
-                style={{ shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 6 }}
+                className="flex-row items-center rounded-lg px-md py-sm"
+                style={{
+                    backgroundColor: COLORS.text.default,
+                    shadowColor: '#000',
+                    shadowOpacity: 0.2,
+                    shadowRadius: 8,
+                    shadowOffset: { width: 0, height: 4 },
+                    elevation: 6,
+                }}
             >
-                <Text preset="body" className="text-white flex-1" numberOfLines={1}>
+                {/* Inline color styles override the Text preset's default color
+                    so dark-on-dark renders correctly. The NativeWind text-white
+                    class was being clobbered by the preset. */}
+                <Text preset="body" style={{ color: COLORS.neutral.white, flex: 1 }} numberOfLines={1}>
                     {state.message}
                 </Text>
                 <TouchableOpacity
@@ -125,7 +135,7 @@ export function UndoToastHost() {
                     accessibilityLabel={state.undoLabel ?? 'Undo'}
                     className="px-sm py-xs"
                 >
-                    <Text preset="body" className="text-primary-default font-bold">
+                    <Text preset="body" style={{ color: COLORS.primary.default, fontWeight: '700' }}>
                         {state.undoLabel ?? 'Undo'}
                     </Text>
                 </TouchableOpacity>
@@ -135,7 +145,7 @@ export function UndoToastHost() {
                     accessibilityLabel="Dismiss"
                     className="pl-sm"
                 >
-                    <Ionicons name="close" size={20} color={COLORS.background.default} />
+                    <Ionicons name="close" size={20} color={COLORS.neutral.white} />
                 </TouchableOpacity>
             </View>
         </Animated.View>
