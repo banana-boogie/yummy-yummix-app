@@ -30,6 +30,7 @@ interface MealPlanViewProps {
   progress: PlanProgress;
   isApproving: boolean;
   onApprove: () => void | Promise<void>;
+  onActiveCtaPress: () => void;
   onCook?: (slot: MealPlanSlotResponse) => void;
   onRemove: (slot: MealPlanSlotResponse) => void;
 }
@@ -40,6 +41,7 @@ export function MealPlanView({
   progress,
   isApproving,
   onApprove,
+  onActiveCtaPress,
   onCook,
   onRemove,
 }: MealPlanViewProps) {
@@ -209,6 +211,7 @@ export function MealPlanView({
         mode={mode}
         loading={isApproving}
         onApprove={() => onApprove()}
+        onActivePress={onActiveCtaPress}
       />
     </View>
   );

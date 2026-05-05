@@ -87,7 +87,7 @@ export const planner = {
   },
   cta: {
     approve: "Hacer mi lista",
-    viewList: "Ver mi lista",
+    goToToday: "Ir a hoy",
   },
   error: {
     setupTitle: "Intentémoslo otra vez",
