@@ -42,6 +42,7 @@ import {
   type MealPlanAction,
   type MealPlannerErrorCode,
   type MealPlannerErrorResponse,
+  type MealPlanSlotResponse,
   type PreferencesResponse,
   type SkipMealResponse,
   type SwapAlternative,
@@ -491,6 +492,25 @@ function deriveMealTypeTags(
   return tags;
 }
 
+function coverageAfterPrimarySwap(
+  slot: MealPlanSlotResponse,
+  primaryComponentId: string,
+  replacementMealComponents: string[],
+): boolean {
+  const expected = slot.expectedMealComponents;
+  if (expected.length === 0) return true;
+
+  const achieved = new Set<string>();
+  for (const component of slot.components) {
+    const snapshot = component.id === primaryComponentId
+      ? replacementMealComponents
+      : component.mealComponentsSnapshot;
+    for (const mealComponent of snapshot) achieved.add(mealComponent);
+  }
+
+  return expected.every((mealComponent) => achieved.has(mealComponent));
+}
+
 function pickName(
   rows: Array<{ locale: string; name: string | null }> | null,
   locale: string,
@@ -793,6 +813,19 @@ async function applySwap(
   );
   if (rpcErr) {
     throw new Error(`Failed to apply swap: ${rpcErr.message}`);
+  }
+
+  const coverageComplete = coverageAfterPrimarySwap(
+    slot,
+    primary.id,
+    recipe.meal_components ?? [],
+  );
+  const { error: coverageErr } = await serviceClient
+    .from("meal_plan_slots")
+    .update({ coverage_complete: coverageComplete })
+    .eq("id", slot.id);
+  if (coverageErr) {
+    throw new Error(`Failed to update swap coverage: ${coverageErr.message}`);
   }
 
   // Rejection is best-effort and runs OUTSIDE the transaction. Schema

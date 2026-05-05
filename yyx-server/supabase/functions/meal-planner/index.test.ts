@@ -1327,6 +1327,82 @@ Deno.test("swap_meal apply path persists swap and records rejection", async () =
   assertEquals(rejections[0].reason_code, "user_swap");
 });
 
+Deno.test("swap_meal apply path recomputes coverage_complete after swap", async () => {
+  const REPLACEMENT_ID = "55555555-5555-5555-5555-555555555555";
+  const replacement = {
+    id: REPLACEMENT_ID,
+    planner_role: "main",
+    alternate_planner_roles: [],
+    meal_components: ["protein"],
+    total_time: 20,
+    difficulty: "easy",
+    portions: 4,
+    image_url: null,
+    equipment_tags: [],
+    verified_at: null,
+    is_published: true,
+    recipe_translations: [{ locale: "en", name: "Replacement Protein" }],
+    recipe_to_tag: [{
+      recipe_tags: {
+        categories: ["meal_type"],
+        recipe_tag_translations: [{ locale: "en", name: "dinner" }],
+      },
+    }],
+  };
+  const plan = seededPlanRow();
+  const slot = plan.meal_plan_slots[0] as Record<string, unknown> & {
+    meal_plan_slot_components: Record<string, unknown>[];
+  };
+  slot.structure_template = "main_plus_side";
+  slot.expected_meal_components = ["protein", "carb"];
+  slot.coverage_complete = false;
+  slot.meal_plan_slot_components = [
+    {
+      ...slot.meal_plan_slot_components[0],
+      meal_components_snapshot: ["veg"],
+    },
+    {
+      id: "comp-side-1",
+      component_role: "side",
+      source_kind: "recipe",
+      recipe_id: "recipe-side-carb",
+      source_component_id: null,
+      meal_components_snapshot: ["carb"],
+      pairing_basis: "paired",
+      display_order: 1,
+      is_primary: false,
+      title_snapshot: "Carb Side",
+      image_url_snapshot: null,
+      total_time_snapshot: 15,
+      difficulty_snapshot: "easy",
+      portions_snapshot: 4,
+      equipment_tags_snapshot: [],
+    },
+  ];
+  const { supabase, updates } = makeStatefulSupabase({
+    plan,
+    slot: seededSlotRef(),
+    recipeById: { [REPLACEMENT_ID]: replacement },
+  });
+  const req = createAuthenticatedRequest({
+    action: "swap_meal",
+    payload: {
+      mealPlanId: SEEDED_PLAN_ID,
+      mealPlanSlotId: SEEDED_SLOT_ID,
+      selectedRecipeId: REPLACEMENT_ID,
+    },
+  });
+  const response = await handleMealPlannerRequest(req, {
+    ...mockDependencies,
+    createUserClient: () => supabase as never,
+    createServiceClient: () => supabase as never,
+  });
+  assertEquals(response.status, 200);
+
+  const slotUpdates = updates["meal_plan_slots"] ?? [];
+  assertEquals(slotUpdates.some((row) => row.coverage_complete === true), true);
+});
+
 Deno.test("swap_meal apply path returns 500 and skips rejection insert when the RPC fails", async () => {
   // Regression: with the prior parallel-write design a partial failure could
   // persist a refreshed component snapshot while the slot/plan freshness
