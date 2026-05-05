@@ -12,6 +12,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { mealPlanService } from '@/services/mealPlanService';
+import { invalidateAllShoppingListCaches } from '@/services/cache/shoppingListCache';
 import i18n from '@/i18n';
 import {
   todayDayIndex,
@@ -222,7 +223,13 @@ export function useMealPlan(): UseMealPlanReturn {
       });
       return res.shoppingListId;
     },
-    onSuccess: () => invalidatePlan(),
+    onSuccess: async () => {
+      // The edge function inserts the new shopping list directly, so the
+      // frontend's lists-summary cache is stale. Clear it so the shopping
+      // tab picks up the freshly generated list on focus / pull-to-refresh.
+      await invalidateAllShoppingListCaches();
+      invalidatePlan();
+    },
   });
 
   const { mutateAsync: generatePlanAsync, isPending: isGenerating } = generateMutation;

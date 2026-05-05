@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, FlatList, TouchableOpacity, RefreshControl, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Text, Button } from '@/components/common';
@@ -22,9 +22,9 @@ export default function ShoppingListsScreen() {
     const [newListName, setNewListName] = useState('');
     const [isCreating, setIsCreating] = useState(false);
 
-    const fetchLists = useCallback(async () => {
+    const fetchLists = useCallback(async (forceRefresh = false) => {
         try {
-            const data = await shoppingListService.getShoppingLists();
+            const data = await shoppingListService.getShoppingLists(false, !forceRefresh);
             setLists(data);
         } catch (error) {
             console.error('Error fetching lists:', error);
@@ -38,6 +38,15 @@ export default function ShoppingListsScreen() {
     useEffect(() => {
         fetchLists();
     }, [fetchLists]);
+
+    // Refetch when the tab regains focus — covers "user generated a meal plan
+    // elsewhere, navigated back here" without waiting for pull-to-refresh.
+    // Cached read is fine because list-creation paths invalidate the cache.
+    useFocusEffect(
+        useCallback(() => {
+            fetchLists();
+        }, [fetchLists]),
+    );
 
     const openCreateModal = () => {
         setNewListName('');
@@ -69,7 +78,7 @@ export default function ShoppingListsScreen() {
 
     const handleRefresh = useCallback(() => {
         setRefreshing(true);
-        fetchLists();
+        fetchLists(true);
     }, [fetchLists]);
 
     return (
