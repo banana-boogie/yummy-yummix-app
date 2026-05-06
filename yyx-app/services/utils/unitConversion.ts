@@ -43,18 +43,18 @@ export function convertQuantity(
 }
 
 /**
- * Builds the consolidation key for an ingredient row.
- * - Free-text rows (no ingredient_id) never consolidate.
+ * Builds the consolidation key for a canonical ingredient row.
  * - Convertible units key by `(ingredient_id, dimension)` so all g/kg/oz/lb
  *   of the same ingredient collapse into one row.
  * - Discrete units (no base factor) key by `(ingredient_id, unit_id)`,
  *   matching pre-PR behavior — same unit merges, different units stay split.
+ * - Free-text rows should not call this helper; callers should insert them
+ *   as independent rows because there is no canonical ingredient identity.
  */
 export function consolidationKey(
-    ingredientId: string | null | undefined,
+    ingredientId: string,
     unit: ConvertibleUnit | undefined | null,
 ): string {
-    if (!ingredientId) return '__free_text__';
     if (isConvertible(unit)) return `${ingredientId}:dim:${unit.type}`;
     const unitId = unit?.id ?? 'null';
     return `${ingredientId}:unit:${unitId}`;

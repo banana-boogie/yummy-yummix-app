@@ -107,8 +107,8 @@ describe('consolidationKey', () => {
         expect(consolidationKey('flour', g)).not.toBe(consolidationKey('sugar', g));
     });
 
-    it('free-text rows never consolidate', () => {
-        expect(consolidationKey(null, g)).toBe('__free_text__');
-        expect(consolidationKey(undefined, kg)).toBe('__free_text__');
+    it('keys missing-unit canonical rows separately from discrete units', () => {
+        expect(consolidationKey('ingredient-uuid', undefined)).toBe('ingredient-uuid:unit:null');
+        expect(consolidationKey('ingredient-uuid', piece)).toBe('ingredient-uuid:unit:piece');
     });
 });
