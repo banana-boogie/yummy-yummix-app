@@ -132,7 +132,7 @@ function mockBuildHookReturn() {
     busyDays: [],
     activeDayIndexes: [0, 1, 2, 3, 4],
     defaultMaxWeeknightMinutes: 30,
-    preferLeftoversForLunch: false,
+    autoLeftovers: false,
     preferredEatTimes: {},
     setupCompletedAt: '2026-04-25T12:00:00Z',
   };
@@ -312,7 +312,7 @@ describe('MenuScreen mode toggle', () => {
       busyDays: [2],
       activeDayIndexes: [0, 1, 2, 3, 4],
       defaultMaxWeeknightMinutes: 30,
-      preferLeftoversForLunch: false,
+      autoLeftovers: false,
       preferredEatTimes: {},
       setupCompletedAt: '2026-04-25T12:00:00Z',
     };

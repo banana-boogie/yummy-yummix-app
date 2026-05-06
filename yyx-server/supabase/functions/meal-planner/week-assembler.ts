@@ -71,6 +71,7 @@ export interface WeekState {
       sourceSlotId: string; // in-memory ref; persistence resolves to DB UUID
       primaryRecipeId: string;
       primaryTitle: string;
+      sourceMealComponents: string[];
       portionsAvailable: number;
       transformRecipeIds: string[];
     }
@@ -111,6 +112,7 @@ function cloneState(state: WeekState): WeekState {
         slotId,
         {
           ...source,
+          sourceMealComponents: [...source.sourceMealComponents],
           transformRecipeIds: [...source.transformRecipeIds],
         },
       ]),
@@ -278,6 +280,9 @@ function registerLeftoverSource(
     sourceSlotId: slot.slotId,
     primaryRecipeId: primary.candidate.id,
     primaryTitle: primary.titleSnapshot,
+    sourceMealComponents: [
+      ...new Set(components.flatMap((c) => c.mealComponentsSnapshot)),
+    ],
     portionsAvailable: available,
     transformRecipeIds: leftoverTransformByRecipe.get(primary.candidate.id) ??
       [],
@@ -326,7 +331,12 @@ function expandRecipeCandidates(
 
   for (const entry of scored) {
     const successor = cloneState(state);
-    const components = buildBundle(slot, entry.candidate, pairings);
+    const components = buildBundle(
+      slot,
+      entry.candidate,
+      pairings,
+      state.assignedRecipeIds,
+    );
     const contribution = entry.detail.total;
     const adjustments = assemblyAdjustments(successor, slot, components);
     const reason = buildSelectionReason(
@@ -398,6 +408,7 @@ function expandLeftoverTargetSlot(
   for (const transformId of source.transformRecipeIds) {
     const transform = pairings.candidatesById.get(transformId);
     if (!transform) continue;
+    if (state.assignedRecipeIds.has(transform.id)) continue;
     if (transform.hasAllergenConflict) continue;
     if (transform.hasDislikeConflict) continue;
     const successor = cloneState(state);
@@ -447,12 +458,14 @@ function expandLeftoverTargetSlot(
     next.push(successor);
   }
 
-  // Always also consider a generic carry-forward leftover.
+  // Always also consider a generic carry-forward leftover. It has no recipe ID
+  // because it references already-cooked food, so recipe dedup does not apply.
   const successor = cloneState(state);
   const placeholder = buildLeftoverPlaceholder(
     slot,
     source.sourceSlotId,
     source.primaryTitle,
+    source.sourceMealComponents,
   );
   const contribution = leftoverResolutionScore(
     LEFTOVER_PLAN_QUALITY.genericCarryForward,

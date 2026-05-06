@@ -8,6 +8,7 @@ import type { MealSlot } from "./slot-classifier.ts";
 import type { UserContext } from "./scoring/types.ts";
 import type { PairingLookup } from "./bundle-builder.ts";
 import { renderSelectionReason } from "./selection-reason-templates.ts";
+import { ASSEMBLY_ADJUSTMENTS } from "./scoring-config.ts";
 
 function mkSlot(overrides: Partial<MealSlot> = {}): MealSlot {
   return {
@@ -418,6 +419,260 @@ Deno.test("assembleWeek: leftover_target fallback to fresh recipe with surplus c
   assertEquals(unfilled, undefined);
 });
 
+Deno.test("assembleWeek: leftover placeholder inherits source assembly's full meal_components", () => {
+  const sourceSlot = mkSlot({
+    slotId: "0-dinner",
+    dayIndex: 0,
+    plannedDate: "2026-04-13",
+    canonicalMealType: "dinner",
+    displayMealLabel: "dinner",
+    feedsFutureLeftoverTarget: true,
+    structureTemplate: "main_plus_two_components",
+    expectedMealComponents: ["protein", "carb", "veg"],
+  });
+  const leftoverSlot = mkSlot({
+    slotId: "1-dinner",
+    dayIndex: 1,
+    plannedDate: "2026-04-14",
+    slotKind: "leftover_target_slot",
+    sourceDependencySlotId: sourceSlot.slotId,
+    structureTemplate: "main_plus_two_components",
+    expectedMealComponents: ["protein", "carb", "veg"],
+  });
+
+  const primary = mkCandidate("source-primary", {
+    mealComponents: ["protein"],
+    leftoversFriendly: true,
+    portions: 6,
+  });
+  const pairedSide = mkCandidate("source-side", {
+    plannerRole: "side",
+    mealComponents: ["carb", "veg"],
+  });
+  const pairings: PairingLookup = {
+    byRole: new Map([[
+      primary.id,
+      new Map([[
+        "side",
+        [{
+          source_recipe_id: primary.id,
+          target_recipe_id: pairedSide.id,
+          pairing_role: "side",
+          reason: "balanced side",
+        }],
+      ]]),
+    ]]),
+    candidatesById: new Map([[pairedSide.id, pairedSide]]),
+  };
+
+  const result = assembleWeek({
+    slots: [sourceSlot, leftoverSlot],
+    planningOrder: [sourceSlot, leftoverSlot],
+    candidates: new Map([[sourceSlot.slotId, [primary]]]),
+    pairings,
+    user: mkUser({ householdSize: 2 }),
+    leftoverTransformByRecipe: new Map(),
+  });
+
+  const assignment = result.best.assignments.get(leftoverSlot.slotId);
+  const placeholder = assignment?.components.find((c) => c.isPrimary);
+  assertEquals(placeholder?.sourceKind, "leftover");
+  assertEquals(
+    [...(placeholder?.mealComponentsSnapshot ?? [])].sort(),
+    ["carb", "protein", "veg"],
+  );
+});
+
+Deno.test("assembleWeek: generic leftover carry-forward does not receive coverage-complete bonus", () => {
+  const sourceSlot = mkSlot({
+    slotId: "0-dinner",
+    dayIndex: 0,
+    plannedDate: "2026-04-13",
+    canonicalMealType: "dinner",
+    displayMealLabel: "dinner",
+    feedsFutureLeftoverTarget: true,
+    structureTemplate: "main_plus_two_components",
+    expectedMealComponents: ["protein", "carb", "veg"],
+  });
+  const leftoverSlot = mkSlot({
+    slotId: "1-dinner",
+    dayIndex: 1,
+    plannedDate: "2026-04-14",
+    slotKind: "leftover_target_slot",
+    sourceDependencySlotId: sourceSlot.slotId,
+    structureTemplate: "main_plus_two_components",
+    expectedMealComponents: ["protein", "carb", "veg"],
+  });
+
+  const primary = mkCandidate("source-primary", {
+    mealComponents: ["protein", "carb", "veg"],
+    isComplete: true,
+    leftoversFriendly: true,
+    portions: 6,
+  });
+
+  const result = assembleWeek({
+    slots: [sourceSlot, leftoverSlot],
+    planningOrder: [sourceSlot, leftoverSlot],
+    candidates: new Map([[sourceSlot.slotId, [primary]]]),
+    pairings: EMPTY_PAIRINGS,
+    user: mkUser({ householdSize: 2 }),
+    leftoverTransformByRecipe: new Map(),
+  });
+
+  assertEquals(
+    result.best.assemblyBonus,
+    ASSEMBLY_ADJUSTMENTS.coverageCompleteFull,
+  );
+});
+
+Deno.test("assembleWeek: leftover transform recipe is skipped when already assigned and falls back to generic carry-forward", () => {
+  const earlierSlot = mkSlot({
+    slotId: "0-lunch",
+    dayIndex: 0,
+    plannedDate: "2026-04-13",
+    canonicalMealType: "lunch",
+    displayMealLabel: "lunch",
+  });
+  const sourceSlot = mkSlot({
+    slotId: "0-dinner",
+    dayIndex: 0,
+    plannedDate: "2026-04-13",
+    canonicalMealType: "dinner",
+    displayMealLabel: "dinner",
+    feedsFutureLeftoverTarget: true,
+  });
+  const leftoverSlot = mkSlot({
+    slotId: "1-dinner",
+    dayIndex: 1,
+    plannedDate: "2026-04-14",
+    slotKind: "leftover_target_slot",
+    sourceDependencySlotId: sourceSlot.slotId,
+  });
+
+  const alreadyAssignedTransform = mkCandidate("transform-recipe");
+  const source = mkCandidate("source-recipe", {
+    leftoversFriendly: true,
+    portions: 6,
+  });
+  const pairings: PairingLookup = {
+    byRole: new Map(),
+    candidatesById: new Map([
+      [alreadyAssignedTransform.id, alreadyAssignedTransform],
+    ]),
+  };
+
+  const result = assembleWeek({
+    slots: [earlierSlot, sourceSlot, leftoverSlot],
+    planningOrder: [earlierSlot, sourceSlot, leftoverSlot],
+    candidates: new Map([
+      [earlierSlot.slotId, [alreadyAssignedTransform]],
+      [sourceSlot.slotId, [source]],
+    ]),
+    pairings,
+    user: mkUser({ householdSize: 2 }),
+    leftoverTransformByRecipe: new Map([[
+      source.id,
+      [alreadyAssignedTransform.id],
+    ]]),
+  });
+
+  const assignment = result.best.assignments.get(leftoverSlot.slotId);
+  const primary = assignment?.components.find((c) => c.isPrimary);
+  assertEquals(primary?.sourceKind, "leftover");
+  assertEquals(primary?.recipeId, null);
+  assertEquals(primary?.candidate, null);
+});
+
+Deno.test("assembleWeek: no recipe ID appears more than once across primaries, paired sides, or leftover transforms", () => {
+  const earlierSlot = mkSlot({
+    slotId: "0-lunch",
+    dayIndex: 0,
+    plannedDate: "2026-04-13",
+    canonicalMealType: "lunch",
+    displayMealLabel: "lunch",
+  });
+  const sourceSlot = mkSlot({
+    slotId: "0-dinner",
+    dayIndex: 0,
+    plannedDate: "2026-04-13",
+    canonicalMealType: "dinner",
+    displayMealLabel: "dinner",
+    feedsFutureLeftoverTarget: true,
+    structureTemplate: "main_plus_two_components",
+    expectedMealComponents: ["protein", "carb", "veg"],
+  });
+  const leftoverSlot = mkSlot({
+    slotId: "1-dinner",
+    dayIndex: 1,
+    plannedDate: "2026-04-14",
+    slotKind: "leftover_target_slot",
+    sourceDependencySlotId: sourceSlot.slotId,
+  });
+
+  const duplicate = mkCandidate("already-used", {
+    mealComponents: ["carb"],
+  });
+  const source = mkCandidate("source-main", {
+    mealComponents: ["protein"],
+    leftoversFriendly: true,
+    portions: 6,
+  });
+  const uniqueSide = mkCandidate("unique-side", {
+    plannerRole: "side",
+    mealComponents: ["veg"],
+  });
+  const pairings: PairingLookup = {
+    byRole: new Map([[
+      source.id,
+      new Map([[
+        "side",
+        [
+          {
+            source_recipe_id: source.id,
+            target_recipe_id: duplicate.id,
+            pairing_role: "side",
+            reason: "duplicate should be skipped",
+          },
+          {
+            source_recipe_id: source.id,
+            target_recipe_id: uniqueSide.id,
+            pairing_role: "side",
+            reason: "unique side",
+          },
+        ],
+      ]]),
+    ]]),
+    candidatesById: new Map([
+      [duplicate.id, duplicate],
+      [uniqueSide.id, uniqueSide],
+    ]),
+  };
+
+  const result = assembleWeek({
+    slots: [earlierSlot, sourceSlot, leftoverSlot],
+    planningOrder: [earlierSlot, sourceSlot, leftoverSlot],
+    candidates: new Map([
+      [earlierSlot.slotId, [duplicate]],
+      [sourceSlot.slotId, [source]],
+    ]),
+    pairings,
+    user: mkUser({ householdSize: 2 }),
+    leftoverTransformByRecipe: new Map([[source.id, [duplicate.id]]]),
+  });
+
+  const recipeIds = [...result.best.assignments.values()].flatMap((
+    assignment,
+  ) =>
+    assignment.components
+      .map((component) => component.recipeId)
+      .filter((id): id is string => id !== null)
+  );
+
+  assertEquals(recipeIds, [...new Set(recipeIds)]);
+  assertEquals(recipeIds.includes(uniqueSide.id), true);
+});
+
 Deno.test("assembleWeek: coverage-complete bonus prefers a complete-meal primary over a partial one", () => {
   // Two candidates for the same lunch slot. The complete one covers all of
   // protein/carb/veg by itself; the partial one covers only protein/carb.
@@ -457,10 +712,74 @@ Deno.test("assembleWeek: coverage-complete bonus prefers a complete-meal primary
   assertEquals(result.best.assemblyBonus >= 5, true);
 });
 
-Deno.test("assembleWeek: coverage-complete partial tier awards +2 (not +5) when 2 of 3 expected components are covered", () => {
+Deno.test("assembleWeek: coverage-complete bonus beats a modest base-score edge from an incomplete primary", () => {
+  const slot: MealSlot = mkSlot({
+    slotId: "0-dinner",
+    canonicalMealType: "dinner",
+    displayMealLabel: "dinner",
+    structureTemplate: "main_plus_two_components",
+    expectedMealComponents: ["protein", "carb", "veg"],
+  });
+
+  const incompleteButStrong = mkCandidate("incomplete-strong", {
+    mealComponents: ["protein"],
+    totalTimeMinutes: 30,
+    difficulty: "easy",
+    cookingLevel: "beginner",
+    verifiedAt: "2026-01-01T00:00:00Z",
+  });
+  const completeViaPairing = mkCandidate("complete-via-pairing", {
+    mealComponents: ["protein"],
+    totalTimeMinutes: 45,
+    difficulty: "medium",
+    cookingLevel: "intermediate",
+    verifiedAt: null,
+  });
+  const side = mkCandidate("balanced-side", {
+    plannerRole: "side",
+    mealComponents: ["carb", "veg"],
+  });
+  const pairings: PairingLookup = {
+    byRole: new Map([[
+      completeViaPairing.id,
+      new Map([[
+        "side",
+        [{
+          source_recipe_id: completeViaPairing.id,
+          target_recipe_id: side.id,
+          pairing_role: "side",
+          reason: "balances dinner",
+        }],
+      ]]),
+    ]]),
+    candidatesById: new Map([[side.id, side]]),
+  };
+
+  const result = assembleWeek({
+    slots: [slot],
+    planningOrder: [slot],
+    candidates: new Map([[slot.slotId, [
+      incompleteButStrong,
+      completeViaPairing,
+    ]]]),
+    pairings,
+    user: mkUser({ skillLevel: "beginner" }),
+    leftoverTransformByRecipe: new Map(),
+  });
+
+  const assignment = result.best.assignments.get(slot.slotId);
+  const primary = assignment?.components.find((c) => c.isPrimary);
+  assertEquals(primary?.recipeId, completeViaPairing.id);
+  assertEquals(
+    assignment?.components.map((c) => c.recipeId),
+    [completeViaPairing.id, side.id],
+  );
+});
+
+Deno.test("assembleWeek: coverage-complete partial tier awards +2 when 2 of 3 expected components are covered", () => {
   // Bundle covers protein + carb but not veg → 2 of 3 expected, partial
   // tier (>= half but not all) should fire with +2 — and notably NOT the
-  // full +5 bonus.
+  // full bonus.
   const slot: MealSlot = mkSlot({
     slotId: "0-lunch",
     canonicalMealType: "lunch",
@@ -483,7 +802,51 @@ Deno.test("assembleWeek: coverage-complete partial tier awards +2 (not +5) when 
     leftoverTransformByRecipe: new Map(),
   });
 
-  // Partial bonus should be exactly +2 — not the full +5.
+  // Partial bonus should be exactly +2 — not the full bonus.
+  assertEquals(result.best.assemblyBonus, 2);
+});
+
+Deno.test("assembleWeek: beverage pairing without food-group coverage does not trigger full coverage bonus", () => {
+  const slot: MealSlot = mkSlot({
+    slotId: "0-dinner",
+    canonicalMealType: "dinner",
+    displayMealLabel: "dinner",
+    structureTemplate: "main_plus_two_components",
+    expectedMealComponents: ["protein", "carb", "veg"],
+  });
+
+  const primary = mkCandidate("protein-carb-main", {
+    mealComponents: ["protein", "carb"],
+  });
+  const beverage = mkCandidate("agua-fresca", {
+    plannerRole: "beverage",
+    mealComponents: [],
+  });
+  const pairings: PairingLookup = {
+    byRole: new Map([[
+      primary.id,
+      new Map([[
+        "beverage",
+        [{
+          source_recipe_id: primary.id,
+          target_recipe_id: beverage.id,
+          pairing_role: "beverage",
+          reason: "drink pairing",
+        }],
+      ]]),
+    ]]),
+    candidatesById: new Map([[beverage.id, beverage]]),
+  };
+
+  const result = assembleWeek({
+    slots: [slot],
+    planningOrder: [slot],
+    candidates: new Map([[slot.slotId, [primary]]]),
+    pairings,
+    user: mkUser(),
+    leftoverTransformByRecipe: new Map(),
+  });
+
   assertEquals(result.best.assemblyBonus, 2);
 });
 

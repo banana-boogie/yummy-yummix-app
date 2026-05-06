@@ -114,7 +114,7 @@ export interface GeneratePlanPayload {
   dayIndexes: number[];
   mealTypes: string[];
   busyDays?: number[];
-  preferLeftoversForLunch?: boolean;
+  autoLeftovers?: boolean;
   replaceExisting?: boolean;
 }
 
@@ -147,7 +147,7 @@ export interface UpdatePreferencesPayload {
   mealTypes?: string[];
   busyDays?: number[];
   defaultMaxWeeknightMinutes?: number;
-  preferLeftoversForLunch?: boolean;
+  autoLeftovers?: boolean;
   preferredEatTimes?: Record<string, unknown>;
 }
 
@@ -247,7 +247,7 @@ export interface PreferencesResponse {
   busyDays: number[];
   activeDayIndexes: number[];
   defaultMaxWeeknightMinutes: number;
-  preferLeftoversForLunch: boolean;
+  autoLeftovers: boolean;
   preferredEatTimes: Record<string, unknown>;
   // ISO timestamp set on first successful update_preferences. Null until the
   // user completes the setup flow; the menu screen reads this as the
@@ -304,6 +304,6 @@ export interface GeneratePlanOptions {
   dayIndexes?: number[];
   mealTypes?: string[];
   busyDays?: number[];
-  preferLeftoversForLunch?: boolean;
+  autoLeftovers?: boolean;
   replaceExisting?: boolean;
 }

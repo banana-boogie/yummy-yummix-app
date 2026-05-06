@@ -137,7 +137,7 @@ export default function MenuScreen() {
         dayIndexes: preferences?.activeDayIndexes,
         mealTypes: preferences?.mealTypes,
         busyDays: preferences?.busyDays,
-        preferLeftoversForLunch: preferences?.preferLeftoversForLunch,
+        autoLeftovers: preferences?.autoLeftovers,
       });
     } catch (err) {
       Alert.alert(

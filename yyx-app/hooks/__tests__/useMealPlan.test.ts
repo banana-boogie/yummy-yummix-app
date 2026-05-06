@@ -10,6 +10,7 @@ import {
 } from '@/test/mocks/supabase';
 import type {
   GetCurrentPlanResponse,
+  GeneratePlanResponse,
   GetPreferencesResponse,
   MealPlanResponse,
   UpdatePreferencesResponse,
@@ -118,7 +119,7 @@ describe('useMealPlan', () => {
         busyDays: [],
         activeDayIndexes: [0, 1, 2, 3, 4],
         defaultMaxWeeknightMinutes: 30,
-        preferLeftoversForLunch: false,
+        autoLeftovers: false,
         preferredEatTimes: {},
         setupCompletedAt: null,
       },
@@ -160,7 +161,7 @@ describe('useMealPlan', () => {
         busyDays: [4],
         activeDayIndexes: [0, 1, 2, 3, 4],
         defaultMaxWeeknightMinutes: 30,
-        preferLeftoversForLunch: false,
+        autoLeftovers: false,
         preferredEatTimes: {},
         setupCompletedAt: null,
       },
@@ -190,6 +191,70 @@ describe('useMealPlan', () => {
     );
     expect(keys).toContain(JSON.stringify(['mealPlan', 'preferences']));
     expect(keys).toContain(JSON.stringify(['mealPlan', 'active']));
+  });
+
+  it('sends autoLeftovers in the generate_plan payload', async () => {
+    const plan = buildPlan();
+    const generateResponse: GeneratePlanResponse = {
+      plan,
+      isPartial: false,
+      missingSlots: [],
+      warnings: [],
+    };
+    const prefsResponse: GetPreferencesResponse = {
+      preferences: {
+        mealTypes: ['dinner'],
+        busyDays: [],
+        activeDayIndexes: [0, 1, 2, 3, 4],
+        defaultMaxWeeknightMinutes: 30,
+        autoLeftovers: true,
+        preferredEatTimes: {},
+        setupCompletedAt: null,
+      },
+      warnings: [],
+    };
+
+    const mockClient = getMockSupabaseClient();
+    mockClient.functions.invoke.mockImplementation(
+      (_name: string, opts: { body: { action: string } }) => {
+        const action = opts.body.action;
+        if (action === 'get_current_plan') {
+          return Promise.resolve({ data: { plan, warnings: [] }, error: null });
+        }
+        if (action === 'get_preferences') {
+          return Promise.resolve({ data: prefsResponse, error: null });
+        }
+        if (action === 'generate_plan') {
+          return Promise.resolve({ data: generateResponse, error: null });
+        }
+        return Promise.resolve({ data: null, error: null });
+      },
+    );
+
+    const { result } = renderHook(() => useMealPlan(), { wrapper: wrapper() });
+
+    await act(async () => {
+      await result.current.generatePlan({
+        dayIndexes: [0, 1],
+        mealTypes: ['lunch', 'dinner'],
+        busyDays: [1],
+        autoLeftovers: false,
+      });
+    });
+
+    expect(mockClient.functions.invoke).toHaveBeenCalledWith('meal-planner', {
+      body: {
+        action: 'generate_plan',
+        payload: {
+          weekStart: expect.any(String),
+          dayIndexes: [0, 1],
+          mealTypes: ['lunch', 'dinner'],
+          busyDays: [1],
+          autoLeftovers: false,
+          replaceExisting: undefined,
+        },
+      },
+    });
   });
 
   it('filters out slots whose plannedDate does not match today (stale-plan guard)', async () => {
@@ -252,7 +317,7 @@ describe('useMealPlan', () => {
         busyDays: [],
         activeDayIndexes: [0, 1, 2, 3, 4],
         defaultMaxWeeknightMinutes: 30,
-        preferLeftoversForLunch: false,
+        autoLeftovers: false,
         preferredEatTimes: {},
         setupCompletedAt: null,
       },
@@ -294,7 +359,7 @@ describe('useMealPlan', () => {
         busyDays: [],
         activeDayIndexes: [0, 1, 2, 3, 4],
         defaultMaxWeeknightMinutes: 30,
-        preferLeftoversForLunch: false,
+        autoLeftovers: false,
         preferredEatTimes: {},
         setupCompletedAt: null,
       },
@@ -364,7 +429,7 @@ describe('useMealPlan', () => {
         busyDays: [],
         activeDayIndexes: [0, 1, 2, 3, 4],
         defaultMaxWeeknightMinutes: 30,
-        preferLeftoversForLunch: false,
+        autoLeftovers: false,
         preferredEatTimes: {},
         setupCompletedAt: null,
       },
@@ -406,7 +471,7 @@ describe('useMealPlan', () => {
         busyDays: [],
         activeDayIndexes: [0, 1, 2, 3, 4],
         defaultMaxWeeknightMinutes: 30,
-        preferLeftoversForLunch: false,
+        autoLeftovers: false,
         preferredEatTimes: {},
         setupCompletedAt: null,
       },
