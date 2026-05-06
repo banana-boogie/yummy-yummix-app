@@ -180,7 +180,10 @@ export async function executeGenerateShoppingList(
         .filter((id): id is string => id != null),
     ),
   );
-  const unitById = new Map<string, { id: string; type: string; baseFactor?: number }>();
+  const unitById = new Map<
+    string,
+    { id: string; type: string; baseFactor?: number }
+  >();
   if (referencedUnitIds.length > 0) {
     const { data: unitRows, error: unitErr } = await supabase
       .from("measurement_units")
@@ -188,9 +191,11 @@ export async function executeGenerateShoppingList(
       .in("id", referencedUnitIds);
     if (unitErr) throw new Error(`Load units failed: ${unitErr.message}`);
     for (const row of (unitRows ?? []) as UnitRow[]) {
-      const factor = row.base_factor == null ? undefined :
-        typeof row.base_factor === "number" ? row.base_factor :
-        Number.parseFloat(row.base_factor);
+      const factor = row.base_factor == null
+        ? undefined
+        : typeof row.base_factor === "number"
+        ? row.base_factor
+        : Number.parseFloat(row.base_factor);
       unitById.set(row.id, {
         id: row.id,
         type: row.type,
@@ -198,7 +203,8 @@ export async function executeGenerateShoppingList(
       });
     }
   }
-  const unitOf = (unitId: string | null) => unitId ? unitById.get(unitId) : undefined;
+  const unitOf = (unitId: string | null) =>
+    unitId ? unitById.get(unitId) : undefined;
   const isUnitConvertible = (u: ReturnType<typeof unitOf>) =>
     !!u && typeof u.baseFactor === "number" && Number.isFinite(u.baseFactor);
   const consolidationKey = (ingredientId: string, unitId: string | null) => {
@@ -229,9 +235,11 @@ export async function executeGenerateShoppingList(
         const existingUnit = unitOf(existing.measurementUnitId);
         if (
           isUnitConvertible(incomingUnit) && isUnitConvertible(existingUnit) &&
-          incomingUnit!.id !== existingUnit!.id && existingUnit!.baseFactor! !== 0
+          incomingUnit!.id !== existingUnit!.id &&
+          existingUnit!.baseFactor! !== 0
         ) {
-          qtyToAdd = (qty * incomingUnit!.baseFactor!) / existingUnit!.baseFactor!;
+          qtyToAdd = (qty * incomingUnit!.baseFactor!) /
+            existingUnit!.baseFactor!;
         }
         existing.quantity += qtyToAdd;
       } else {
