@@ -14,6 +14,12 @@ describe('formatQuantity', () => {
         expect(formatQuantity(2.04)).toBe('2');
     });
 
+    it('does not round small positive quantities down to zero', () => {
+        expect(formatQuantity(0.03)).toBe('0.03');
+        expect(formatQuantity(0.04)).toBe('0.04');
+        expect(formatQuantity(-0.03)).toBe('-0.03');
+    });
+
     it('snaps to 1/2', () => {
         expect(formatQuantity(0.5)).toBe('1/2');
         expect(formatQuantity(1.5)).toBe('1 1/2');

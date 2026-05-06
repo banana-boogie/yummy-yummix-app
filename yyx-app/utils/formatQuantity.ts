@@ -41,8 +41,9 @@ export function formatQuantity(qty: number, opts: FormatOpts = {}): string {
     const whole = Math.floor(qty);
     const fraction = qty - whole;
 
-    // Whole number — no fraction part.
-    if (fraction < tolerance) {
+    // Whole number — no fraction part. For values below 1, avoid displaying
+    // a real positive quantity as "0" just because it is inside tolerance.
+    if (fraction < tolerance && whole > 0) {
         return String(whole);
     }
 
