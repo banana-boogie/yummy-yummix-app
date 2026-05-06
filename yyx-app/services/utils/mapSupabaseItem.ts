@@ -67,15 +67,36 @@ export function mapIngredient(
     // items) over the canonical translation. Otherwise an edit to a canonical
     // ingredient's name reverts on refetch.
     const overrideName = fallbackName && fallbackName.trim().length > 0 ? fallbackName : undefined;
+    const rawName = overrideName ?? t?.name ?? '';
     return {
-        name: overrideName ?? t?.name ?? '',
-        pluralName: t?.plural_name ?? undefined,
+        name: toDisplayName(rawName),
+        pluralName: t?.plural_name ? toDisplayName(t.plural_name) : undefined,
         pictureUrl: ingredient?.image_url,
     };
 }
 
 export function getLocalizedCategoryName(category: ShoppingCategory): string {
     return i18n.locale === 'es' ? category.nameEs : category.nameEn;
+}
+
+/**
+ * Display-layer normalization for ingredient names.
+ *
+ * The DB convention is sentence case ("Olive oil") but admin/import data
+ * occasionally lands lowercase. This is a defensive shim — we don't want
+ * the UI to look broken just because one row is "olive oil" while every
+ * other row is "Olive oil".
+ *
+ * Behavior: if the first character is lowercase, capitalize it. Otherwise
+ * leave the string untouched — preserves "Granny Smith apple" and proper
+ * nouns. Doesn't try to handle ALL CAPS (rare; not the reported issue).
+ */
+export function toDisplayName(name: string | undefined | null): string {
+    if (!name) return '';
+    const first = name.charAt(0);
+    const upper = first.toUpperCase();
+    if (first === upper) return name;
+    return upper + name.slice(1);
 }
 
 export function mapMeasurementUnit(
