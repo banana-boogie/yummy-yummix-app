@@ -51,7 +51,6 @@ export default function MenuScreen() {
     swapSlot,
     applySwap,
     generateShoppingList,
-    planProgress,
     todaysSlots,
     hasCachedPlan,
     refetch,
@@ -353,7 +352,6 @@ export default function MenuScreen() {
         <MealPlanView
           plan={activePlan}
           todayDayIndex={todayDayIndex()}
-          progress={planProgress}
           isApproving={approving}
           onApprove={handleApprove}
           onActiveCtaPress={handleBackToToday}
