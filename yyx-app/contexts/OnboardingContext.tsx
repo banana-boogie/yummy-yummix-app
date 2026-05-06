@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState, useEffect } from 'react';
 import { OnboardingData } from '@/types/onboarding';
 import { Storage } from '@/utils/storage';
 import logger from '@/services/logger';
@@ -23,17 +23,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const [formData, setFormData] = useState<OnboardingData>({} as OnboardingData);
   const totalSteps = 7; // Updated from 6 to include Cuisine step
 
-  // Load saved state on mount
-  useEffect(() => {
-    loadSavedState();
-  }, []);
-
-  // Save state changes
-  useEffect(() => {
-    saveState();
-  }, [currentStep, formData]);
-
-  const loadSavedState = async () => {
+  const loadSavedState = useCallback(async () => {
     try {
       const savedState = await Storage.getItem(ONBOARDING_STORAGE_KEY);
       if (savedState) {
@@ -44,9 +34,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     } catch (error) {
       logger.error('Failed to load onboarding state:', error);
     }
-  };
+  }, []);
 
-  const saveState = async () => {
+  const saveState = useCallback(async () => {
     try {
       await Storage.setItem(
         ONBOARDING_STORAGE_KEY,
@@ -58,13 +48,23 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     } catch (error) {
       logger.error('Failed to save onboarding state:', error);
     }
-  };
+  }, [currentStep, formData]);
 
-  const updateFormData = (newData: Partial<OnboardingData>) => {
+  // Load saved state on mount
+  useEffect(() => {
+    loadSavedState();
+  }, [loadSavedState]);
+
+  // Save state changes
+  useEffect(() => {
+    saveState();
+  }, [saveState]);
+
+  const updateFormData = useCallback((newData: Partial<OnboardingData>) => {
     setFormData(prev => ({ ...prev, ...newData }));
-  };
+  }, []);
 
-  const resetOnboarding = async () => {
+  const resetOnboarding = useCallback(async () => {
     setCurrentStep(0);
     setFormData({} as OnboardingData);
     try {
@@ -72,29 +72,38 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     } catch (error) {
       logger.error('Failed to reset onboarding state:', error);
     }
-  };
+  }, []);
 
-  const goToNextStep = () => {
+  const goToNextStep = useCallback(() => {
     setCurrentStep((prev) => Math.min(totalSteps - 1, prev + 1));
-  };
+  }, [totalSteps]);
 
-  const goToPreviousStep = () => {
+  const goToPreviousStep = useCallback(() => {
     setCurrentStep((prev) => Math.max(0, prev - 1));
-  };
+  }, []);
+
+  const value = useMemo<OnboardingContextType>(() => ({
+    currentStep,
+    formData,
+    setCurrentStep,
+    updateFormData,
+    totalSteps,
+    resetOnboarding,
+    goToNextStep,
+    goToPreviousStep
+  }), [
+    currentStep,
+    formData,
+    setCurrentStep,
+    updateFormData,
+    totalSteps,
+    resetOnboarding,
+    goToNextStep,
+    goToPreviousStep
+  ]);
 
   return (
-    <OnboardingContext.Provider 
-      value={{ 
-        currentStep, 
-        formData, 
-        setCurrentStep, 
-        updateFormData,
-        totalSteps,
-        resetOnboarding,
-        goToNextStep,
-        goToPreviousStep
-      }}
-    >
+    <OnboardingContext.Provider value={value}>
       {children}
     </OnboardingContext.Provider>
   );
@@ -106,4 +115,4 @@ export function useOnboarding() {
     throw new Error('useOnboarding must be used within an OnboardingProvider');
   }
   return context;
-} 
+}

@@ -28,6 +28,7 @@ import {
 } from "./plan-loader.ts";
 import { buildLocaleChain, pickTranslation } from "../_shared/locale-utils.ts";
 import { renderSelectionReason } from "./selection-reason-templates.ts";
+import { executeGenerateShoppingList } from "./generate-shopping-list.ts";
 
 import {
   type ApprovePlanResponse,
@@ -1037,19 +1038,31 @@ async function handleApprovePlan(
   return jsonResponse(response);
 }
 
-function handleGenerateShoppingList(
-  _payload: Record<string, unknown>,
-  _userId: string,
-  _supabase: UserClient,
-): Response {
-  // Track B (shopping list integration) is not on this branch. Return 501
-  // so the UI cannot accidentally treat a stubbed null `shoppingListId` as
-  // success. When Track B lands, replace this with the real implementation.
-  return errorResponse(
-    "NOT_IMPLEMENTED",
-    "generate_shopping_list is not yet implemented (Track B pending)",
-    501,
+async function handleGenerateShoppingList(
+  payload: Record<string, unknown>,
+  userId: string,
+  supabase: UserClient,
+): Promise<Response> {
+  let mealPlanId: string;
+  const defaultListName = typeof payload.defaultListName === "string"
+    ? payload.defaultListName
+    : undefined;
+  try {
+    mealPlanId = requireString(payload, "mealPlanId");
+  } catch (error) {
+    return errorResponse("INVALID_INPUT", (error as Error).message);
+  }
+
+  const { response, status } = await executeGenerateShoppingList(
+    supabase,
+    userId,
+    mealPlanId,
+    defaultListName,
   );
+  if (status === 404) {
+    return errorResponse("PLAN_NOT_FOUND", "Meal plan not found", 404);
+  }
+  return jsonResponse(response, status);
 }
 
 async function handleGetPreferences(

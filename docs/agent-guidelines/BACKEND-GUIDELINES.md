@@ -60,6 +60,7 @@ yyx-server/supabase/functions/
 ├── get-nutritional-facts/            # USDA API integration
 ├── admin-ai-recipe-import/           # Admin AI-powered recipe import
 ├── translate-content/                # Admin auto-translate: translates entity fields between locales via AI Gateway
+├── meal-planner/                     # Meal plan orchestration, mutations, approval, and shopping-list generation
 ├── backfill-embeddings/              # Vector embedding generation
 └── send-delete-account-feedback/     # Account deletion handler
 ```
@@ -230,6 +231,22 @@ Body: { fields, sourceLocale, targetLocales }
 | `REGIONAL_ADAPTATION_HINTS` | Vocabulary swap instructions keyed by `"sourceLocale>targetLocale"` (e.g. `"es>es-ES"`) |
 | `validateRequest(body)` | Validates and types the raw request body; throws a message-only `Error` on invalid input (caught as 400) |
 | `buildResponseSchema(fieldKeys)` | Builds a strict JSON schema for the AI response matching the input field names |
+
+---
+
+### meal-planner Edge Function
+
+`meal-planner` is a single authenticated action endpoint. It uses `validateAuth()`, `createUserClient()`, and an action discriminator from `meal-planner/types.ts`.
+
+Current action families:
+- Plan reads/generation: `get_current_plan`, `generate_plan`
+- Plan mutations: `swap_meal`, `skip_meal`, `mark_meal_cooked`, `approve_plan`
+- Shopping integration: `generate_shopping_list`, `link_shopping_list`
+- Preferences: `get_preferences`, `update_preferences`
+
+`generate_shopping_list` lives in `meal-planner/generate-shopping-list.ts`. It expands active planned/cooked slot components into `recipe_ingredients`, consolidates by `ingredient_id + measurement_unit_id`, uses `ingredients.default_category_id` for shopping categories, deletes only prior plan-sourced items, preserves manual list items, and flips plan/slot `shopping_sync_state` to `current`.
+
+When changing this action, keep the Deno tests in `meal-planner/generate-shopping-list.test.ts` current and verify both the direct generator and router contract.
 
 ---
 

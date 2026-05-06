@@ -225,6 +225,7 @@ export interface MarkMealCookedPayload {
 
 export interface GenerateShoppingListPayload {
   mealPlanId: string;
+  defaultListName?: string;
 }
 
 export interface UpdatePreferencesPayload {

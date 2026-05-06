@@ -27,6 +27,7 @@ Custom PostgreSQL functions available via Supabase RPC.
 | `get_cooked_recipes(p_language, p_query, p_after, p_before, p_limit)` | Retrieve user's cooked recipe history with optional search and date range | Cooked recipes tool |
 | `match_recipe_embeddings(query_embedding, match_threshold, match_count)` | Vector similarity search for published recipes | Hybrid recipe search tool |
 | `admin_set_membership_tier(target_user_id, new_tier)` | Change a user's membership tier (free/premium) | Admin dashboard, SQL Editor |
+| `regenerate_plan_shopping_list_items(p_plan_id, p_list_id, p_items)` | Atomically replace plan-sourced shopping-list rows | meal-planner edge function (`generate_shopping_list` action) |
 
 ## Function Details
 
@@ -166,6 +167,38 @@ await supabase.rpc('admin_set_membership_tier', {
 - When `auth.uid()` is null (Dashboard SQL Editor), allows through — Dashboard access is already protected by project credentials
 - Validates tier against `ai_membership_tiers` table
 - Granted to `authenticated` role (admin check is inside the function)
+
+---
+
+### `regenerate_plan_shopping_list_items(p_plan_id, p_list_id, p_items)`
+
+Atomically replace all plan-sourced rows on a shopping list while preserving manually-added rows. Used by the meal-planner edge function's `generate_shopping_list` action; the consolidator builds the row list, this RPC commits it.
+
+**Parameters:**
+- `p_plan_id` (uuid): The meal plan being synced.
+- `p_list_id` (uuid): The shopping list to write into.
+- `p_items` (jsonb): Array of consolidated items. Each entry: `{ ingredient_id, name_custom, category_id, quantity, unit_id, display_order, source_meal_plan_slot_id, source_meal_plan_slot_component_id }`.
+
+**Returns:** void
+
+**Behavior:**
+- DELETE phase: removes only rows where `source_meal_plan_slot_id IS NOT NULL`. Manual additions (null source) are preserved.
+- INSERT phase: bulk-inserts the new rows from `jsonb_to_recordset`. Each row carries its source slot/component IDs so future regenerations know what's plan-sourced.
+- Sync state: flips `meal_plans.shopping_sync_state` and `meal_plan_slots.shopping_sync_state` to `'current'`.
+- Atomicity: PL/pgSQL function default — if INSERT fails, DELETE rolls back. The list cannot end up half-empty.
+
+**Security:** `SECURITY INVOKER`. RLS still applies; caller must own the plan.
+
+**Example (called from edge function):**
+```typescript
+const { error } = await supabase.rpc('regenerate_plan_shopping_list_items', {
+  p_plan_id: mealPlanId,
+  p_list_id: shoppingListId,
+  p_items: rows, // see consolidation in generate-shopping-list.ts
+});
+```
+
+**Migration:** `20260427000001_atomic_regenerate_shopping_list.sql`
 
 ---
 

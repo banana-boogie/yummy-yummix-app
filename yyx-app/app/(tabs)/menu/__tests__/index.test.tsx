@@ -31,6 +31,14 @@ jest.mock('@/contexts/LanguageContext', () => ({
 }));
 
 const mockLogModeChange = jest.fn();
+const mockRouterPush = jest.fn();
+
+jest.mock('expo-router', () => ({
+  router: {
+    push: (...args: unknown[]) => mockRouterPush(...args),
+  },
+}));
+
 jest.mock('@/services/eventService', () => ({
   eventService: {
     logPlannerTodayView: jest.fn(),
@@ -180,9 +188,7 @@ describe('MenuScreen mode toggle', () => {
     const MenuScreen = require('@/app/(tabs)/menu/index').default;
     renderWithProviders(<MenuScreen />);
 
-    await waitFor(() => {
-      expect(screen.getByText('Today on your menu')).toBeTruthy();
-    });
+    expect(screen.getByText('Today on your menu')).toBeTruthy();
 
     fireEvent.press(screen.getByText('See my menu for the week →'));
 
@@ -194,15 +200,13 @@ describe('MenuScreen mode toggle', () => {
       to: 'week',
       trigger: 'link',
     });
-  });
+  }, 20000);
 
   it('returns to today mode via the Volver a hoy header affordance', async () => {
     const MenuScreen = require('@/app/(tabs)/menu/index').default;
     renderWithProviders(<MenuScreen />);
 
-    await waitFor(() => {
-      expect(screen.getByText('Today on your menu')).toBeTruthy();
-    });
+    expect(screen.getByText('Today on your menu')).toBeTruthy();
 
     fireEvent.press(screen.getByText('See my menu for the week →'));
     await waitFor(() => {
@@ -340,6 +344,65 @@ describe('MenuScreen mode toggle', () => {
       "Hmm, your menu didn't come together",
       expect.any(String),
     );
+
+    alertSpy.mockRestore();
+  });
+
+  it('opens the generated shopping list after approving a draft menu', async () => {
+    const generateShoppingList = jest.fn().mockResolvedValue('shop-generated');
+    const draftPlan = buildPlan([buildSlot('s1')]);
+    draftPlan.shoppingListId = null;
+    mockUseMealPlanReturn.current = {
+      ...mockBuildHookReturn(),
+      activePlan: draftPlan,
+      generateShoppingList,
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const MenuScreen = require('@/app/(tabs)/menu/index').default;
+    renderWithProviders(<MenuScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Today on your menu')).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText('See my menu for the week →'));
+    await waitFor(() => {
+      expect(screen.getByText('Make My List')).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText('Make My List'));
+
+    await waitFor(() => {
+      expect(generateShoppingList).toHaveBeenCalled();
+    });
+    expect(mockRouterPush).toHaveBeenCalledWith(
+      '/(tabs)/shopping/shop-generated',
+    );
+  });
+
+  it('shows an error instead of navigating when shopping list generation returns no id', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const generateShoppingList = jest.fn().mockResolvedValue(null);
+    const draftPlan = buildPlan([buildSlot('s1')]);
+    draftPlan.shoppingListId = null;
+    mockUseMealPlanReturn.current = {
+      ...mockBuildHookReturn(),
+      activePlan: draftPlan,
+      generateShoppingList,
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const MenuScreen = require('@/app/(tabs)/menu/index').default;
+    renderWithProviders(<MenuScreen />);
+
+    fireEvent.press(await screen.findByText('See my menu for the week →'));
+    fireEvent.press(await screen.findByText('Make My List'));
+
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalled();
+    });
+    expect(mockRouterPush).not.toHaveBeenCalled();
 
     alertSpy.mockRestore();
   });

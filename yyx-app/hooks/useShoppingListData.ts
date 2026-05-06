@@ -1,0 +1,531 @@
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { LayoutAnimation } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Crypto from 'expo-crypto';
+import { shoppingListService } from '@/services/shoppingListService';
+import {
+    ShoppingListWithItems,
+    ShoppingCategory,
+    ShoppingListItem,
+    ShoppingListItemCreate,
+    ShoppingCategoryWithItems,
+} from '@/types/shopping-list.types';
+import { useToast } from './useToast';
+import { useUndoableDelete } from './useUndoableDelete';
+import { useOfflineSync } from './useOfflineSync';
+import i18n from '@/i18n';
+import { getLocalizedCategoryName } from '@/services/utils/mapSupabaseItem';
+import type { MeasurementUnit } from '@/types/recipe.types';
+
+interface UseShoppingListDataOptions {
+    listId: string | undefined;
+}
+
+interface EditItemUpdates {
+    nameCustom?: string;
+    quantity?: number;
+    unitId?: string | null;
+    categoryId?: string;
+    notes?: string;
+}
+
+interface UseShoppingListDataReturn {
+    // Data
+    list: ShoppingListWithItems | null;
+    categories: ShoppingCategory[];
+    loading: boolean;
+    filteredCategories: ShoppingCategoryWithItems[];
+
+    // Search
+    searchQuery: string;
+    setSearchQuery: (query: string) => void;
+
+    // Category collapse
+    collapsedCategories: Set<string>;
+    toggleCategoryCollapse: (categoryId: string) => void;
+
+    // Progress
+    progressPercentage: number;
+
+    // Actions
+    fetchList: (forceRefresh?: boolean) => Promise<void>;
+    handleCheckItem: (itemId: string, isChecked: boolean) => Promise<void>;
+    handleDeleteItem: (itemId: string) => void;
+    handleAddItem: (itemData: Omit<ShoppingListItemCreate, 'shoppingListId'>) => Promise<void>;
+    handleEditItem: (itemId: string, updates: EditItemUpdates) => Promise<void>;
+
+    // For optimistic updates from parent
+    setList: React.Dispatch<React.SetStateAction<ShoppingListWithItems | null>>;
+
+    // Offline
+    isOffline: boolean;
+    isSyncing: boolean;
+    pendingCount: number;
+    queueMutation: ReturnType<typeof useOfflineSync>['queueMutation'];
+}
+
+/**
+ * Hook for managing shopping list data, fetching, and item operations.
+ */
+export function useShoppingListData({ listId }: UseShoppingListDataOptions): UseShoppingListDataReturn {
+    const { showError } = useToast();
+    const [list, setList] = useState<ShoppingListWithItems | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [categories, setCategories] = useState<ShoppingCategory[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+
+    // Ref to track list for rollback without causing re-renders
+    const listRef = useRef<ShoppingListWithItems | null>(null);
+    const latestListIdRef = useRef(listId);
+    latestListIdRef.current = listId;
+    useEffect(() => {
+        listRef.current = list;
+    }, [list]);
+
+    // Forward declare fetchList for use in onSyncComplete
+    const fetchListRef = useRef<((forceRefresh?: boolean) => Promise<void>) | undefined>(undefined);
+    const fetchRequestIdRef = useRef(0);
+
+    const handleSyncComplete = useCallback(() => {
+        void fetchListRef.current?.(true);
+    }, []);
+
+    // Offline sync hook
+    const { isOffline, isSyncing, pendingCount, queueMutation } = useOfflineSync({
+        onSyncComplete: handleSyncComplete,
+    });
+
+    // Undoable delete hook
+    const { queueDeletion } = useUndoableDelete<ShoppingListItem>(
+        (item) => item.id,
+        {
+            duration: 5000,
+            onRestore: (item) => {
+                setList(current => {
+                    if (!current) return null;
+                    const updatedCategories = current.categories.map(cat => {
+                        if (cat.id === item.categoryId) {
+                            const newItems = [...cat.items, item].sort((a, b) =>
+                                a.name.localeCompare(b.name)
+                            );
+                            return { ...cat, items: newItems };
+                        }
+                        return cat;
+                    });
+                    const categoryExists = updatedCategories.some(cat => cat.id === item.categoryId);
+                    if (!categoryExists) {
+                        const category = categories.find(c => c.id === item.categoryId);
+                        if (category) {
+                            updatedCategories.push({
+                                ...category,
+                                localizedName: getLocalizedCategoryName(category),
+                                items: [item],
+                            });
+                        }
+                    }
+                    return {
+                        ...current,
+                        categories: updatedCategories,
+                        itemCount: current.itemCount + 1,
+                        checkedCount: item.isChecked ? current.checkedCount + 1 : current.checkedCount,
+                    };
+                });
+            },
+            onError: () => {
+                showError(i18n.t('common.errors.title'), i18n.t('common.errors.default'));
+                void fetchListRef.current?.(true);
+            },
+        }
+    );
+
+    // Load collapsed categories from storage
+    useEffect(() => {
+        if (listId) {
+            AsyncStorage.getItem(`collapsed_categories_${listId}`).then(data => {
+                if (data) {
+                    setCollapsedCategories(new Set(JSON.parse(data)));
+                }
+            }).catch(console.error);
+        }
+    }, [listId]);
+
+    // Toggle category collapse
+    const toggleCategoryCollapse = useCallback((categoryId: string) => {
+        setCollapsedCategories(prev => {
+            const next = new Set(prev);
+            if (next.has(categoryId)) {
+                next.delete(categoryId);
+            } else {
+                next.add(categoryId);
+            }
+            if (listId) {
+                AsyncStorage.setItem(`collapsed_categories_${listId}`, JSON.stringify([...next])).catch(console.error);
+            }
+            return next;
+        });
+    }, [listId]);
+
+    // Filter categories based on search query
+    const filteredCategories = useMemo(() => {
+        if (!searchQuery.trim()) return list?.categories ?? [];
+
+        const query = searchQuery.toLowerCase();
+        return (list?.categories ?? [])
+            .map(cat => ({
+                ...cat,
+                items: cat.items.filter(item =>
+                    item.name.toLowerCase().includes(query) ||
+                    item.notes?.toLowerCase().includes(query)
+                )
+            }))
+            .filter(cat => cat.items.length > 0);
+    }, [list?.categories, searchQuery]);
+
+    // Calculate progress
+    const progressPercentage = useMemo(() =>
+        list ? Math.round((list.checkedCount / Math.max(list.itemCount, 1)) * 100) : 0,
+        [list?.checkedCount, list?.itemCount]
+    );
+
+    // Fetch list data
+    const fetchList = useCallback(async (forceRefresh = false) => {
+        if (!listId) return;
+        const requestId = ++fetchRequestIdRef.current;
+        const requestedListId = listId;
+        try {
+            const useCache = !forceRefresh;
+            const data = await shoppingListService.getShoppingListById(requestedListId, useCache);
+            if (requestId !== fetchRequestIdRef.current || requestedListId !== latestListIdRef.current) return;
+            setList(data);
+            const cats = await shoppingListService.getCategories(useCache);
+            if (requestId !== fetchRequestIdRef.current || requestedListId !== latestListIdRef.current) return;
+            setCategories(cats);
+        } catch (error) {
+            if (requestId !== fetchRequestIdRef.current || requestedListId !== latestListIdRef.current) return;
+            console.error('Error fetching list:', error);
+            showError(i18n.t('common.errors.title'), i18n.t('shoppingList.loadError'));
+        } finally {
+            if (requestId === fetchRequestIdRef.current && requestedListId === latestListIdRef.current) {
+                setLoading(false);
+            }
+        }
+    }, [listId, showError]);
+
+    // Assign to ref for use in onSyncComplete
+    useEffect(() => {
+        fetchListRef.current = fetchList;
+    }, [fetchList]);
+
+    useEffect(() => {
+        fetchList();
+    }, [fetchList]);
+
+    // Check item handler
+    const handleCheckItem = useCallback(async (itemId: string, isChecked: boolean) => {
+        // Use ref for rollback to avoid stale closure
+        const previousList = listRef.current;
+
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setList(current => {
+            if (!current) return null;
+            const updatedCategories = current.categories.map(cat => ({
+                ...cat,
+                items: cat.items.map(item => item.id === itemId ? { ...item, isChecked } : item)
+            }));
+            const newCheckedCount = updatedCategories.reduce(
+                (count, cat) => count + cat.items.filter(item => item.isChecked).length,
+                0
+            );
+            return { ...current, categories: updatedCategories, checkedCount: newCheckedCount };
+        });
+
+        try {
+            if (isOffline) {
+                await queueMutation('CHECK_ITEM', { itemId, isChecked, listId });
+            } else {
+                await shoppingListService.toggleItemChecked(itemId, isChecked, listId);
+            }
+        } catch (error) {
+            setList(previousList);
+            showError(i18n.t('common.errors.title'), i18n.t('shoppingList.checkError'));
+            console.error('Error toggling item:', error);
+        }
+    }, [isOffline, queueMutation, showError, listId, setList]);
+
+    // Delete item handler
+    const handleDeleteItem = useCallback((itemId: string) => {
+        // Find item in current list via ref
+        let itemToDelete: ShoppingListItem | undefined;
+        for (const cat of listRef.current?.categories ?? []) {
+            const found = cat.items.find(item => item.id === itemId);
+            if (found) {
+                itemToDelete = found;
+                break;
+            }
+        }
+        if (!itemToDelete) return;
+
+        // Capture for closure
+        const deletedItem = itemToDelete;
+
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setList(current => {
+            if (!current) return null;
+            const updatedCategories = current.categories.map(cat => ({
+                ...cat,
+                items: cat.items.filter(item => item.id !== itemId)
+            })).filter(cat => cat.items.length > 0);
+            return {
+                ...current,
+                categories: updatedCategories,
+                itemCount: current.itemCount - 1,
+                checkedCount: deletedItem.isChecked ? current.checkedCount - 1 : current.checkedCount,
+            };
+        });
+
+        queueDeletion(
+            deletedItem,
+            async () => {
+                if (isOffline) {
+                    await queueMutation('DELETE_ITEM', { itemId, listId });
+                } else {
+                    await shoppingListService.deleteItem(itemId, listId);
+                }
+            },
+            deletedItem.name
+        );
+    }, [isOffline, queueMutation, queueDeletion, listId]);
+
+    // Add item handler with optimistic update
+    const handleAddItem = useCallback(async (itemData: Omit<ShoppingListItemCreate, 'shoppingListId'>) => {
+        if (!listId || !listRef.current) return;
+
+        // Create a temporary item for optimistic update with UUID
+        const tempId = `temp-${Crypto.randomUUID()}`;
+        const category = categories.find(c => c.id === itemData.categoryId);
+        const tempItem: ShoppingListItem = {
+            id: tempId,
+            shoppingListId: listId,
+            ingredientId: itemData.ingredientId,
+            categoryId: itemData.categoryId,
+            name: itemData.nameCustom || '',
+            quantity: itemData.quantity,
+            notes: itemData.notes,
+            isChecked: false,
+            displayOrder: 9999, // Put at end
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+        };
+
+        const previousList = listRef.current;
+
+        // Optimistic update
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setList(current => {
+            if (!current) return null;
+            const catIndex = current.categories.findIndex(c => c.id === itemData.categoryId);
+
+            if (catIndex >= 0) {
+                // Category exists, add item to it (alphabetical order)
+                const updatedCategories = [...current.categories];
+                updatedCategories[catIndex] = {
+                    ...updatedCategories[catIndex],
+                    items: [...updatedCategories[catIndex].items, tempItem].sort((a, b) =>
+                        a.name.localeCompare(b.name)
+                    ),
+                };
+                return {
+                    ...current,
+                    categories: updatedCategories,
+                    itemCount: current.itemCount + 1,
+                };
+            } else if (category) {
+                // Category doesn't exist in list, create it
+                const newCategory: ShoppingCategoryWithItems = {
+                    ...category,
+                    localizedName: getLocalizedCategoryName(category),
+                    items: [tempItem],
+                };
+                return {
+                    ...current,
+                    categories: [...current.categories, newCategory],
+                    itemCount: current.itemCount + 1,
+                };
+            }
+
+            return current;
+        });
+
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
+        try {
+            if (isOffline) {
+                await queueMutation('ADD_ITEM', { item: { ...itemData, shoppingListId: listId }, listId });
+                return;
+            }
+
+            // Hard 15s timeout — a stalled network shouldn't leave the modal hanging.
+            const newItem = await Promise.race([
+                shoppingListService.addItem({ ...itemData, shoppingListId: listId }),
+                new Promise<never>((_, reject) => {
+                    timeoutId = setTimeout(() => reject(new Error('addItem timed out after 15s')), 15000);
+                }),
+            ]);
+            // Replace temp item with real item instead of full refetch
+            setList(current => {
+                if (!current) return null;
+                const updatedCategories = current.categories.map(cat => ({
+                    ...cat,
+                    items: cat.items.map(item =>
+                        item.id === tempId ? { ...newItem, categoryId: itemData.categoryId } : item
+                    ),
+                }));
+                return { ...current, categories: updatedCategories };
+            });
+        } catch (error) {
+            // Rollback on error
+            setList(previousList);
+            console.error('Error adding item:', error);
+            showError(i18n.t('common.errors.title'), i18n.t('shoppingList.addError'));
+        } finally {
+            if (timeoutId) clearTimeout(timeoutId);
+        }
+    }, [listId, categories, showError, isOffline, queueMutation, setList]);
+
+    // Edit item handler with optimistic update
+    const handleEditItem = useCallback(async (itemId: string, updates: EditItemUpdates) => {
+        const previousList = listRef.current;
+        const shouldUpdateUnit = updates.unitId !== undefined;
+        let resolvedUnit: MeasurementUnit | undefined;
+        let hasResolvedUnit = false;
+
+        if (updates.unitId === null) {
+            hasResolvedUnit = true;
+        } else if (updates.unitId) {
+            try {
+                const units = await shoppingListService.getMeasurementUnits();
+                const nextUnit = units.find(unit => unit.id === updates.unitId);
+                if (nextUnit) {
+                    resolvedUnit = nextUnit;
+                    hasResolvedUnit = true;
+                }
+            } catch (error) {
+                console.error('Error resolving unit for optimistic edit:', error);
+            }
+        }
+
+        // Optimistic update — apply changes locally first.
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setList(current => {
+            if (!current) return null;
+            // Walk every category, mutate the matching item, and reassign
+            // to a new category if categoryId changed.
+            let movedItem: ShoppingListItem | undefined;
+            const stripped = current.categories.map(cat => ({
+                ...cat,
+                items: cat.items.filter(item => {
+                    if (item.id !== itemId) return true;
+                    movedItem = {
+                        ...item,
+                        name: updates.nameCustom ?? item.name,
+                        quantity: updates.quantity ?? item.quantity,
+                        notes: updates.notes ?? item.notes,
+                        categoryId: updates.categoryId ?? item.categoryId,
+                        unit: shouldUpdateUnit && hasResolvedUnit ? resolvedUnit : item.unit,
+                    };
+                    return false;
+                }),
+            })).filter(cat => cat.items.length > 0);
+
+            if (!movedItem) return current;
+
+            const targetId = movedItem.categoryId;
+            const existingIdx = stripped.findIndex(c => c.id === targetId);
+            const newCategories = [...stripped];
+            if (existingIdx >= 0) {
+                newCategories[existingIdx] = {
+                    ...newCategories[existingIdx],
+                    items: [...newCategories[existingIdx].items, movedItem].sort((a, b) =>
+                        a.name.localeCompare(b.name)
+                    ),
+                };
+            } else {
+                const cat = categories.find(c => c.id === targetId);
+                if (cat) {
+                    newCategories.push({
+                        ...cat,
+                        localizedName: getLocalizedCategoryName(cat),
+                        items: [movedItem],
+                    });
+                }
+            }
+            return { ...current, categories: newCategories };
+        });
+
+        try {
+            if (isOffline) {
+                await queueMutation('UPDATE_ITEM', { itemId, updates: {
+                    nameCustom: updates.nameCustom,
+                    quantity: updates.quantity,
+                    unitId: updates.unitId,
+                    categoryId: updates.categoryId,
+                    notes: updates.notes,
+                }, listId });
+            } else {
+                await shoppingListService.updateItem(itemId, {
+                    nameCustom: updates.nameCustom,
+                    quantity: updates.quantity,
+                    unitId: updates.unitId,
+                    categoryId: updates.categoryId,
+                    notes: updates.notes,
+                }, listId);
+            }
+        } catch (error) {
+            setList(previousList);
+            console.error('Error editing item:', error);
+            showError(i18n.t('common.errors.title'), i18n.t('shoppingList.checkError'));
+        }
+    }, [isOffline, queueMutation, showError, listId, setList, categories]);
+
+    return useMemo(() => ({
+        list,
+        categories,
+        loading,
+        filteredCategories,
+        searchQuery,
+        setSearchQuery,
+        collapsedCategories,
+        toggleCategoryCollapse,
+        progressPercentage,
+        fetchList,
+        handleCheckItem,
+        handleDeleteItem,
+        handleAddItem,
+        handleEditItem,
+        setList,
+        isOffline,
+        isSyncing,
+        pendingCount,
+        queueMutation,
+    }), [
+        list,
+        categories,
+        loading,
+        filteredCategories,
+        searchQuery,
+        collapsedCategories,
+        toggleCategoryCollapse,
+        progressPercentage,
+        fetchList,
+        handleCheckItem,
+        handleDeleteItem,
+        handleAddItem,
+        handleEditItem,
+        isOffline,
+        isSyncing,
+        pendingCount,
+        queueMutation,
+    ]);
+}
+
+export default useShoppingListData;

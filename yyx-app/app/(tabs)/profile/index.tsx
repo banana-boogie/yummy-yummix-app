@@ -64,13 +64,6 @@ export default function Profile() {
       route: '/(tabs)/profile/recipes',
     },
     {
-      id: 'shopping',
-      visible: true,
-      title: i18n.t('profile.features.shoppingList'),
-      icon: require('@/assets/images/user-profile/shopping-list-icon.png'),
-      route: '/(tabs)/profile/shopping',
-    },
-    {
       id: 'achievements',
       visible: true,
       title: i18n.t('profile.features.achievements'),

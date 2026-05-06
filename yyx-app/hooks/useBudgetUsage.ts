@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchBudgetUsage, BudgetUsage } from '@/services/budgetService';
 import logger from '@/services/logger';
@@ -16,13 +16,14 @@ interface UseBudgetUsageResult {
  */
 export function useBudgetUsage(): UseBudgetUsageResult {
   const { user } = useAuth();
+  const userId = user?.id;
   const [usage, setUsage] = useState<BudgetUsage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refetchKey, setRefetchKey] = useState(0);
 
   useEffect(() => {
-    if (!user?.id) {
+    if (!userId) {
       setLoading(false);
       return;
     }
@@ -33,7 +34,7 @@ export function useBudgetUsage(): UseBudgetUsageResult {
       try {
         setLoading(true);
         setError(null);
-        const data = await fetchBudgetUsage(user!.id);
+        const data = await fetchBudgetUsage(userId);
         if (!cancelled) {
           setUsage(data);
         }
@@ -54,9 +55,9 @@ export function useBudgetUsage(): UseBudgetUsageResult {
     return () => {
       cancelled = true;
     };
-  }, [user?.id, refetchKey]);
+  }, [userId, refetchKey]);
 
-  const refetch = () => setRefetchKey((k) => k + 1);
+  const refetch = useCallback(() => setRefetchKey((k) => k + 1), []);
 
-  return { usage, loading, error, refetch };
+  return useMemo(() => ({ usage, loading, error, refetch }), [usage, loading, error, refetch]);
 }

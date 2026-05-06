@@ -12,6 +12,8 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { mealPlanService } from '@/services/mealPlanService';
+import { invalidateAllShoppingListCaches } from '@/services/cache/shoppingListCache';
+import i18n from '@/i18n';
 import {
   todayDayIndex,
   todayLocalISO,
@@ -33,6 +35,28 @@ export const mealPlanKeys = {
   active: () => [...mealPlanKeys.all, 'active'] as const,
   preferences: () => [...mealPlanKeys.all, 'preferences'] as const,
 };
+
+/**
+ * Format a YYYY-MM-DD plan-week-start in the user's locale.
+ * Returns "May 4" (en) / "4 may" (es) / falls back to the raw ISO if parsing fails.
+ */
+function formatPlanDate(weekStartISO: string | undefined, locale: string): string {
+  if (!weekStartISO) return '';
+  // Build a Date from the local ISO without TZ shift — split on '-' so we
+  // get the date the user thinks they have, not UTC midnight in their zone.
+  const [y, m, d] = weekStartISO.split('-').map((p) => parseInt(p, 10));
+  if (!y || !m || !d) return weekStartISO;
+  const date = new Date(y, m - 1, d);
+  if (Number.isNaN(date.getTime())) return weekStartISO;
+  try {
+    return new Intl.DateTimeFormat(locale, {
+      month: 'short',
+      day: 'numeric',
+    }).format(date);
+  } catch {
+    return weekStartISO;
+  }
+}
 
 function startOfWeekISO(date = new Date()): string {
   // ISO week start = Monday
@@ -187,13 +211,35 @@ export function useMealPlan(): UseMealPlanReturn {
   const shoppingListMutation = useMutation({
     mutationFn: async () => {
       if (!activePlan) throw new Error('No active plan');
+      // Format the plan's week-start date in the user's locale so the list
+      // name reads "Mi Menú - 4 may" / "My Menu - May 4" — anchors the list
+      // to the plan it represents, not the moment the user clicked.
+      const formattedDate = formatPlanDate(activePlan.weekStart, i18n.locale);
       const res = await mealPlanService.generateShoppingList({
         mealPlanId: activePlan.planId,
+        defaultListName: i18n.t('planner.shoppingListDefaultName', {
+          date: formattedDate,
+        }),
       });
       return res.shoppingListId;
     },
-    onSuccess: () => invalidatePlan(),
+    onSuccess: async () => {
+      // The edge function inserts the new shopping list directly, so the
+      // frontend's lists-summary cache is stale. Clear it so the shopping
+      // tab picks up the freshly generated list on focus / pull-to-refresh.
+      await invalidateAllShoppingListCaches();
+      invalidatePlan();
+    },
   });
+
+  const { mutateAsync: generatePlanAsync, isPending: isGenerating } = generateMutation;
+  const { mutateAsync: updatePreferencesAsync } = updatePreferencesMutation;
+  const { mutateAsync: swapMealAsync } = swapMutation;
+  const { mutateAsync: applySwapAsync } = applySwapMutation;
+  const { mutateAsync: skipMealAsync } = skipMutation;
+  const { mutateAsync: markCookedAsync } = markCookedMutation;
+  const { mutateAsync: generateShoppingListAsync } = shoppingListMutation;
+  const { refetch: refetchPlan } = planQuery;
 
   const todayIndex = todayDayIndex();
   const todayISO = todayLocalISO();
@@ -223,28 +269,87 @@ export function useMealPlan(): UseMealPlanReturn {
     (generateMutation.error as Error | undefined)?.message ??
     null;
 
-  return {
+  const generatePlan = useCallback(
+    (options?: GeneratePlanOptions) => generatePlanAsync(options ?? {}),
+    [generatePlanAsync],
+  );
+
+  const updatePreferences = useCallback(
+    (payload: UpdatePreferencesPayload) =>
+      updatePreferencesAsync(payload),
+    [updatePreferencesAsync],
+  );
+
+  const swapSlot = useCallback(
+    (slotId: string, reason?: string) =>
+      swapMealAsync({ slotId, reason }),
+    [swapMealAsync],
+  );
+
+  const applySwap = useCallback(
+    (slotId: string, recipeId: string) =>
+      applySwapAsync({ slotId, recipeId }),
+    [applySwapAsync],
+  );
+
+  const skipSlot = useCallback(
+    (slotId: string) => skipMealAsync(slotId).then(() => undefined),
+    [skipMealAsync],
+  );
+
+  const markCooked = useCallback(
+    (slotId: string) =>
+      markCookedAsync(slotId).then(() => undefined),
+    [markCookedAsync],
+  );
+
+  const generateShoppingList = useCallback(
+    () => generateShoppingListAsync(),
+    [generateShoppingListAsync],
+  );
+
+  const refetch = useCallback(
+    () => refetchPlan().then(() => undefined),
+    [refetchPlan],
+  );
+
+  return useMemo(() => ({
     activePlan,
     preferences,
     isLoading: planQuery.isLoading || prefsQuery.isLoading,
-    isGenerating: generateMutation.isPending,
+    isGenerating,
     error,
-    generatePlan: (options) => generateMutation.mutateAsync(options ?? {}),
-    updatePreferences: (payload) =>
-      updatePreferencesMutation.mutateAsync(payload),
-    swapSlot: (slotId, reason) => swapMutation.mutateAsync({ slotId, reason }),
-    applySwap: (slotId, recipeId) =>
-      applySwapMutation.mutateAsync({ slotId, recipeId }),
-    skipSlot: (slotId) => skipMutation.mutateAsync(slotId).then(() => undefined),
-    markCooked: (slotId) =>
-      markCookedMutation.mutateAsync(slotId).then(() => undefined),
-    generateShoppingList: () => shoppingListMutation.mutateAsync(),
+    generatePlan,
+    updatePreferences,
+    swapSlot,
+    applySwap,
+    skipSlot,
+    markCooked,
+    generateShoppingList,
     todaysSlots,
     planProgress,
     // Stub backend can return `{ plan: null }` after generate; that's not a
     // useful cache to fall back on, so the blocking-error path should still
     // fire. Only treat the query as cached when there's an actual plan.
     hasCachedPlan: planQuery.data?.plan != null,
-    refetch: () => planQuery.refetch().then(() => undefined),
-  };
+    refetch,
+  }), [
+    activePlan,
+    preferences,
+    planQuery.isLoading,
+    prefsQuery.isLoading,
+    isGenerating,
+    error,
+    generatePlan,
+    updatePreferences,
+    swapSlot,
+    applySwap,
+    skipSlot,
+    markCooked,
+    generateShoppingList,
+    todaysSlots,
+    planProgress,
+    planQuery.data?.plan,
+    refetch,
+  ]);
 }

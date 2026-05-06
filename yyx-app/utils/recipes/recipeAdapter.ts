@@ -197,6 +197,7 @@ function transformIngredient(
 
     return {
         id: generateSyntheticId(),
+        rowId: generateSyntheticId(),
         name: ingredient.name,
         pluralName: ingredient.name, // AI generates singular form typically
         pictureUrl: ingredient.imageUrl,
