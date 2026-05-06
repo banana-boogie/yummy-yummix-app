@@ -9,6 +9,83 @@ import { shoppingListsSummaryCache } from '../cache/shoppingListCache';
 import { shoppingListFactory, userFactory } from '@/test/factories';
 import { getMockSupabaseClient, mockSupabaseAuthSuccess } from '@/test/mocks/supabase';
 
+type UnitFixture = {
+  id: string;
+  type: string;
+  system: string;
+  base_factor: number | string | null;
+  translations: unknown[];
+};
+
+type ShoppingListItemFixture = {
+  id: string;
+  ingredient_id: string | null;
+  unit_id: string | null;
+  quantity: number | string | null;
+};
+
+function mockAddRecipeIngredientsQueries(options: {
+  units?: UnitFixture[];
+  existingRows?: ShoppingListItemFixture[];
+  ingredientRows?: Array<{ id: string; default_category_id: string | null }>;
+}) {
+  const mockClient = getMockSupabaseClient();
+  const captures: {
+    insertPayload?: Record<string, unknown>[];
+    updateCalls: Array<{ quantity: number; id?: string }>;
+  } = { updateCalls: [] };
+
+  mockClient.from.mockImplementation((table: string) => {
+    const state: { op: 'select' | 'insert' | 'update'; value?: Record<string, unknown> } = {
+      op: 'select',
+    };
+    const builder: any = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn((column: string, value: string) => {
+        if (state.op === 'update' && column === 'id') {
+          captures.updateCalls.push({
+            quantity: state.value?.quantity as number,
+            id: value,
+          });
+        }
+        return builder;
+      }),
+      in: jest.fn().mockReturnThis(),
+      insert: jest.fn((value: Record<string, unknown>[]) => {
+        state.op = 'insert';
+        captures.insertPayload = value;
+        return builder;
+      }),
+      update: jest.fn((value: Record<string, unknown>) => {
+        state.op = 'update';
+        state.value = value;
+        return builder;
+      }),
+      then: jest.fn((resolve: any) => {
+        if (table === 'measurement_units') {
+          resolve({ data: options.units ?? [], error: null });
+          return;
+        }
+        if (table === 'shopping_list_items' && state.op === 'select') {
+          resolve({ data: options.existingRows ?? [], error: null });
+          return;
+        }
+        if (table === 'ingredients') {
+          resolve({
+            data: options.ingredientRows ?? [{ id: 'ingredient-1', default_category_id: 'produce' }],
+            error: null,
+          });
+          return;
+        }
+        resolve({ data: null, error: null });
+      }),
+    };
+    return builder;
+  });
+
+  return captures;
+}
+
 describe('shoppingListService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -33,67 +110,98 @@ describe('shoppingListService', () => {
     const user = userFactory.createSupabaseUser({ id: 'user-123' });
     mockSupabaseAuthSuccess(user);
 
-    const mockClient = getMockSupabaseClient();
-    const updateCalls: Array<{ quantity: number; id?: string }> = [];
-
-    mockClient.from.mockImplementation((table: string) => {
-      const state: { op: 'select' | 'insert' | 'update'; value?: Record<string, unknown> } = {
-        op: 'select',
-      };
-      const builder = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn((column: string, value: string) => {
-          if (state.op === 'update' && column === 'id') {
-            updateCalls.push({
-              quantity: state.value?.quantity as number,
-              id: value,
-            });
-          }
-          return builder;
-        }),
-        in: jest.fn().mockReturnThis(),
-        insert: jest.fn((value: Record<string, unknown>[]) => {
-          state.op = 'insert';
-          state.value = { value };
-          return builder;
-        }),
-        update: jest.fn((value: Record<string, unknown>) => {
-          state.op = 'update';
-          state.value = value;
-          return builder;
-        }),
-        then: jest.fn((resolve) => {
-          if (table === 'shopping_list_items' && state.op === 'select') {
-            resolve({
-              data: [{
-                id: 'existing-item',
-                ingredient_id: 'ingredient-1',
-                unit_id: 'g',
-                quantity: '2',
-              }],
-              error: null,
-            });
-            return;
-          }
-          if (table === 'ingredients') {
-            resolve({
-              data: [{ id: 'ingredient-1', default_category_id: 'produce' }],
-              error: null,
-            });
-            return;
-          }
-          resolve({ data: null, error: null });
-        }),
-      };
-      return builder;
+    const captures = mockAddRecipeIngredientsQueries({
+      units: [{ id: 'g', type: 'weight', system: 'metric', base_factor: 1, translations: [] }],
+      existingRows: [{
+        id: 'existing-item',
+        ingredient_id: 'ingredient-1',
+        unit_id: 'g',
+        quantity: '2',
+      }],
     });
+    await shoppingListService.getMeasurementUnits(false);
 
     await shoppingListService.addRecipeIngredients('list-1', [
       { ingredientId: 'ingredient-1', quantity: 3, unitId: 'g' },
       { ingredientId: 'ingredient-1', quantity: 4, unitId: 'g' },
     ]);
 
-    expect(updateCalls).toEqual([{ id: 'existing-item', quantity: 9 }]);
+    expect(captures.updateCalls).toEqual([{ id: 'existing-item', quantity: 9 }]);
+  });
+
+  it('converts incoming recipe ingredients into an existing row unit before updating', async () => {
+    const user = userFactory.createSupabaseUser({ id: 'user-123' });
+    mockSupabaseAuthSuccess(user);
+
+    const captures = mockAddRecipeIngredientsQueries({
+      units: [
+        { id: 'g', type: 'weight', system: 'metric', base_factor: 1, translations: [] },
+        { id: 'kg', type: 'weight', system: 'metric', base_factor: 1000, translations: [] },
+      ],
+      existingRows: [{
+        id: 'existing-item',
+        ingredient_id: 'ingredient-1',
+        unit_id: 'kg',
+        quantity: '1',
+      }],
+    });
+
+    await shoppingListService.getMeasurementUnits(false);
+
+    await shoppingListService.addRecipeIngredients('list-1', [
+      { ingredientId: 'ingredient-1', quantity: 500, unitId: 'g' },
+    ]);
+
+    expect(captures.updateCalls).toEqual([{ id: 'existing-item', quantity: 1.5 }]);
+  });
+
+  it('combines compatible pending recipe ingredient inserts before writing', async () => {
+    const user = userFactory.createSupabaseUser({ id: 'user-123' });
+    mockSupabaseAuthSuccess(user);
+
+    const captures = mockAddRecipeIngredientsQueries({
+      units: [
+        { id: 'g', type: 'weight', system: 'metric', base_factor: 1, translations: [] },
+        { id: 'kg', type: 'weight', system: 'metric', base_factor: 1000, translations: [] },
+      ],
+    });
+
+    await shoppingListService.getMeasurementUnits(false);
+
+    await shoppingListService.addRecipeIngredients('list-1', [
+      { ingredientId: 'ingredient-1', quantity: 500, unitId: 'g' },
+      { ingredientId: 'ingredient-1', quantity: 1, unitId: 'kg' },
+    ]);
+
+    expect(captures.insertPayload).toHaveLength(1);
+    expect(captures.insertPayload?.[0]).toMatchObject({
+      ingredient_id: 'ingredient-1',
+      quantity: 1500,
+      unit_id: 'g',
+      category_id: 'produce',
+    });
+  });
+
+  it('keeps incompatible pending recipe ingredient units separate', async () => {
+    const user = userFactory.createSupabaseUser({ id: 'user-123' });
+    mockSupabaseAuthSuccess(user);
+
+    const captures = mockAddRecipeIngredientsQueries({
+      units: [
+        { id: 'g', type: 'weight', system: 'metric', base_factor: 1, translations: [] },
+        { id: 'ml', type: 'volume', system: 'metric', base_factor: 1, translations: [] },
+      ],
+    });
+
+    await shoppingListService.getMeasurementUnits(false);
+
+    await shoppingListService.addRecipeIngredients('list-1', [
+      { ingredientId: 'ingredient-1', quantity: 115, unitId: 'g' },
+      { ingredientId: 'ingredient-1', quantity: 5, unitId: 'ml' },
+    ]);
+
+    expect(captures.insertPayload).toHaveLength(2);
+    expect(captures.insertPayload?.map((row) => row.unit_id)).toEqual(['g', 'ml']);
   });
 
   it('persists editable item fields including cleared units', async () => {
@@ -105,19 +213,18 @@ describe('shoppingListService', () => {
     let updatedId: string | undefined;
 
     mockClient.from.mockImplementation((table: string) => {
-      const builder = {
-        update: jest.fn((value: Record<string, unknown>) => {
-          updatePayload = value;
-          return builder;
-        }),
-        eq: jest.fn((column: string, value: string) => {
-          if (table === 'shopping_list_items' && column === 'id') {
-            updatedId = value;
-          }
-          return builder;
-        }),
-        then: jest.fn((resolve) => resolve({ data: null, error: null })),
-      };
+      const builder: any = {};
+      builder.update = jest.fn((value: Record<string, unknown>) => {
+        updatePayload = value;
+        return builder;
+      });
+      builder.eq = jest.fn((column: string, value: string) => {
+        if (table === 'shopping_list_items' && column === 'id') {
+          updatedId = value;
+        }
+        return builder;
+      });
+      builder.then = jest.fn((resolve: any) => resolve({ data: null, error: null }));
       return builder;
     });
 

@@ -12,7 +12,28 @@ type QueryState = {
   filters: Array<{ method: string; args: unknown[] }>;
 };
 
-function makeSupabase(options: { rpcError?: { message: string } } = {}) {
+type TestRecipeIngredient = {
+  id: string;
+  recipe_id: string;
+  ingredient_id: string | null;
+  quantity: number | string | null;
+  measurement_unit_id: string | null;
+  optional: boolean | null;
+};
+
+type TestUnitRow = {
+  id: string;
+  type: string;
+  base_factor: number | string | null;
+};
+
+function makeSupabase(
+  options: {
+    rpcError?: { message: string };
+    recipeIngredients?: TestRecipeIngredient[];
+    unitRows?: TestUnitRow[];
+  } = {},
+) {
   const calls: QueryState[] = [];
   const rpcCalls: Array<{ fn: string; args: Record<string, unknown> }> = [];
 
@@ -42,7 +63,7 @@ function makeSupabase(options: { rpcError?: { message: string } } = {}) {
       }],
     },
   ];
-  const recipeIngredients = [
+  const recipeIngredients = options.recipeIngredients ?? [
     {
       id: "ri-1",
       recipe_id: "recipe-1",
@@ -68,6 +89,7 @@ function makeSupabase(options: { rpcError?: { message: string } } = {}) {
       optional: false,
     },
   ];
+  const unitRows = options.unitRows ?? [];
   const ingredientRows = [{
     id: "ingredient-tomato",
     default_category_id: "produce",
@@ -137,6 +159,10 @@ function makeSupabase(options: { rpcError?: { message: string } } = {}) {
         }
         if (table === "ingredients") {
           resolve({ data: ingredientRows, error: null });
+          return;
+        }
+        if (table === "measurement_units") {
+          resolve({ data: unitRows, error: null });
           return;
         }
         resolve({ data: [], error: null });
@@ -219,6 +245,47 @@ Deno.test("generate_shopping_list creates a named list and atomically regenerate
     ),
     false,
   );
+});
+
+Deno.test("generate_shopping_list converts compatible units before sending RPC payload", async () => {
+  const { client, rpcCalls } = makeSupabase({
+    recipeIngredients: [
+      {
+        id: "ri-kg",
+        recipe_id: "recipe-1",
+        ingredient_id: "ingredient-tomato",
+        quantity: 1,
+        measurement_unit_id: "kg",
+        optional: false,
+      },
+      {
+        id: "ri-g",
+        recipe_id: "recipe-2",
+        ingredient_id: "ingredient-tomato",
+        quantity: 500,
+        measurement_unit_id: "g",
+        optional: false,
+      },
+    ],
+    unitRows: [
+      { id: "kg", type: "weight", base_factor: 1000 },
+      { id: "g", type: "weight", base_factor: 1 },
+    ],
+  });
+
+  const result = await executeGenerateShoppingList(
+    client as never,
+    "user-1",
+    "plan-1",
+  );
+
+  assertEquals(result.status, 200);
+  assertEquals(rpcCalls.length, 1);
+  const rows = rpcCalls[0].args.p_items as Array<Record<string, unknown>>;
+  assertEquals(rows.length, 1);
+  assertEquals(rows[0].ingredient_id, "ingredient-tomato");
+  assertEquals(rows[0].quantity, 1.5);
+  assertEquals(rows[0].unit_id, "kg");
 });
 
 Deno.test("generate_shopping_list returns 404 for another user's plan", async () => {
