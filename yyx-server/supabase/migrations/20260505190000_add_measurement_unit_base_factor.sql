@@ -22,6 +22,10 @@
 ALTER TABLE public.measurement_units
 ADD COLUMN IF NOT EXISTS base_factor NUMERIC;
 
+ALTER TABLE public.measurement_units
+ADD CONSTRAINT measurement_units_base_factor_positive
+CHECK (base_factor IS NULL OR base_factor > 0);
+
 COMMENT ON COLUMN public.measurement_units.base_factor IS
 'Factor to convert one of this unit to the base unit of its dimension '
 '(grams for weight, milliliters for volume). NULL for discrete units '
