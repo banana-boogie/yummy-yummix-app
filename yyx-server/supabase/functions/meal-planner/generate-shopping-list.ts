@@ -164,8 +164,52 @@ export async function executeGenerateShoppingList(
     }
   }
 
-  // 4. Consolidate across all components. Key: ingredient_id + unit_id.
-  // When ingredient_id is null (free-text), we don't try to dedupe.
+  // Load measurement units once. base_factor lets us merge compatible units
+  // (g+kg, ml+cup) into a single row by converting through the dimension's
+  // base unit (gram for weight, milliliter for volume). Discrete units (no
+  // base_factor) keep per-unit-id keying — same as pre-PR behavior.
+  type UnitRow = {
+    id: string;
+    type: string;
+    base_factor: number | string | null;
+  };
+  const referencedUnitIds = Array.from(
+    new Set(
+      recipeIngredients
+        .map((ri) => ri.measurement_unit_id)
+        .filter((id): id is string => id != null),
+    ),
+  );
+  const unitById = new Map<string, { id: string; type: string; baseFactor?: number }>();
+  if (referencedUnitIds.length > 0) {
+    const { data: unitRows, error: unitErr } = await supabase
+      .from("measurement_units")
+      .select("id, type, base_factor")
+      .in("id", referencedUnitIds);
+    if (unitErr) throw new Error(`Load units failed: ${unitErr.message}`);
+    for (const row of (unitRows ?? []) as UnitRow[]) {
+      const factor = row.base_factor == null ? undefined :
+        typeof row.base_factor === "number" ? row.base_factor :
+        Number.parseFloat(row.base_factor);
+      unitById.set(row.id, {
+        id: row.id,
+        type: row.type,
+        baseFactor: Number.isFinite(factor) ? factor : undefined,
+      });
+    }
+  }
+  const unitOf = (unitId: string | null) => unitId ? unitById.get(unitId) : undefined;
+  const isUnitConvertible = (u: ReturnType<typeof unitOf>) =>
+    !!u && typeof u.baseFactor === "number" && Number.isFinite(u.baseFactor);
+  const consolidationKey = (ingredientId: string, unitId: string | null) => {
+    const u = unitOf(unitId);
+    if (isUnitConvertible(u)) return `${ingredientId}:dim:${u!.type}`;
+    return `${ingredientId}:unit:${unitId ?? "null"}`;
+  };
+
+  // 4. Consolidate across all components.
+  // Compatible units (same dimension with base factors) merge into one row;
+  // incoming quantities are converted into the existing row's unit.
   const consolidated = new Map<string, ConsolidatedItem>();
   let skippedFreeText = 0;
   for (const comp of recipeComponents) {
@@ -177,10 +221,19 @@ export async function executeGenerateShoppingList(
       }
       const qty = toNumber(ri.quantity);
       if (qty == null || qty <= 0) continue;
-      const key = `${ri.ingredient_id}:${ri.measurement_unit_id ?? "null"}`;
+      const key = consolidationKey(ri.ingredient_id, ri.measurement_unit_id);
       const existing = consolidated.get(key);
+      const incomingUnit = unitOf(ri.measurement_unit_id);
       if (existing) {
-        existing.quantity += qty;
+        let qtyToAdd = qty;
+        const existingUnit = unitOf(existing.measurementUnitId);
+        if (
+          isUnitConvertible(incomingUnit) && isUnitConvertible(existingUnit) &&
+          incomingUnit!.id !== existingUnit!.id && existingUnit!.baseFactor! !== 0
+        ) {
+          qtyToAdd = (qty * incomingUnit!.baseFactor!) / existingUnit!.baseFactor!;
+        }
+        existing.quantity += qtyToAdd;
       } else {
         consolidated.set(key, {
           ingredientId: ri.ingredient_id,
