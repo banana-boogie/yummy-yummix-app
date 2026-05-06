@@ -47,15 +47,15 @@ const SYSTEM_PROMPT =
   `You are categorizing grocery ingredients into a fixed set of shopping list categories.
 
 Categories:
-- produce: fruits, vegetables, fresh herbs, mushrooms
-- dairy: milk, cream, yogurt, cheese, butter, eggs
-- meat: beef, pork, poultry, fish, seafood, deli meat, sausages
+- produce: fruits, vegetables, fresh herbs, mushrooms, fresh chiles
+- dairy: milk, cream, yogurt, cheese, butter, eggs (cow/goat dairy only — NOT plant milks)
+- meat: beef, pork, poultry, fish, seafood, deli meat, sausages, anchovies, shrimp
 - bakery: bread, pastries, tortillas, baked goods
-- pantry: flour, sugar, oil, rice, pasta, canned goods, beans, lentils, baking ingredients, broths, sauces, condiments (peanut butter, jam)
+- pantry: flour, sugar, oil, rice, pasta, canned goods, beans, lentils, nuts, baking ingredients, broths, sauces, vinegars, condiments (peanut butter, jam, mustard, ketchup), syrups, chocolate-for-baking, cocoa
 - frozen: anything sold frozen
-- beverages: water, juice, soda, coffee, tea, alcoholic drinks, milk alternatives sold as beverages
-- snacks: chips, cookies, crackers, candy, chocolate
-- spices: dried herbs and spices, salt, pepper, seasoning blends, vanilla extract
+- beverages: water, juice, soda, coffee, tea, alcoholic drinks, plant milks (almond/oat/soy/coconut milk sold as beverages)
+- snacks: chips, cookies, crackers, candy, eating-chocolate
+- spices: dried herbs, dried spices, salt, pepper, seasoning blends, vanilla extract, dried chiles, food colorings (annatto, achiote)
 - household: cleaning supplies, paper goods, kitchen disposables
 - personal: toiletries, hygiene
 - other: anything that doesn't clearly fit elsewhere
@@ -64,8 +64,22 @@ Rules:
 - Pick the SINGLE best category for each ingredient.
 - Use "pantry" for shelf-stable cooking staples that don't have a more specific home.
 - Use "spices" only for dried/ground seasoning, not fresh herbs (those are produce).
-- Use "other" sparingly — only when an ingredient genuinely doesn't fit any specific category.
-- Names may be in English, Spanish, or both. Use whichever is provided to make the call.`;
+- Use "other" sparingly — only when an ingredient genuinely doesn't fit any specific category. Nuts, vinegars, jams, syrups, oils — all pantry, never "other".
+- Names may be in English, Spanish, or both. Use whichever is provided to make the call.
+
+Examples (apply the same reasoning to ambiguous cases):
+- "Anchovy" / "Anchovy fillet" → meat (small fish, never produce)
+- "Almond" / "Walnut" / "Pecan" → pantry (nuts are pantry baking/cooking staples)
+- "Almond milk" / "Oat milk" / "Soy milk" → beverages (plant milks, NOT dairy)
+- "Apple cider vinegar" / "Rice vinegar" → pantry (vinegars are condiments)
+- "Apricot jam" / "Strawberry jelly" → pantry (jams/jellies are pantry condiments)
+- "Honey" / "Maple syrup" → pantry (sweeteners)
+- "Annatto" / "Achiote paste" → spices (food coloring/seasoning)
+- "Ancho chili" (dried) → spices; "Anaheim pepper" (fresh) → produce
+- "Cilantro" (fresh) → produce; "Dried oregano" → spices
+- "Cocoa powder" / "Baking chocolate" → pantry; "Chocolate bar (eating)" → snacks
+- "Knorr Suiza" / "Bouillon cube" → pantry (broth concentrate)
+- "Cornstarch" / "Baking powder" / "Yeast" → pantry`;
 
 export interface IngredientForLLM {
   id: string;
@@ -105,7 +119,12 @@ export async function categorizeBatch(
 
   const content = await call({
     apiKey: options.apiKey ?? '',
-    model: 'gpt-4.1-nano',
+    // gpt-4.1-mini: nano was too small to apply the system rules consistently
+    // (treated anchovies as produce, plant milks as dairy, vinegars/jams as
+    // "other"). Mini handles the food taxonomy correctly with the few-shot
+    // examples added to SYSTEM_PROMPT. Cost: ~$3 for 633 ingredients vs
+    // ~$0.30 for nano — worth it to avoid manually fixing 30%+ of rows.
+    model: 'gpt-4.1-mini',
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: userMsg },
