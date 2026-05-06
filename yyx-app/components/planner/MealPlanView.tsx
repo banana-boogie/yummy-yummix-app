@@ -7,7 +7,7 @@
  * the plan gains a linked list and flips to active.
  */
 
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useRef } from 'react';
 import { View, ScrollView, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -24,12 +24,27 @@ import type {
   PlanProgress,
 } from '@/types/mealPlan';
 
+function computeVisibleProgress(
+  slots: MealPlanSlotResponse[],
+): PlanProgress {
+  // Skipped slots are hidden from the week view (B-20260504-03), so they
+  // must also be excluded from the progress bar — otherwise a 7-slot plan
+  // with one removed reads "X of 7" while only 6 cards are visible, and
+  // the bar can never reach 100%.
+  const visible = slots.filter((s) => s.status !== 'skipped');
+  return {
+    planned: visible.length,
+    cooked: visible.filter((s) => s.status === 'cooked').length,
+    skipped: 0,
+  };
+}
+
 interface MealPlanViewProps {
   plan: MealPlanResponse;
   todayDayIndex: number;
-  progress: PlanProgress;
   isApproving: boolean;
   onApprove: () => void | Promise<void>;
+  onActiveCtaPress: () => void;
   onCook?: (slot: MealPlanSlotResponse) => void;
   onRemove: (slot: MealPlanSlotResponse) => void;
 }
@@ -37,17 +52,26 @@ interface MealPlanViewProps {
 export function MealPlanView({
   plan,
   todayDayIndex,
-  progress,
   isApproving,
   onApprove,
+  onActiveCtaPress,
   onCook,
   onRemove,
 }: MealPlanViewProps) {
   const mode: 'draft' | 'active' = plan.shoppingListId ? 'active' : 'draft';
 
+  const visibleProgress = useMemo(
+    () => computeVisibleProgress(plan.slots),
+    [plan.slots],
+  );
+
   const slotsByDay = useMemo(() => {
     const grouped = new Map<number, MealPlanSlotResponse[]>();
     for (const slot of plan.slots) {
+      // Removed slots (status='skipped') are hidden entirely — design decision
+      // per BUGS.md B-20260504-03. The skip_meal action persists to the
+      // server, so the slot stays out on refetch.
+      if (slot.status === 'skipped') continue;
       const arr = grouped.get(slot.dayIndex) ?? [];
       arr.push(slot);
       grouped.set(slot.dayIndex, arr);
@@ -87,6 +111,15 @@ export function MealPlanView({
     });
   }, []);
 
+  // Track each day section's vertical offset inside the ScrollView so tapping
+  // a day tab can scroll the corresponding section into view (B-20260504-07).
+  // Invariant: the tapped day's own y is stable under its own collapse-toggle
+  // (only items below it shift). If a future change makes the tapped day's
+  // offset depend on items above expanding/collapsing, this rAF-then-scrollTo
+  // dance will land on a stale y — switch to a measureLayout call instead.
+  const scrollViewRef = useRef<ScrollView>(null);
+  const dayOffsets = useRef<Map<number, number>>(new Map());
+
   const handleSelectDay = useCallback(
     (i: number) => {
       setSelectedDay(i);
@@ -94,6 +127,15 @@ export function MealPlanView({
         const next = new Set(prev);
         next.delete(i);
         return next;
+      });
+      // Defer scroll until after the expand state commits and onLayout
+      // refreshes the offsets — otherwise the y for sections after a
+      // newly-expanded day is stale.
+      requestAnimationFrame(() => {
+        const y = dayOffsets.current.get(i);
+        if (y != null) {
+          scrollViewRef.current?.scrollTo({ y, animated: true });
+        }
       });
     },
     [],
@@ -129,9 +171,10 @@ export function MealPlanView({
         />
       </View>
 
-      <MealPlanProgressBar progress={progress} />
+      <MealPlanProgressBar progress={visibleProgress} />
 
       <ScrollView
+        ref={scrollViewRef}
         className="flex-1"
         contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 48 }}
       >
@@ -142,6 +185,10 @@ export function MealPlanView({
           return (
             <View
               key={i}
+              testID={`meal-plan-day-${i}`}
+              onLayout={(e) => {
+                dayOffsets.current.set(i, e.nativeEvent.layout.y);
+              }}
               className={`rounded-lg ${isSelected ? 'bg-primary-lightest' : ''}`}
             >
               <Pressable
@@ -187,6 +234,7 @@ export function MealPlanView({
         mode={mode}
         loading={isApproving}
         onApprove={() => onApprove()}
+        onActivePress={onActiveCtaPress}
       />
     </View>
   );

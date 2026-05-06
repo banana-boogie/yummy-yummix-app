@@ -60,7 +60,6 @@ export const planner = {
     swap: "Cambiar",
     remove: "Quitar",
     cooked: "Cocinada",
-    removed: "Quitada",
     leftover: "Sobras de antes en la semana",
     untitled: "Comida sin título",
     minutes: "{{n}} min",
@@ -88,7 +87,7 @@ export const planner = {
   },
   cta: {
     approve: "Hacer mi lista",
-    approved: "Lista de compras lista",
+    goToToday: "Ir a hoy",
   },
   error: {
     setupTitle: "Intentémoslo otra vez",

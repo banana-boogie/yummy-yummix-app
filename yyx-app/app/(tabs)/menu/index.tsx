@@ -10,7 +10,6 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { ResponsiveLayout } from '@/components/layouts/ResponsiveLayout';
 import { Text } from '@/components/common';
@@ -52,7 +51,6 @@ export default function MenuScreen() {
     swapSlot,
     applySwap,
     generateShoppingList,
-    planProgress,
     todaysSlots,
     hasCachedPlan,
     refetch,
@@ -193,7 +191,7 @@ export default function MenuScreen() {
     setApproving(true);
     try {
       await generateShoppingList();
-      router.push('/(tabs)/shopping' as never);
+      setMode('today');
     } catch (err) {
       Alert.alert(
         i18n.t('planner.error.shoppingListTitle'),
@@ -354,9 +352,9 @@ export default function MenuScreen() {
         <MealPlanView
           plan={activePlan}
           todayDayIndex={todayDayIndex()}
-          progress={planProgress}
           isApproving={approving}
           onApprove={handleApprove}
+          onActiveCtaPress={handleBackToToday}
           onRemove={handleRemove}
         />
       );
