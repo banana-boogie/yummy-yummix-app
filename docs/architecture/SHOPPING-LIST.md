@@ -75,7 +75,7 @@ The mutation queue (`services/offlineQueue/mutationQueue.ts`) is per-user-namesp
 2. Loads existing rows on the target list, indexes by **consolidation key**.
 3. Looks up each ingredient's `default_category_id` in one batched query so new rows land in the right category.
 4. For each incoming ingredient: try to merge into an existing row → else try to merge into a pending insert from this same batch → else create a new insert.
-5. Insert and update in two RPCs.
+5. Inserts new rows and updates matching existing rows through PostgREST writes.
 
 **Consolidation key** (in `services/utils/unitConversion.ts`):
 
